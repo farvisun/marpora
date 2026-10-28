@@ -27,3 +27,4 @@ cc 824fcf5ac8f83a29f727aa9fd1179a7f86bd3b894db3e36cc004016f836d1c1a # shrinks to
 cc fa71829931120e83dc5d57489a568a5dab317dffd2ab51733fa396de00305962 # shrinks to src = "$word\nword$"
 cc 6055a4f841bde4a7bbfb81cb067893d334be4b8a4994b9e83b204fa33d335db1 # shrinks to src = "~]~^~~^word~~^"
 cc f8faa20b45e82fc7fb633ee1b295b04e78af6b117825e88ec3e879c42ff6624a # shrinks to src = "~~~ ~**"
+cc 7cd5ff4f7a3bdea61279517ab8dbbae553c001cdfe6e23df4db75153db557e6c # shrinks to src = "&[ ](*)"

@@ -258,3 +258,9 @@ fn flavor_json_defaults_missing_fields() {
     let f: Flavor = serde_json::from_str(r#"{"inlineMath":true}"#).unwrap();
     assert_eq!(f, Flavor { inline_math: true, ..Flavor::default() });
 }
+
+#[test]
+fn whitespace_stays_inside_links() {
+    let doc = parse("&[ ](u) and [ x ](u) or *x* ").doc;
+    assert_eq!(serialize_doc(&doc), "&[ ](u) and [ x ](u) or *x*\n");
+}

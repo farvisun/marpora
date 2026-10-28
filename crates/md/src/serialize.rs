@@ -370,21 +370,29 @@ impl Inline<'_> {
 
         let text = node.text.as_deref().unwrap_or("");
         let is_code = has_mark(node, "code");
-        let (lead, core) = if is_code || !node.is_text() {
-            ("", text)
-        } else {
-            split_leading_ws(text)
-        };
-        self.flush_ws();
-        self.out.push_str(lead);
         // Open new marks so that the ones running longest are outermost.
         let mut new: Vec<&Mark> = marks
             .into_iter()
             .filter(|m| !self.open.iter().any(|(o, _)| same_open(o, m)))
             .collect();
         new.sort_by_key(|m| (std::cmp::Reverse(self.run_end(m, i)), mark_rank(m)));
+        // Whitespace moves out of delimiter runs (`* a*` is not emphasis), but a link's
+        // brackets may hold it, and `[ ](u)` must not become the empty ` [](u)`.
+        let hoist = new.iter().any(|m| m.kind != "link");
+        let (lead, core) = if is_code || !node.is_text() {
+            ("", text)
+        } else {
+            split_leading_ws(text)
+        };
+        self.flush_ws();
+        if hoist {
+            self.out.push_str(lead);
+        }
         for m in new {
             self.open_mark(m, i);
+        }
+        if !hoist {
+            self.out.push_str(lead);
         }
 
         match node.kind.as_str() {
@@ -397,7 +405,12 @@ impl Inline<'_> {
                     let escaped = self.escape(core);
                     self.out.push_str(&escaped);
                 }
-                self.pending_ws = trail.to_owned();
+                // As above: only delimiter runs closing here need the whitespace outside.
+                if self.closing_after(i).any(|m| m.kind != "link") {
+                    self.pending_ws = trail.to_owned();
+                } else {
+                    self.out.push_str(trail);
+                }
             }
             "soft_break" => self.newline(""),
             "hard_break" => {
@@ -598,6 +611,15 @@ impl Inline<'_> {
     }
 
     /// Index just past the nodes carrying `mark`, starting at node `at`.
+    /// The open marks that node `at + 1` does not continue.
+    fn closing_after(&self, at: usize) -> impl Iterator<Item = &Mark> {
+        let next = self.nodes.get(at + 1);
+        self.open
+            .iter()
+            .map(|(m, _)| m)
+            .filter(move |m| !next.is_some_and(|n| n.marks.iter().any(|x| same_open(m, x))))
+    }
+
     fn run_end(&self, mark: &Mark, at: usize) -> usize {
         self.nodes[at..]
             .iter()
