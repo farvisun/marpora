@@ -17,7 +17,9 @@ import { setMathOptions } from "./math";
 import { initMarkdown, parseMarkdown, setFlavor } from "./md";
 
 async function main() {
-  document.body.classList.add("typora-node", "native-window", "html-for-mac");
+  // No transitions while the window opens with the sidebar already shown.
+  document.body.classList.add("typora-node", "native-window", "html-for-mac", "no-collapse-outline", "allow-file-tree-scroll", "no-animation");
+  setTimeout(() => document.body.classList.remove("no-animation"), 500);
 
   const [backend] = await Promise.all([connect(), initMarkdown()]);
   const [settings, opened] = await Promise.all([backend.settings(), backend.initialDocument()]);
@@ -67,9 +69,19 @@ async function main() {
     });
   };
 
+  /** Open a file from the sidebar or Quick Open, with this window's edits sent first. */
+  const openFile = async (path: string) => {
+    if (path === ui.path) return;
+    await source.flush();
+    await sync.flush();
+    await backend.openHere(path);
+  };
+
   render(
     () => (
       <App
+        backend={backend}
+        onOpenFile={(path) => void openFile(path).catch(report)}
         mountEditor={mountEditor}
         mountSource={(el) => (sourceHost = el)}
         onOutlineClick={(pos) => {
@@ -138,6 +150,12 @@ async function main() {
       case "outline":
         setUi("sidebarTab", "outline");
         return setUi("sidebar", true);
+      case "articles":
+      case "file-tree":
+        setUi({ sidebarTab: "files", fileTree: id === "file-tree" });
+        return setUi("sidebar", true);
+      case "quick-open":
+        return setUi("quickOpen", !ui.quickOpen);
       case "focus-mode":
         setUi("focusMode", !ui.focusMode);
         return document.body.classList.toggle("on-focus-mode", ui.focusMode);
@@ -203,6 +221,9 @@ async function main() {
       } else if (mod && e.shiftKey && e.key.toLowerCase() === "l") {
         e.preventDefault();
         handleMenu("toggle-sidebar");
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        handleMenu("quick-open");
       } else if (mod && e.key === "/") {
         e.preventDefault();
         handleMenu("source-mode");

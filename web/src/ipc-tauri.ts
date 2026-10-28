@@ -1,6 +1,17 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { Backend, OpenedDoc, Patch, PatchResult, RemotePatch, Settings, ThemeCss } from "./ipc";
+import type {
+  Backend,
+  LibraryDocs,
+  LibraryEntry,
+  LibraryInfo,
+  OpenedDoc,
+  Patch,
+  PatchResult,
+  RemotePatch,
+  Settings,
+  ThemeCss,
+} from "./ipc";
 
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -27,6 +38,26 @@ export class TauriBackend implements Backend {
 
   openPath(path: string) {
     return invoke<void>("open_path", { path });
+  }
+
+  openHere(path: string) {
+    return invoke<void>("open_here", { path });
+  }
+
+  libraryInfo() {
+    return invoke<LibraryInfo>("library_info");
+  }
+
+  listFolder(path: string) {
+    return invoke<LibraryEntry[]>("list_folder", { path });
+  }
+
+  listDocuments(summaries: boolean) {
+    return invoke<LibraryDocs>("list_documents", { summaries });
+  }
+
+  recentFiles() {
+    return invoke<string[]>("recent_files");
   }
 
   applyPatch(docId: number, patch: Patch) {

@@ -10,6 +10,9 @@
   --control-text-color: #8c939b;
   --control-text-hover-color: #e6e8ea;
   --item-hover-bg-color: rgba(255, 255, 255, 0.06);
+  --active-file-bg-color: rgba(255, 255, 255, 0.08);
+  --active-file-border-color: #8c939b;
+  --window-border: 1px solid #2c2f33;
   --meta-content-color: #6d747b;
   --blur-text-color: #5a5f64;
   --select-text-bg-color: #36516f;
@@ -91,3 +94,6 @@ table th, table td { padding: 6px 13px; border: 1px solid var(--border); }
 thead, table tr:nth-child(2n) { background-color: #23262a; }
 
 footer.ty-footer { background: var(--bg-color); }
+
+#typora-quick-open-input input { background: var(--bg-color); border-color: var(--border); color: inherit; }
+.file-list-item-file-ext-part { opacity: 0.4; }

@@ -42,6 +42,39 @@ export interface ThemeCss {
   user: [string, string][];
 }
 
+/** A file or folder in the sidebar's file tree (src-tauri library.rs). */
+export interface LibraryEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  hasChildren: boolean;
+  /** Milliseconds since the epoch. */
+  modified: number;
+  created: number;
+}
+
+/** A Markdown file in the article list or Quick Open. */
+export interface LibraryDoc {
+  name: string;
+  path: string;
+  folder: string;
+  modified: number;
+  created: number;
+  /** The start of the file (article list only). */
+  summary: string;
+}
+
+export interface LibraryInfo {
+  folder: string | null;
+  home: string | null;
+}
+
+export interface LibraryDocs {
+  files: LibraryDoc[];
+  /** The folder holds more files than were listed. */
+  oversize: boolean;
+}
+
 export type PatchResult = { ok: true; version: number } | { ok: false; current: number };
 
 export interface Backend {
@@ -49,6 +82,16 @@ export interface Backend {
   initialDocument(): Promise<OpenedDoc>;
   /** Open a file in its own window (or focus the window showing it). */
   openPath(path: string): Promise<void>;
+  /** Open a file in this window when its document is saved, else in a new one. */
+  openHere(path: string): Promise<void>;
+  /** The folder the Files tab shows (the document's folder) and the home folder. */
+  libraryInfo(): Promise<LibraryInfo>;
+  /** One level of the file tree under the library folder. */
+  listFolder(path: string): Promise<LibraryEntry[]>;
+  /** Markdown files in the library folder, with summaries for the article list. */
+  listDocuments(summaries: boolean): Promise<LibraryDocs>;
+  /** Recently opened files, newest first. */
+  recentFiles(): Promise<string[]>;
   applyPatch(docId: number, patch: Patch): Promise<PatchResult>;
   /** Full text, used to resynchronise after a rejected patch. */
   documentText(docId: number): Promise<{ text: string; version: number }>;
@@ -108,6 +151,51 @@ export class MemoryBackend implements Backend {
   }
 
   async openPath(): Promise<void> {}
+
+  /** Test hook: files opened with `openHere`. */
+  opened: string[] = [];
+
+  async openHere(path: string) {
+    this.opened.push(path);
+  }
+
+  /** Test hook: a fake library folder, as path to text. */
+  library: { root: string; files: Record<string, string>; recent: string[] } = { root: "", files: {}, recent: [] };
+
+  async libraryInfo(): Promise<LibraryInfo> {
+    return { folder: this.library.root || null, home: "/home/me" };
+  }
+
+  async listFolder(path: string): Promise<LibraryEntry[]> {
+    const seen = new Map<string, LibraryEntry>();
+    for (const file of Object.keys(this.library.files)) {
+      if (!file.startsWith(`${path}/`)) continue;
+      const [name, ...rest] = file.slice(path.length + 1).split("/");
+      const isDirectory = rest.length > 0;
+      if (!seen.has(name))
+        seen.set(name, { name, path: `${path}/${name}`, isDirectory, hasChildren: isDirectory, modified: 0, created: 0 });
+    }
+    return [...seen.values()];
+  }
+
+  async listDocuments(summaries: boolean): Promise<LibraryDocs> {
+    const files = Object.entries(this.library.files).map(([path, text], i) => {
+      const cut = path.lastIndexOf("/");
+      return {
+        name: path.slice(cut + 1),
+        path,
+        folder: path.slice(0, cut),
+        modified: Date.now() - i * 60_000,
+        created: 0,
+        summary: summaries ? text.slice(0, 600) : "",
+      };
+    });
+    return { files, oversize: false };
+  }
+
+  async recentFiles() {
+    return this.library.recent;
+  }
 
   async applyPatch(_id: number, p: Patch): Promise<PatchResult> {
     if (p.baseVersion !== this.version) return { ok: false, current: this.version };

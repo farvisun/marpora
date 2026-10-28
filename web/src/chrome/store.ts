@@ -3,6 +3,35 @@
 import type { Node as PMNode } from "prosemirror-model";
 import { createStore } from "solid-js/store";
 
+/** Sidebar state kept across reloads of the window (opening a file reloads it). */
+interface SidebarState {
+  sidebar: boolean;
+  sidebarTab: "outline" | "files";
+  /** The Files tab shows the tree rather than the article list. */
+  fileTree: boolean;
+}
+
+const SIDEBAR_KEY = "marpora.sidebar";
+
+function savedSidebar(): SidebarState {
+  const defaults: SidebarState = { sidebar: false, sidebarTab: "outline", fileTree: false };
+  try {
+    return { ...defaults, ...JSON.parse(sessionStorage.getItem(SIDEBAR_KEY) ?? "{}") };
+  } catch {
+    return defaults;
+  }
+}
+
+/** Remember the sidebar for when this window reloads. */
+export function saveSidebar() {
+  try {
+    const { sidebar, sidebarTab, fileTree } = ui;
+    sessionStorage.setItem(SIDEBAR_KEY, JSON.stringify({ sidebar, sidebarTab, fileTree }));
+  } catch {
+    // Not remembered; the sidebar starts closed after a reload.
+  }
+}
+
 export interface OutlineItem {
   level: number;
   text: string;
@@ -16,8 +45,7 @@ export interface Counts {
 }
 
 export const [ui, setUi] = createStore({
-  sidebar: false,
-  sidebarTab: "outline" as "outline" | "files",
+  ...savedSidebar(),
   outline: [] as OutlineItem[],
   activeHeading: -1,
   counts: { words: 0, chars: 0, lines: 0 } as Counts,
@@ -27,6 +55,8 @@ export const [ui, setUi] = createStore({
   theme: "marpora",
   path: null as string | null,
   dirty: false,
+  /** Quick Open (⇧⌘O) is showing. */
+  quickOpen: false,
   /** The find and replace panel (chrome/search.ts). */
   search: {
     open: false,

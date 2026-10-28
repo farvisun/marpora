@@ -1,13 +1,19 @@
 // Window chrome around the editor, using Typora's element ids and classes so themes
 // that style the sidebar and footer apply.
 
-import { createEffect, For, Show } from "solid-js";
+import { createEffect } from "solid-js";
+import type { Backend } from "../ipc";
+import { QuickOpen } from "./QuickOpen";
 import type { Search } from "./search";
 import { SearchPanel } from "./SearchPanel";
+import { Sidebar } from "./Sidebar";
 import { setUi, ui } from "./store";
 
 export interface ChromeProps {
+  backend: Backend;
   onOutlineClick(pos: number): void;
+  /** Open a file picked in the sidebar or Quick Open. */
+  onOpenFile(path: string): void;
   onToggleSource(): void;
   mountEditor(el: HTMLElement): void;
   mountSource(el: HTMLElement): void;
@@ -18,39 +24,13 @@ export function App(props: ChromeProps) {
   createEffect(() => {
     document.body.classList.toggle("on-search-panel-open", ui.search.open);
     document.body.classList.toggle("on-replace-panel-open", ui.search.open && ui.search.replace);
+    document.body.classList.toggle("pin-outline", ui.sidebar);
   });
   return (
     <>
       <SearchPanel search={props.search} />
-      <Show when={ui.sidebar}>
-        <div id="typora-sidebar" class="sidebar">
-          <div class="sidebar-tabs">
-            <div
-              class="sidebar-tab"
-              classList={{ active: ui.sidebarTab === "outline" }}
-              onClick={() => setUi("sidebarTab", "outline")}
-            >
-              Outline
-            </div>
-          </div>
-          <div id="outline-content" class="sidebar-content outline-content">
-            <For each={ui.outline}>
-              {(item, i) => (
-                <div class={`outline-item-wrapper outline-h${item.level}`}>
-                  <div
-                    class="outline-item"
-                    classList={{ "outline-item-active": i() === ui.activeHeading }}
-                    style={{ "padding-left": `${(item.level - 1) * 16 + 12}px` }}
-                    onClick={() => props.onOutlineClick(item.pos)}
-                  >
-                    <span class="outline-label">{item.text || " "}</span>
-                  </div>
-                </div>
-              )}
-            </For>
-          </div>
-        </div>
-      </Show>
+      <Sidebar backend={props.backend} onOutlineClick={props.onOutlineClick} onOpenFile={props.onOpenFile} />
+      <QuickOpen backend={props.backend} onOpenFile={props.onOpenFile} />
       <content>
         <div ref={(el) => props.mountEditor(el)} />
         <div id="typora-source" ref={(el) => props.mountSource(el)} />
