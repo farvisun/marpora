@@ -10,6 +10,7 @@ use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::docs::Docs;
+use crate::library::{self, Recent};
 use crate::settings::{Settings, Store};
 use crate::themes::{self, ThemeCss, ThemeInfo};
 use crate::{menu, pandoc, windows};
@@ -153,6 +154,7 @@ pub async fn save_document(
         open.doc.mark_saved(version);
         open.path = Some(path.clone());
     });
+    app.state::<Recent>().add(&path);
     windows::set_title(&window, Some(&path));
     Ok(Some(Saved {
         path: path_string(&path),
@@ -324,6 +326,97 @@ async fn print_page(_window: WebviewWindow, _html: String, _pdf: Option<PathBuf>
 #[tauri::command]
 pub fn open_path(app: AppHandle, path: String) -> CmdResult<()> {
     windows::open(&app, Some(PathBuf::from(path))).map_err(|e| e.to_string())
+}
+
+/// Open `path` from the sidebar or Quick Open: in this window when its document has no
+/// unsaved changes, otherwise in a new one.
+#[tauri::command]
+pub fn open_here(
+    app: AppHandle,
+    window: WebviewWindow,
+    path: String,
+    docs: State<Docs>,
+) -> CmdResult<()> {
+    let dirty = docs
+        .for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.doc.is_dirty()))
+        .unwrap_or(false);
+    let path = PathBuf::from(path);
+    if dirty {
+        windows::open(&app, Some(path))
+    } else {
+        windows::replace(&app, &window, path)
+    }
+    .map_err(|e| e.to_string())
+}
+
+/// The folder the sidebar's Files tab shows: the document's folder.
+fn library_root(window: &WebviewWindow, docs: &Docs) -> Option<PathBuf> {
+    let id = docs.for_window(window.label())?;
+    let path = docs.with(id, |open| open.path.clone())??;
+    let dir = path.parent()?;
+    Some(std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf()))
+}
+
+#[derive(Serialize)]
+pub struct LibraryInfo {
+    folder: Option<String>,
+    /// The home folder, which the sidebar and Quick Open write as `~`.
+    home: Option<String>,
+}
+
+#[tauri::command]
+pub fn library_info(window: WebviewWindow, docs: State<Docs>) -> LibraryInfo {
+    LibraryInfo {
+        folder: library_root(&window, &docs).as_deref().map(path_string),
+        home: std::env::var("HOME").ok(),
+    }
+}
+
+/// One level of the file tree; `path` must be inside the library folder.
+#[tauri::command]
+pub async fn list_folder(
+    window: WebviewWindow,
+    path: String,
+    docs: State<'_, Docs>,
+) -> CmdResult<Vec<library::Entry>> {
+    let root = library_root(&window, &docs).ok_or("no folder is open")?;
+    let dir = PathBuf::from(path);
+    if !library::contains(&root, &dir) {
+        return Err(format!("{} is outside {}", dir.display(), root.display()));
+    }
+    tauri::async_runtime::spawn_blocking(move || library::list_dir(&dir))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// The Markdown files in the library folder, with summaries (the article list) or
+/// without (Quick Open, which lists more).
+#[tauri::command]
+pub async fn list_documents(
+    window: WebviewWindow,
+    summaries: bool,
+    docs: State<'_, Docs>,
+) -> CmdResult<library::Docs> {
+    let Some(root) = library_root(&window, &docs) else {
+        return Ok(library::Docs {
+            files: Vec::new(),
+            oversize: false,
+        });
+    };
+    let limit = if summaries {
+        library::MAX_LIST
+    } else {
+        library::MAX_QUICK_OPEN
+    };
+    tauri::async_runtime::spawn_blocking(move || library::walk(&root, limit, summaries))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn recent_files(recent: State<Recent>) -> Vec<String> {
+    recent.files()
 }
 
 /// Frontend errors, printed where `tauri dev` shows them.

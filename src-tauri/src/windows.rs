@@ -7,6 +7,7 @@ use marpora_core::Document;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::docs::{Docs, OpenDoc};
+use crate::library::Recent;
 
 static NEXT_WINDOW: AtomicU64 = AtomicU64::new(1);
 
@@ -21,18 +22,8 @@ pub fn open(app: &AppHandle, path: Option<PathBuf>) -> tauri::Result<()> {
         return w.set_focus();
     }
 
-    let text = match &path {
-        Some(p) => std::fs::read_to_string(p).unwrap_or_default(),
-        None => String::new(),
-    };
     let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
-    docs.insert(
-        &label,
-        OpenDoc {
-            doc: Document::from_markdown(&text),
-            path: path.clone(),
-        },
-    );
+    load(app, &label, path.clone());
 
     let (width, height) = window_size();
     let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
@@ -60,6 +51,39 @@ pub fn open(app: &AppHandle, path: Option<PathBuf>) -> tauri::Result<()> {
     }
     window.set_focus()?;
     Ok(())
+}
+
+/// Show `path` in `window` in place of its document, unless another window shows it
+/// already (that one is focused instead). The page reloads to show it.
+pub fn replace(app: &AppHandle, window: &WebviewWindow, path: PathBuf) -> tauri::Result<()> {
+    let path = std::fs::canonicalize(&path).unwrap_or(path);
+    let docs = app.state::<Docs>();
+    if let Some(label) = docs.window_for_path(&path)
+        && let Some(w) = app.get_webview_window(&label)
+    {
+        return w.set_focus();
+    }
+    load(app, window.label(), Some(path.clone()));
+    set_title(window, Some(&path));
+    window.reload()
+}
+
+/// Read `path` (or start an untitled document) as the document of window `label`.
+fn load(app: &AppHandle, label: &str, path: Option<PathBuf>) {
+    let text = match &path {
+        Some(p) => std::fs::read_to_string(p).unwrap_or_default(),
+        None => String::new(),
+    };
+    if let Some(p) = &path {
+        app.state::<Recent>().add(p);
+    }
+    app.state::<Docs>().insert(
+        label,
+        OpenDoc {
+            doc: Document::from_markdown(&text),
+            path,
+        },
+    );
 }
 
 /// Default window size; `MARPORA_WINDOW_SIZE=WxH` overrides it (parity captures).

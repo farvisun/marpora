@@ -24,13 +24,16 @@ struct Inner {
 }
 
 impl Docs {
-    /// Register a document shown in window `label`. Returns its id.
+    /// Register a document shown in window `label`, replacing the one it showed.
+    /// Returns its id.
     pub fn insert(&self, label: &str, doc: OpenDoc) -> u64 {
         let mut inner = self.inner.lock().unwrap();
         inner.next_id += 1;
         let id = inner.next_id;
         inner.docs.insert(id, doc);
-        inner.windows.insert(label.to_owned(), id);
+        if let Some(old) = inner.windows.insert(label.to_owned(), id) {
+            inner.docs.remove(&old);
+        }
         id
     }
 

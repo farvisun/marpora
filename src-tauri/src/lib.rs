@@ -2,6 +2,7 @@
 
 mod commands;
 mod docs;
+mod library;
 mod menu;
 mod pandoc;
 #[cfg(target_os = "macos")]
@@ -32,6 +33,11 @@ pub fn run() {
             commands::is_dirty,
             commands::save_document,
             commands::open_path,
+            commands::open_here,
+            commands::library_info,
+            commands::list_folder,
+            commands::list_documents,
+            commands::recent_files,
             commands::frontend_log,
             commands::get_settings,
             commands::list_themes,
@@ -47,6 +53,7 @@ pub fn run() {
             // The menu lists themes and checks the current one, so settings come first.
             app.manage(settings::Store::load(app.handle()));
             app.manage(commands::ExportGrants::default());
+            app.manage(library::Recent::load(app.handle()));
             app.set_menu(menu::build(app.handle())?)?;
 
             let paths: Vec<PathBuf> = std::env::args()
