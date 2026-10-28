@@ -1,0 +1,75 @@
+//! App-wide preferences, stored as JSON in the app config directory and broadcast to
+//! every window as a `settings` event when they change.
+
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+use marpora_core::Flavor;
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Settings {
+    /// Theme id, see `themes.rs`.
+    pub theme: String,
+    /// Optional Markdown syntax. Windows read it when they open, like Typora, which
+    /// asks for a restart when these change.
+    pub flavor: Flavor,
+    /// Number display equations (Typora's "Auto Numbering Math Equations", on by default).
+    pub auto_number_math: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            theme: "marpora".to_owned(),
+            flavor: Flavor::default(),
+            auto_number_math: true,
+        }
+    }
+}
+
+pub struct Store {
+    path: Option<PathBuf>,
+    settings: Mutex<Settings>,
+}
+
+impl Store {
+    pub fn load(app: &AppHandle) -> Self {
+        let path = app.path().app_config_dir().ok().map(|d| d.join("settings.json"));
+        let settings = path
+            .as_ref()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        Store {
+            path,
+            settings: Mutex::new(settings),
+        }
+    }
+
+    pub fn get(&self) -> Settings {
+        self.settings.lock().unwrap().clone()
+    }
+
+    /// Change, save and broadcast the settings.
+    pub fn update(&self, app: &AppHandle, f: impl FnOnce(&mut Settings)) -> Settings {
+        let settings = {
+            let mut s = self.settings.lock().unwrap();
+            f(&mut s);
+            s.clone()
+        };
+        if let Some(path) = &self.path {
+            let saved = path
+                .parent()
+                .map_or(Ok(()), std::fs::create_dir_all)
+                .and_then(|()| std::fs::write(path, serde_json::to_string_pretty(&settings)?));
+            if let Err(e) = saved {
+                eprintln!("could not save settings to {}: {e}", path.display());
+            }
+        }
+        let _ = app.emit("settings", &settings);
+        settings
+    }
+}
