@@ -19,6 +19,9 @@
   --select-text-bg-color: #b5d6fc;
   --rawblock-edit-panel-bd: #f5f6f7;
   --panel-border-color: #777777;
+  --active-toggle-btn-color: #ddd;
+  --search-select-bg-color: #000;
+  --search-select-text-color: #fff;
   /* Diagram settings themes can override (Typora's mermaid.css). */
   --mermaid-theme: default;
   --mermaid-sequence-numbers: off;
@@ -739,6 +742,145 @@ sup.md-footnote a {
     display: none;
   }
 }
+
+/* ---- Find and replace (chrome/SearchPanel.tsx), with Typora's rules ----------
+   Typora gets the panel's controls from Bootstrap 3; the parts it uses are inlined. */
+
+.md-search-hit { background-color: rgba(248, 192, 116, 0.3); }
+.md-search-hit * { padding: 0; margin: 0; border: 0; background: none; }
+.cm-search-hit { background-color: rgba(248, 192, 116, 0.3); font-family: inherit !important; }
+.md-search-hit.md-search-select,
+.md-search-select {
+  background: var(--search-select-bg-color);
+  color: var(--search-select-text-color);
+  text-shadow: none;
+}
+.md-search-select .md-inline-math script { color: inherit; }
+
+#md-searchpanel {
+  display: none;
+  position: fixed;
+  cursor: default;
+  width: 100%;
+  background: inherit;
+  z-index: 1001;
+  top: 0;
+  left: 0;
+  right: 0;
+  box-shadow: rgba(0, 0, 0, 0.6) 0 0 0.5em;
+  padding: 5px 8px 0 16px;
+  transform: translate3d(0, 0, 0);
+  max-height: 39px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+#md-searchpanel.searchpanel-replace-mode { max-height: 74px; transition: max-height 0.4s; }
+#md-searchpanel.searchpanel-msg-mode { max-height: 104px; transition: max-height 0.4s; }
+#md-searchpanel.searchpanel-replace-mode #md-search-type-label { visibility: hidden; }
+#searchpanel-search-group { display: flex; flex-wrap: nowrap; }
+.ty-search-panel-row { padding: 2px; position: relative; }
+.ty-replace-panel-row { opacity: 0; visibility: hidden; transition: opacity 0s ease-in; margin-top: 2px; }
+.searchpanel-replace-mode .ty-replace-panel-row { opacity: 1; visibility: visible; transition: opacity 0.2s 0.15s ease-out; }
+
+#md-searchpanel .input-group-addon {
+  display: table-cell;
+  vertical-align: middle;
+  white-space: nowrap;
+  height: 26px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.42857143;
+  text-align: center;
+  width: 1%;
+}
+#md-searchpanel .btn { position: relative; z-index: 90; cursor: pointer; user-select: none; -webkit-user-select: none; }
+#md-searchpanel .btn label { cursor: pointer; font-weight: normal; }
+#md-searchpanel .btn:not(.close-btn):hover { box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }
+#md-searchpanel .search-type-selection { display: inline-block; width: 76px; border-left: 0; border-right: 0; }
+#md-searchpanel #md-search-type-label,
+#md-searchpanel #md-replace-type-label { line-height: 26px; }
+#md-searchpanel .search-caret { position: relative; vertical-align: middle; top: -1px; }
+#md-searchpanel #search-panel-prev { border-right: 0; padding: 0 8px; }
+#md-searchpanel #search-panel-next { border-left: 0; padding: 0 8px; }
+#md-searchpanel .search-chevron { vertical-align: -1px; }
+#md-searchpanel #search-panel-status { min-width: 80px; text-align: right; border-left: 0; padding: 0 12px 0 0; line-height: inherit; }
+#search-panel-status .error-message { color: #f44336; }
+#md-searchpanel .input-group-addon.close-btn { border: 0; background: none; padding-right: 0; opacity: 0.8; }
+#md-searchpanel .close-btn .ion-close-round { display: inline-block; cursor: pointer; padding: 5px 2px 5px 6px; }
+#md-searchpanel #search-panel-replaceall-btn { padding-right: 15px; border-right: 0; text-align: left; }
+#md-searchpanel #search-panel-replace-btn { text-align: right; border-left: 0; }
+#md-searchpanel #search-panel-replace-btn + .input-group-addon { text-align: right; border-left: 0; }
+
+#md-searchpanel input {
+  display: block;
+  width: 100%;
+  height: 26px;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.42857143;
+  color: inherit;
+  background: inherit;
+  border: 1px solid #ccc;
+  border-radius: 0;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+}
+#md-searchpanel input:focus {
+  border-color: #66afe9;
+  outline: 0;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(102, 175, 233, 0.6);
+}
+#md-searchpanel input::placeholder { color: #999; }
+
+.searchpanel-search-option-btn {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  z-index: 99;
+  cursor: pointer;
+  margin-top: 1px;
+  padding: 1px;
+  border-radius: 3px;
+  line-height: 10px;
+  border: 1px solid var(--active-toggle-btn-color);
+}
+.searchpanel-search-option-btn.active { background-color: var(--active-toggle-btn-color); color: #000; }
+#searchpanel-case-option-btn { right: 60px; }
+#searchpanel-word-option-btn { right: 33px; }
+#md-searchpanel svg.icon { width: 20px; height: 14px; stroke: none; fill: currentColor; }
+
+#searchpanel-msg {
+  display: block;
+  margin: 0 0 4px;
+  padding: 1px 0 2px 15px;
+  font-size: 13px;
+  color: #8a6d3b;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #eee;
+  opacity: 0;
+  transition: opacity 0s ease-in;
+  overflow: hidden;
+  max-height: 28px;
+  visibility: hidden;
+}
+#md-searchpanel.searchpanel-msg-mode #searchpanel-msg { opacity: 1; visibility: visible; transition: opacity 0.2s 0.2s ease-out; }
+#searchpanel-msg .alert { padding: 0; margin: 0; border: 0; }
+.searchpanel-msg-icon { display: inline-block; margin-right: 4px; }
+.searchpanel-msg-btn {
+  float: right;
+  padding-left: 4px;
+  padding-right: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline;
+  margin-right: 4px;
+}
+
+.on-search-panel-open content { top: 20px; }
 
 /* ---- Export (src/export.ts): the page is `body.typora-export`, as in Typora ---- */
 

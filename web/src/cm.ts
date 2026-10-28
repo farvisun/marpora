@@ -23,7 +23,7 @@ export interface CodeMirrorEditor {
   setValue(text: string): void;
   getCursor(): { line: number; ch: number };
   setCursor(line: number, ch?: number): void;
-  scrollIntoView(pos: { line: number; ch: number } | null, margin?: number): void;
+  scrollIntoView(pos: CodeMirrorPos | { from: CodeMirrorPos; to: CodeMirrorPos } | null, margin?: number): void;
   focus(): void;
   refresh(): void;
   on(event: string, handler: (...args: never[]) => void): void;
@@ -32,6 +32,19 @@ export interface CodeMirrorEditor {
   undo(): void;
   redo(): void;
   execCommand(name: string): void;
+  posFromIndex(index: number): CodeMirrorPos;
+  indexFromPos(pos: CodeMirrorPos): number;
+  markText(from: CodeMirrorPos, to: CodeMirrorPos, options: { className: string }): { clear(): void };
+  setSelection(anchor: CodeMirrorPos, head?: CodeMirrorPos, options?: { scroll?: boolean }): void;
+  getSelection(): string;
+  replaceRange(text: string, from: CodeMirrorPos, to?: CodeMirrorPos, origin?: string): void;
+  operation<T>(fn: () => T): T;
+  off(event: string, handler: (...args: never[]) => void): void;
+}
+
+export interface CodeMirrorPos {
+  line: number;
+  ch: number;
 }
 
 const ROOT = "/node_modules/codemirror/";

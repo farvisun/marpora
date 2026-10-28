@@ -27,6 +27,19 @@ export const [ui, setUi] = createStore({
   theme: "marpora",
   path: null as string | null,
   dirty: false,
+  /** The find and replace panel (chrome/search.ts). */
+  search: {
+    open: false,
+    replace: false,
+    /** "1 / 3", "No Results", ... */
+    status: "",
+    error: false,
+    /** "Replaced 3 occurrence(s)", with an Undo button, for a few seconds. */
+    message: null as string | null,
+    options: { caseSensitive: false, wholeWord: false, regexp: false },
+    /** Bumped on every open, to focus the search box. */
+    focus: 0,
+  },
 });
 
 export function outlineOf(doc: PMNode): OutlineItem[] {

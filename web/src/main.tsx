@@ -8,6 +8,7 @@ import { countText, docText, outlineOf, setUi, ui } from "./chrome/store";
 import { createEditor, runCommand } from "./editor/editor";
 import { DocSync } from "./editor/sync";
 import { connect, inTauri } from "./ipc";
+import { Search, editorTarget, sourceTarget } from "./chrome/search";
 import { SourceMode } from "./chrome/source";
 import { applyTheme } from "./chrome/theme";
 import { exportHtml } from "./export";
@@ -37,7 +38,13 @@ async function main() {
   let view!: EditorView;
   let sourceHost!: HTMLElement;
   const source = new SourceMode(backend, opened.id, sync, () => view, () => sourceHost);
-  const toggleSource = async () => setUi("sourceMode", await source.toggle());
+  const search = new Search(() =>
+    source.active && source.codeMirror ? sourceTarget(source.codeMirror, () => search.refresh()) : editorTarget(view),
+  );
+  const toggleSource = async () => {
+    setUi("sourceMode", await source.toggle());
+    search.retarget();
+  };
   let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   const refresh = () => {
@@ -55,6 +62,7 @@ async function main() {
         const head = v.state.selection.head;
         setUi("activeHeading", ui.outline.findLastIndex((h) => h.pos <= head));
         if (!refreshTimer) refreshTimer = setTimeout(refresh, 150);
+        search.refresh();
       },
     });
   };
@@ -71,6 +79,7 @@ async function main() {
           view.focus();
         }}
         onToggleSource={() => void toggleSource()}
+        search={search}
       />
     ),
     document.body,
@@ -139,6 +148,14 @@ async function main() {
         return void toggleSource();
       case "close":
         return void closeWindow();
+      case "find":
+        return search.open(false);
+      case "replace":
+        return search.open(true);
+      case "find-next":
+        return search.step(1);
+      case "find-previous":
+        return search.step(-1);
       default:
         if (id.startsWith("theme:")) return void backend.setTheme(id.slice(6));
         // The other export formats go through Pandoc, from the core's text.
@@ -189,6 +206,12 @@ async function main() {
       } else if (mod && e.key === "/") {
         e.preventDefault();
         handleMenu("source-mode");
+      } else if (mod && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        handleMenu(e.altKey ? "replace" : "find");
+      } else if (mod && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        handleMenu(e.shiftKey ? "find-previous" : "find-next");
       } else if (e.key === "F8") handleMenu("focus-mode");
       else if (e.key === "F9") handleMenu("typewriter-mode");
     });

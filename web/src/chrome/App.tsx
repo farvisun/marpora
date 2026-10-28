@@ -1,7 +1,9 @@
 // Window chrome around the editor, using Typora's element ids and classes so themes
 // that style the sidebar and footer apply.
 
-import { For, Show } from "solid-js";
+import { createEffect, For, Show } from "solid-js";
+import type { Search } from "./search";
+import { SearchPanel } from "./SearchPanel";
 import { setUi, ui } from "./store";
 
 export interface ChromeProps {
@@ -9,11 +11,17 @@ export interface ChromeProps {
   onToggleSource(): void;
   mountEditor(el: HTMLElement): void;
   mountSource(el: HTMLElement): void;
+  search: Search;
 }
 
 export function App(props: ChromeProps) {
+  createEffect(() => {
+    document.body.classList.toggle("on-search-panel-open", ui.search.open);
+    document.body.classList.toggle("on-replace-panel-open", ui.search.open && ui.search.replace);
+  });
   return (
     <>
+      <SearchPanel search={props.search} />
       <Show when={ui.sidebar}>
         <div id="typora-sidebar" class="sidebar">
           <div class="sidebar-tabs">

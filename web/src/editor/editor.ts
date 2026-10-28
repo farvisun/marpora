@@ -15,6 +15,7 @@ import { hiddenSourceKeys } from "./navigation";
 import { baseKeys, typoraKeymap } from "./keymap";
 import { nodeViews, tocPlugin, type ViewContext } from "./nodeviews";
 import { revealPlugin } from "./reveal";
+import { searchPlugin } from "./search";
 import { tasksPlugin } from "./tasks";
 
 export interface EditorOptions extends ViewContext {
@@ -40,6 +41,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       tocPlugin,
       highlightPlugin,
       mathPlugin,
+      searchPlugin,
       ...(opts.plugins ?? []),
     ],
   });

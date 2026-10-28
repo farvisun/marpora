@@ -44,6 +44,11 @@ export class SourceMode {
   private sent = "";
   active = false;
 
+  /** The source editor, once source mode has been entered. */
+  get codeMirror(): CodeMirrorEditor | null {
+    return this.editor;
+  }
+
   constructor(
     private backend: Backend,
     private docId: number,

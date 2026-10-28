@@ -49,9 +49,13 @@ const EDIT_TOP: &[Item] = &[
     ("redo", "Redo", Some("CmdOrCtrl+Shift+Z")),
 ];
 
-const EDIT_BOTTOM: &[Item] = &[
+/// Edit › Find and Replace.
+const FIND: &[Item] = &[
     ("find", "Find…", Some("CmdOrCtrl+F")),
-    ("replace", "Find and Replace…", Some("CmdOrCtrl+Alt+F")),
+    ("find-next", "Find Next", Some("CmdOrCtrl+G")),
+    ("find-previous", "Find Previous", Some("CmdOrCtrl+Shift+G")),
+    ("-", "", None),
+    ("replace", "Replace…", Some("CmdOrCtrl+Alt+F")),
 ];
 
 const PARAGRAPH: &[Item] = &[
@@ -156,7 +160,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
     edit.push(Box::new(PredefinedMenuItem::paste(app, None)?));
     edit.push(Box::new(PredefinedMenuItem::select_all(app, None)?));
     edit.push(Box::new(PredefinedMenuItem::separator(app)?));
-    edit.extend(items(app, EDIT_BOTTOM)?);
+    edit.push(Box::new(submenu(app, "Find and Replace", items(app, FIND)?)?));
 
     let current = app.state::<Store>().get().theme;
     let mut theme_items: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
