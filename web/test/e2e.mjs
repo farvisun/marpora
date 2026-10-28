@@ -371,6 +371,41 @@ await lib.reload();
 await lib.waitForSelector("#write");
 check("sidebar kept across reload", await lib.locator("body.pin-outline #typora-sidebar.use-file-tree-style.active-tab-files").isVisible());
 
+// The file changes on disk: applied in place when there are no unsaved edits, else asked.
+const disk = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+disk.on("pageerror", (e) => errors.push(e.message));
+await disk.goto(process.env.URL ?? "http://localhost:1420/");
+await disk.waitForSelector("#write");
+const diskText = () => disk.evaluate(async () => {
+  await window.marpora.sync.flush();
+  return (await window.marpora.backend.documentText(1)).text;
+});
+await disk.evaluate(() => window.marpora.backend.changeOnDisk("# From disk\n\nOne\n"));
+await disk.waitForSelector("#write h1:text('From disk')");
+check("clean document reloads in place", (await diskText()) === "# From disk\n\nOne\n" &&
+  !(await disk.evaluate(() => window.marpora.backend.isDirty(1))));
+let asked = null;
+disk.on("dialog", (d) => { asked = d.message(); void (asked && globalThis.acceptDialog ? d.accept() : d.dismiss()); });
+await disk.click("#write p");
+await disk.keyboard.press("End");
+await disk.keyboard.type(" mine");
+await diskText();
+globalThis.acceptDialog = false;
+await disk.evaluate(() => window.marpora.backend.changeOnDisk("# From disk\n\nTwo\n"));
+await disk.waitForTimeout(300);
+check("unsaved edits: asks first", asked === "File content is changed by external applications. Reload content from disk ?", String(asked));
+check("keeping edits", (await diskText()) === "# From disk\n\nOne mine\n", await diskText());
+globalThis.acceptDialog = true;
+await disk.evaluate(() => window.marpora.backend.changeOnDisk("# From disk\n\nTwo\n"));
+await disk.waitForTimeout(300);
+check("reloading drops edits", (await diskText()) === "# From disk\n\nTwo\n" &&
+  (await disk.locator("#write p").textContent()) === "Two", await diskText());
+await disk.evaluate(() => window.marpora.handleMenu("source-mode"));
+await disk.waitForSelector("#typora-source .CodeMirror");
+await disk.evaluate(() => window.marpora.backend.changeOnDisk("# From disk\n\nThree\n"));
+await disk.waitForTimeout(300);
+check("source mode shows the change", (await disk.evaluate(() => window.marpora.source.codeMirror.getValue())) === "# From disk\n\nThree\n");
+
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();
 process.exit(failures ? 1 : 0);
