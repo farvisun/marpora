@@ -1,0 +1,22 @@
+[package]
+name = "marpora-md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+wasm = ["dep:wasm-bindgen"]
+
+[dependencies]
+comrak = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+unicode-width = "0.2.3"
+wasm-bindgen = { version = "0.2.129", optional = true }
+
+[dev-dependencies]
+proptest.workspace = true
+

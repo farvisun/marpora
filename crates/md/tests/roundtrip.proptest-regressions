@@ -1,0 +1,29 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 00bd96f200c65306be009cd1bff4c431e18c70b55a27c127cbc56900d319f938 # shrinks to src = "http://a.co`* "
+cc 6564a9c70df6b39a275cdd3fbd6ccaadd1c8c8ff2698c22681be1192a3fbc702 # shrinks to src = "==]http://a.co *=="
+cc 3f1ce1f434110945225b36390831fd54e246b90be74a241a61711c3f75bbdb6f # shrinks to src = "*http://a.co>\\)"
+cc a989d8260d8ba03de2528098019b7ace3fbfbae6500755b10b3a164c1df05f61 # shrinks to src = "][http://a.co"
+cc c38cc42976568f0f6d65c680883fc44d0cf0af8922360f2c3d66099533405eca # shrinks to src = "http://a.co$>* "
+cc b7f58804310505f810119b21d7034a94247b299b3377042c67a9b0deef2ec002 # shrinks to src = "*http://a.co**"
+cc 651ca84526f4a072edae918e6effb03904416e7283e051108da0f765de5f781f # shrinks to src = "\\ \\**http://a.co**"
+cc 5f9fbe6f409f30d0b2764504c3e32e52cbb8dcab4dd4ceb79b2c8540a2009c5d # shrinks to src = "word*http://a.co*:"
+cc c8f7a1e9e935e203b2a591a4fe5315d70eae91a91fe982dd258ee2d73d7538bb # shrinks to src = "==_*_=="
+cc 18cf3fe489c54c81fb21461cb34316b6177d9740483b6f5c3867a23dcf53896c # shrinks to src = "*_word_*\\"
+cc f0f5639ace60fc8ee28ce27d9791af4dfcace6e9985ef054ea3281465da7ee44 # shrinks to src = ">word\n:-"
+cc 26358cf92b15a4994f8a26151a9b082813c0e86b62db4013698b122daf001082 # shrinks to src = "__`__$[$"
+cc 1d24c3085fc876542b5197dc641b8e510054221c47bfe5793bd19caa98946cee # shrinks to src = "word*~word*~"
+cc 15c7eacd5c85dd4763cc06c18492be33863d5c9f20fe150ce55ba83e2a25be0e # shrinks to src = "__*word*~ $__\\"
+cc e7eab44dd5296ba7c67a52be8d4d919e0b8a5b5b7819a051cd2a4c089dcc7374 # shrinks to src = "_\\~ $_"
+cc 927c25a3be03fc39b31f280759fd0794fa87d49a2b29a1bddde19fc43066d169 # shrinks to src = "42~)~"
+cc 54f6ca11028aa00d9c9b1ba7d13d4bc47a8ab820b0b6350162c54bd8db1135d8 # shrinks to src = ">___"
+cc faf6ce3cff09538b3f7df51801b59bcc5f511430b83940a41258e3af42103e79 # shrinks to src = "^\\[^"
+cc 4bd2446d99279057dd60a56885918e3fb48fef93e29bfffad019ec55c829af1b # shrinks to src = "~~~\\\\:"
+cc 824fcf5ac8f83a29f727aa9fd1179a7f86bd3b894db3e36cc004016f836d1c1a # shrinks to src = "**\n-|"
+cc fa71829931120e83dc5d57489a568a5dab317dffd2ab51733fa396de00305962 # shrinks to src = "$word\nword$"
+cc 6055a4f841bde4a7bbfb81cb067893d334be4b8a4994b9e83b204fa33d335db1 # shrinks to src = "~]~^~~^word~~^"
+cc f8faa20b45e82fc7fb633ee1b295b04e78af6b117825e88ec3e879c42ff6624a # shrinks to src = "~~~ ~**"
