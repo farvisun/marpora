@@ -302,6 +302,75 @@ check("source mode find", (await searchStatus()) === "1 / 1" && sourceHits.join(
 await inline.keyboard.press("Escape");
 await inline.evaluate(() => window.marpora.handleMenu("source-mode"));
 
+// The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
+const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+lib.on("pageerror", (e) => errors.push(e.message));
+await lib.goto(process.env.URL ?? "http://localhost:1420/");
+await lib.waitForSelector("#write");
+await lib.evaluate(async () => {
+  const { backend, sync } = window.marpora;
+  backend.library = {
+    root: "/home/me/notes",
+    files: {
+      "/home/me/notes/todo.md": "# Todo\n\nBuy milk",
+      "/home/me/notes/Welcome.md": "---\ntitle: Hello there\n---\nBody",
+      "/home/me/notes/sub/deep.md": "Deep",
+    },
+    recent: ["/home/me/notes/Welcome.md", "/home/me/old/plan.md"],
+  };
+  await backend.setText(1, "# One\n\n## Two\n\n# Three\n");
+  await sync.resync();
+});
+await lib.evaluate(() => window.marpora.handleMenu("outline"));
+await lib.waitForSelector("#outline-content .outline-h2");
+check("sidebar shows", await lib.locator("body.pin-outline #typora-sidebar.active-tab-outline").isVisible());
+check("outline nests headings",
+  (await lib.locator("#outline-content > .outline-h1").count()) === 2 &&
+  (await lib.locator(".outline-h1 > .outline-children > .outline-h2 .outline-label").textContent()) === "Two");
+await lib.evaluate(() => window.marpora.handleMenu("articles"));
+await lib.waitForSelector("#file-library-list[data-state=complete] .file-library-node");
+check("articles tab", (await lib.locator("#sidepanel-segmented-input-files").textContent()) === "Articles" &&
+  await lib.locator("#file-library-list").isVisible());
+const listNames = await lib.locator("#file-library-list-children .file-list-item-file-name").allTextContents();
+check("article list grouped by folder, sorted naturally", listNames.join() === "todo.md,Welcome.md,deep.md", listNames.join());
+check("article summaries", (await lib.locator(".file-list-item[data-path$='Welcome.md'] .file-list-item-summary").innerHTML()) === "Hello there<br>Body" &&
+  (await lib.locator(".file-list-item[data-path$='todo.md'] .file-list-item-summary").innerHTML()).includes("<br>Buy milk"));
+check("folder names shown", (await lib.locator("#file-library-list-children.show-folder-name").count()) === 1 &&
+  (await lib.locator(".file-list-item[data-path$='deep.md'] .file-list-item-parent-loc").textContent()) === "sub");
+await lib.locator(".file-list-item[data-path$='todo.md']").click();
+const opened = () => lib.evaluate(() => window.marpora.backend.opened.slice());
+check("click opens the file", (await opened()).at(-1) === "/home/me/notes/todo.md");
+
+await lib.evaluate(() => window.marpora.handleMenu("file-tree"));
+await lib.waitForSelector("#file-library-tree .file-node-root .file-tree-node");
+const treeNames = await lib.locator(".file-node-root > .file-node-children > .file-tree-node > .file-node-content .file-node-title").allTextContents();
+check("file tree: folders first", treeNames.join() === "sub,todo.md,Welcome.md", treeNames.join());
+await lib.locator(".file-tree-node[data-path$='/sub'] > .file-node-content").click();
+await lib.waitForSelector(".file-tree-node[data-path$='/sub'].file-node-expanded .file-tree-node[data-path$='deep.md']");
+check("folder expands", true);
+await lib.locator(".file-tree-node[data-path$='deep.md'] > .file-node-content").click();
+check("tree opens the file", (await opened()).at(-1) === "/home/me/notes/sub/deep.md");
+
+await lib.click("#write");
+await lib.keyboard.press("Meta+Shift+o");
+await lib.waitForSelector("#typora-quick-open .typora-quick-open-item");
+check("quick open shows recent files first",
+  (await lib.locator("#ty-quick-open-recent-list-inner .typora-quick-open-item-title").allTextContents()).join() === "Welcome.md,plan.md");
+await lib.keyboard.type("deep");
+const quick = await lib.locator("#typora-quick-open .typora-quick-open-item.active .typora-quick-open-item-title").innerHTML();
+check("quick open filters and marks", quick === "<b>deep</b>.md", quick);
+check("quick open path", (await lib.locator(".typora-quick-open-item.active .typora-quick-open-item-path").textContent()) === "notes/sub/");
+await lib.keyboard.press("Enter");
+check("enter opens and closes", (await opened()).at(-1) === "/home/me/notes/sub/deep.md" &&
+  !(await lib.locator("#typora-quick-open").isVisible()));
+await lib.keyboard.press("Meta+Shift+o");
+await lib.keyboard.press("Escape");
+check("escape closes quick open", !(await lib.locator("#typora-quick-open").isVisible()));
+
+await lib.reload();
+await lib.waitForSelector("#write");
+check("sidebar kept across reload", await lib.locator("body.pin-outline #typora-sidebar.use-file-tree-style.active-tab-files").isVisible());
+
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();
 process.exit(failures ? 1 : 0);
