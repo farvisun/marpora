@@ -101,6 +101,10 @@ export interface Backend {
   save(docId: number, saveAs: boolean): Promise<{ path: string; version: number } | null>;
   isDirty(docId: number): Promise<boolean>;
   onRemotePatch(handler: (docId: number, patch: RemotePatch) => void): void;
+  /** The file changed on disk while the document had unsaved edits. */
+  onDiskChanged(handler: (docId: number) => void): void;
+  /** Replace the document with its file on disk, dropping unsaved edits. */
+  reloadDocument(docId: number): Promise<void>;
   /** Resolve an image path relative to the document to a URL the webview can load. */
   assetUrl(docPath: string | null, src: string): string;
   settings(): Promise<Settings>;
@@ -234,6 +238,35 @@ export class MemoryBackend implements Backend {
   pushRemote(patch: RemotePatch) {
     this.version = patch.version;
     for (const h of this.remote) h(1, patch);
+  }
+
+  private diskHandlers: ((id: number) => void)[] = [];
+  /** Text "on disk" that changed while there were unsaved edits. */
+  private disk: string | null = null;
+
+  onDiskChanged(handler: (id: number) => void) {
+    this.diskHandlers.push(handler);
+  }
+
+  /** Test hook: the file changed on disk, as watch.rs reports it. */
+  async changeOnDisk(text: string) {
+    this.disk = text;
+    if (await this.isDirty()) for (const h of this.diskHandlers) h(1);
+    else await this.reloadDocument();
+  }
+
+  async reloadDocument() {
+    if (this.disk === null) return;
+    const blocks = (this.blocks ??= splitBlocks(this.text)).length;
+    this.text = this.disk;
+    this.blocks = null;
+    this.saved = this.version + 1;
+    this.pushRemote({
+      version: this.version + 1,
+      start: 0,
+      delete: blocks,
+      insert: parseMarkdown(this.text).doc.toJSON().content ?? [],
+    });
   }
 
   assetUrl(_docPath: string | null, src: string) {

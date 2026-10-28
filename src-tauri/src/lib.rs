@@ -9,6 +9,7 @@ mod pandoc;
 mod pdf;
 mod settings;
 mod themes;
+mod watch;
 mod windows;
 
 use std::path::PathBuf;
@@ -19,10 +20,12 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(docs::Docs::default())
+        .manage(watch::Watcher::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::Destroyed = event {
                 window.state::<docs::Docs>().close_window(window.label());
+                window.state::<watch::Watcher>().update(window.app_handle());
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -34,6 +37,7 @@ pub fn run() {
             commands::save_document,
             commands::open_path,
             commands::open_here,
+            commands::reload_document,
             commands::library_info,
             commands::list_folder,
             commands::list_documents,

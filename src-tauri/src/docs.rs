@@ -9,6 +9,9 @@ use marpora_core::Document;
 pub struct OpenDoc {
     pub doc: Document,
     pub path: Option<PathBuf>,
+    /// The file's text when last read or written, to tell other programs' changes
+    /// from our own saves (watch.rs).
+    pub disk: String,
 }
 
 #[derive(Default)]
@@ -47,6 +50,12 @@ impl Docs {
             let open = inner.docs.get(id)?;
             (open.path.as_deref() == Some(path)).then(|| label.clone())
         })
+    }
+
+    /// Paths of the open documents that have one.
+    pub fn paths(&self) -> Vec<PathBuf> {
+        let inner = self.inner.lock().unwrap();
+        inner.docs.values().filter_map(|d| d.path.clone()).collect()
     }
 
     pub fn close_window(&self, label: &str) {

@@ -19,6 +19,7 @@ marpora-core = { path = "../crates/core" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+notify = "8"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

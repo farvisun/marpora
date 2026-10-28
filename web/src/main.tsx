@@ -100,7 +100,22 @@ async function main() {
   view.focus();
 
   backend.onRemotePatch((id, patch) => {
-    if (id === opened.id) void sync.applyRemote(patch);
+    if (id === opened.id) void sync.applyRemote(patch).then(() => source.reload());
+  });
+
+  /** Ask before dropping unsaved edits for the file on disk. */
+  const reloadFromDisk = async (question: string) => {
+    await source.flush();
+    await sync.flush();
+    if (await backend.isDirty(opened.id)) {
+      const reload = await confirmDialog(question, "Reload");
+      if (!reload) return;
+    }
+    await backend.reloadDocument(opened.id);
+  };
+  backend.onDiskChanged((id) => {
+    if (id === opened.id)
+      void reloadFromDisk("File content is changed by external applications. Reload content from disk ?").catch(report);
   });
 
   const save = async (saveAs: boolean) => {
@@ -145,6 +160,9 @@ async function main() {
         return void save(false);
       case "save-as":
         return void save(true);
+      case "reload":
+        if (!ui.path) return;
+        return void reloadFromDisk("Reload from disk? Unsaved changes will be discarded.").catch(report);
       case "toggle-sidebar":
         return setUi("sidebar", !ui.sidebar);
       case "outline":
@@ -240,6 +258,13 @@ async function main() {
 
   // Exposed for tests and debugging.
   Object.assign(window, { marpora: { view, sync, source, backend, handleMenu } });
+}
+
+/** A yes/no question; the native dialog in the app, `confirm` in a browser. */
+async function confirmDialog(text: string, okLabel: string): Promise<boolean> {
+  if (!inTauri) return window.confirm(text);
+  const { ask } = await import("@tauri-apps/plugin-dialog");
+  return ask(text, { title: "Marpora", kind: "warning", okLabel, cancelLabel: "Cancel" });
 }
 
 /** An export or print that failed: log it and tell the user. */

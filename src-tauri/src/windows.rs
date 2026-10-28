@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder}
 
 use crate::docs::{Docs, OpenDoc};
 use crate::library::Recent;
+use crate::watch::Watcher;
 
 static NEXT_WINDOW: AtomicU64 = AtomicU64::new(1);
 
@@ -82,8 +83,10 @@ fn load(app: &AppHandle, label: &str, path: Option<PathBuf>) {
         OpenDoc {
             doc: Document::from_markdown(&text),
             path,
+            disk: text,
         },
     );
+    app.state::<Watcher>().update(app);
 }
 
 /// Default window size; `MARPORA_WINDOW_SIZE=WxH` overrides it (parity captures).

@@ -86,6 +86,14 @@ export class TauriBackend implements Backend {
     );
   }
 
+  onDiskChanged(handler: (docId: number) => void) {
+    void getCurrentWebviewWindow().listen<{ docId: number }>("disk-changed", (e) => handler(e.payload.docId));
+  }
+
+  reloadDocument(docId: number) {
+    return invoke<void>("reload_document", { docId });
+  }
+
   assetUrl(docPath: string | null, src: string): string {
     if (src.startsWith("file://")) return convertFileSrc(decodeURI(src.slice(7)));
     if (URL_SCHEME.test(src)) return src;

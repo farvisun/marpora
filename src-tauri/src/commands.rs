@@ -11,6 +11,7 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::docs::Docs;
 use crate::library::{self, Recent};
+use crate::watch::{self, Watcher};
 use crate::settings::{Settings, Store};
 use crate::themes::{self, ThemeCss, ThemeInfo};
 use crate::{menu, pandoc, windows};
@@ -150,11 +151,15 @@ pub async fn save_document(
         .with(doc_id, |open| (open.doc.text(), open.doc.version()))
         .ok_or("document closed")?;
     write_atomically(&path, &text).map_err(|e| format!("could not save {}: {e}", path.display()))?;
+    // The watcher reports canonical paths.
+    let path = std::fs::canonicalize(&path).unwrap_or(path);
     docs.with(doc_id, |open| {
         open.doc.mark_saved(version);
         open.path = Some(path.clone());
+        open.disk = text;
     });
     app.state::<Recent>().add(&path);
+    app.state::<Watcher>().update(&app);
     windows::set_title(&window, Some(&path));
     Ok(Some(Saved {
         path: path_string(&path),
@@ -348,6 +353,13 @@ pub fn open_here(
         windows::replace(&app, &window, path)
     }
     .map_err(|e| e.to_string())
+}
+
+/// Replace the document with its file on disk, after it changed there (`disk-changed`)
+/// and the user chose to drop their edits.
+#[tauri::command]
+pub fn reload_document(app: AppHandle, window: WebviewWindow, doc_id: u64) -> CmdResult<()> {
+    watch::reload(&app, window.label(), doc_id)
 }
 
 /// The folder the sidebar's Files tab shows: the document's folder.

@@ -18,6 +18,7 @@ const FILE_TOP: &[Item] = &[
     ("-", "", None),
     ("save", "Save", Some("CmdOrCtrl+S")),
     ("save-as", "Save As…", Some("CmdOrCtrl+Shift+S")),
+    ("reload", "Reload from Disk", None),
     ("-", "", None),
 ];
 

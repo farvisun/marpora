@@ -103,6 +103,18 @@ export class SourceMode {
     view.focus();
   }
 
+  /** Show the core's text after a change made elsewhere (the file changed on disk). */
+  async reload(): Promise<void> {
+    const editor = this.editor;
+    if (!this.active || !editor) return;
+    const { text } = await this.backend.documentText(this.docId);
+    if (text === editor.getValue()) return;
+    const cursor = editor.getCursor();
+    this.sent = text;
+    editor.setValue(text);
+    editor.setCursor(cursor.line, cursor.ch);
+  }
+
   /** Menu commands that make sense on plain text. */
   command(id: string) {
     const editor = this.editor;
