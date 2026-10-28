@@ -1,0 +1,787 @@
+/* Typora's frame: layout and editor mechanics shared by every theme. Themes (loaded
+   after this file) restyle typography and colours through the same selectors. */
+
+@import "prosemirror-view/style/prosemirror.css";
+@import "prosemirror-gapcursor/style/gapcursor.css";
+@import "./codemirror.css";
+
+:root {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --side-bar-bg-color: #fafafa;
+  --control-text-color: #777777;
+  --control-text-hover-color: #333333;
+  --item-hover-bg-color: rgba(0, 0, 0, 0.05);
+  --active-file-bg-color: rgba(0, 0, 0, 0.07);
+  --meta-content-color: #a8adb3;
+  --blur-text-color: #c8c8c8;
+  --monospace: "Lucida Console", Consolas, "Courier", monospace;
+  --select-text-bg-color: #b5d6fc;
+  --rawblock-edit-panel-bd: #f5f6f7;
+  --panel-border-color: #777777;
+  /* Diagram settings themes can override (Typora's mermaid.css). */
+  --mermaid-theme: default;
+  --mermaid-sequence-numbers: off;
+  --mermaid-flowchart-curve: linear;
+  --mermaid--gantt-left-padding: 75;
+  --sequence-theme: simple;
+  --item-hover-text-color: inherit;
+  --sidebar-width: 260px;
+  --footer-height: 30px;
+}
+
+html {
+  height: 100%;
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-size: 1rem;
+  line-height: 1.42857143;
+  background: var(--bg-color);
+  color: var(--text-color);
+  -webkit-font-smoothing: antialiased;
+  font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI Emoji", "SF Pro", sans-serif;
+}
+
+/* ---- Baseline -----------------------------------------------------------
+   The element defaults Typora gets from its Bootstrap 3 build (normalize and
+   scaffolding only, no typography). Themes are written against them. */
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+small { font-size: 80%; }
+sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
+sup { top: -0.5em; }
+sub { bottom: -0.25em; }
+img { border: 0; vertical-align: middle; }
+figure { margin: 0; }
+hr { height: 0; margin-top: 20px; margin-bottom: 20px; border: 0; border-top: 1px solid #eee; }
+pre { overflow: auto; }
+table { border-collapse: collapse; border-spacing: 0; }
+td, th { padding: 0; }
+button, input, select, textarea { color: inherit; font: inherit; margin: 0; }
+input { line-height: normal; }
+input[type="checkbox"],
+input[type="radio"] { margin: 4px 0 0; padding: 0; line-height: normal; }
+
+/* ---- Layout ------------------------------------------------------------- */
+
+content {
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: var(--footer-height);
+  left: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: inherit;
+  scroll-padding-top: 30px;
+}
+
+#typora-sidebar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  box-sizing: border-box;
+  background-color: var(--side-bar-bg-color);
+  border-right: 1px solid rgba(0, 0, 0, 0.07);
+  overflow-y: auto;
+  font-size: 0.875rem;
+  color: var(--control-text-color);
+  z-index: 2;
+}
+
+#typora-sidebar ~ content,
+#typora-sidebar ~ footer {
+  left: var(--sidebar-width);
+}
+
+.sidebar-tabs {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sidebar-tab {
+  padding: 2px 10px;
+  cursor: default;
+}
+
+.sidebar-tab.active {
+  color: var(--control-text-hover-color);
+  font-weight: 600;
+}
+
+.outline-item {
+  padding: 3px 12px;
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.6;
+}
+
+.outline-item:hover {
+  background-color: var(--item-hover-bg-color);
+}
+
+.outline-item-active {
+  color: var(--control-text-hover-color);
+  font-weight: 600;
+}
+
+footer.ty-footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--footer-height);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+  font-size: 0.75rem;
+  color: var(--control-text-color);
+  background: var(--bg-color);
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 3;
+}
+
+.footer-btn {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  height: 22px;
+  min-width: 26px;
+  padding: 0 4px;
+  border-radius: 4px;
+  opacity: 0.75;
+}
+
+.footer-btn:hover,
+.footer-btn.active {
+  opacity: 1;
+  background: var(--item-hover-bg-color);
+}
+
+.footer-spacer {
+  flex: 1;
+}
+
+#footer-word-count {
+  padding: 0 6px;
+}
+
+/* ---- Editor ------------------------------------------------------------- */
+
+#write {
+  margin: 0 auto;
+  padding: 36px 30px 70px;
+  position: relative;
+  min-height: calc(100% - 30px);
+  word-wrap: break-word;
+  outline: none;
+  caret-color: currentColor;
+}
+
+#write.ProseMirror {
+  white-space: pre-wrap;
+  font-variant-ligatures: normal;
+  font-feature-settings: normal;
+}
+
+#write ::selection {
+  background: var(--select-text-bg-color);
+}
+
+#write .md-meta,
+#write .md-before,
+#write .md-after {
+  color: var(--meta-content-color);
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+}
+
+#write a[md-inline="url"] {
+  cursor: text;
+}
+
+/* Block-level parts of the document, with Typora's base metrics. */
+
+h1, h2, h3, h4, h5 { white-space: pre-wrap; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.6rem; }
+h4 { font-size: 1.4rem; }
+h5 { font-size: 1.2rem; }
+h6 { font-size: 1rem; }
+
+p,
+h1, h2, h3, h4, h5, h6,
+.md-math-block,
+.md-rawblock {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+p { line-height: inherit; }
+
+/* Typora gives tight and loose list items the same paragraph spacing. */
+li .mathjax-block,
+li p { margin: 0.5rem 0; }
+li { margin: 0; position: relative; }
+blockquote { margin: 1rem 0; }
+li blockquote { margin: 1rem 0; }
+blockquote > :last-child { margin-bottom: 0; }
+blockquote > :first-child,
+li > :first-child { margin-top: 0; }
+#write ol,
+#write ul { position: relative; }
+
+.md-task-list-item {
+  position: relative;
+  list-style-type: none;
+}
+
+.task-list-item.md-task-list-item { padding-left: 0; }
+
+.md-task-list-item > input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin-left: -1.2em;
+  margin-top: calc(1em - 10px);
+  border: none;
+  cursor: default;
+}
+
+mark { background: #ff0; color: #000; }
+
+pre.md-meta-block,
+pre.md-raw,
+pre.md-rawblock-input {
+  font-family: var(--monospace);
+  white-space: pre;
+  overflow-x: auto;
+  text-align: left;
+  tab-size: 4;
+}
+
+/* Visible overflow lets the language box hang below the fence. */
+.md-fences {
+  font-size: 0.9rem;
+  position: relative;
+  display: block;
+  break-inside: avoid;
+  text-align: left;
+  overflow: visible;
+  white-space: pre;
+  background: inherit;
+  tab-size: 4;
+}
+
+#write pre { white-space: pre-wrap; }
+
+code, pre, samp, tt { font-family: var(--monospace); }
+
+/* Code fences use CodeMirror's class names (as Typora does), so themes that style
+   .CodeMirror-lines and friends apply. Like every rule here, these use Typora's
+   selectors: anything more specific would beat the theme's overrides. */
+.CodeMirror { text-align: left; }
+.CodeMirror-lines { padding: 0; }
+.CodeMirror-code { padding: 0 4px; }
+
+pre.md-meta-block {
+  font-size: 0.8rem;
+  min-height: 0.8rem;
+  white-space: pre-wrap;
+  background: #ccc;
+  display: block;
+  overflow-x: hidden;
+}
+
+pre.md-raw {
+  color: var(--meta-content-color);
+  font-size: 0.85em;
+  margin: 0.8em 0;
+}
+
+pre.md-rawblock-input {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 0.9em;
+}
+
+.md-htmlblock {
+  margin: 0.8em 0;
+}
+
+/* ---- Diagrams (src/editor/diagramview.ts), with Typora's rules ------------------ */
+
+.md-fences-advanced:not(.md-focus) {
+  padding: 0;
+  white-space: nowrap;
+  border: 0;
+  background: inherit;
+}
+
+.md-fences-advanced:not(.md-focus) .CodeMirror { display: none; }
+
+.md-fences-adv-panel {
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  padding-top: 0;
+  padding-bottom: 8px;
+  overflow-x: auto;
+  z-index: 1;
+  white-space: nowrap;
+  left: 0;
+  right: 0;
+  overflow-y: clip;
+}
+
+pre.md-fences-advanced.md-focus .md-fences-adv-panel {
+  position: absolute;
+  border: 1px solid #777;
+  border-color: var(--panel-border-color);
+}
+
+.md-diagram-panel > svg { max-width: 100%; }
+[lang="flow"] svg,
+[lang="mermaid"] svg { max-width: 100%; height: auto; }
+[lang="mermaid"] .node text { font-size: 1rem; }
+.mermaid-svg { margin: auto; }
+svg sub,
+svg sup { position: static; }
+svg { page-break-inside: avoid; }
+/* Room around mermaid's labels, which it measures with this padding. */
+.nodeLabel p { padding-right: 2px; padding-left: 2px; }
+.typora-export .nodeLabel p { padding-right: 0; padding-left: 0; }
+.on-focus-mode #write img,
+.on-focus-mode #write svg { opacity: 0.3; }
+.on-focus-mode #write .md-focus img,
+.on-focus-mode #write .md-focus svg { opacity: 1; }
+.md-diagram-panel .messageText { stroke: none !important; }
+.md-diagram-panel .start-state { fill: var(--node-fill); }
+.md-diagram-panel .edgeLabel rect { opacity: 1 !important; }
+.md-diagram-panel-preview { padding-top: 8px; }
+.md-diagram-panel-preview > div { width: initial; }
+pre.md-fences[lang="sequence"] .md-diagram-panel { padding-top: 16px; }
+.md-diagram svg { cursor: default; }
+.enable-diagrams .md-diagram .code-tooltip { right: 8px; bottom: -3em; }
+
+.md-diagram-panel-error {
+  white-space: pre-line;
+  text-align: left;
+  padding-left: 8px;
+  font-size: 0.8em;
+  color: #a94442;
+}
+
+.md-diagram-panel-preview:empty { padding-bottom: 10px; }
+.md-diagram-panel-preview:empty::before { content: "Painting Diagram..."; color: grey; }
+.privacy { display: none; }
+
+/* Gantt charts take the window's width. */
+#write > [mermaid-type="gantt"] .md-diagram-panel,
+#write > [mermaid-type="gantt"].md-focus .md-diagram-panel {
+  left: calc(-50vw + 50% + 0.8em);
+  right: calc(-50vw + 50% + 0.8em);
+  width: auto;
+  max-width: 1140px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#write.enable-diagrams > [mermaid-type="gantt"].md-fences:not(.md-focus) {
+  width: 98vw;
+  margin-left: calc(-49vw + 50%);
+}
+
+/* ---- Math blocks (src/editor/mathblock.ts), with Typora's rules ---------------- */
+
+.md-math-block {
+  width: 100%;
+  position: relative;
+  cursor: default;
+}
+
+.md-math-block:not(:empty)::after { display: none; }
+.MathJax_ref { fill: currentColor; }
+.math { font-size: 1rem; }
+.md-fences.md-fences-math { font-size: 1em; }
+.md-inline-math-container mjx-container { zoom: 0.95; }
+mjx-container { page-break-inside: avoid; }
+mjx-container:focus { outline: 0; }
+mjx-container[jax="SVG"] > svg a {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.md-math-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  page-break-inside: avoid;
+}
+
+.md-fences-adv-panel,
+.md-math-container,
+.md-mathjax-preview {
+  font-size: 0.95em;
+  font-family: sans-serif;
+}
+
+.mathjax-block mjx-container[jax="SVG"][display="true"],
+.md-mathjax-preview mjx-container[jax="SVG"][display="true"] {
+  margin: 4px 0;
+}
+
+.md-mathjax-preview {
+  padding: 1em;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.md-math-container.math-jax-preprocess {
+  opacity: 0.5;
+  font-family: var(--monospace);
+}
+
+/* Typora swaps these in and out of the DOM; here the editing class swaps them. */
+.md-math-block:not(.md-rawblock-on-edit) > .md-mathblock-panel { display: none; }
+.md-math-block.md-rawblock-on-edit > .md-math-container { display: none; }
+
+.md-math-block .code-tooltip {
+  white-space: normal;
+  float: initial;
+  position: relative;
+  top: 0;
+  padding: 10px;
+  width: auto;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.md-mathblock-panel .code-tooltip {
+  font-size: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.md-mathblock-input .CodeMirror-code { white-space: pre-wrap; }
+
+/* Raw block chrome: the "Math" label and buttons over the block, and the $$ lines. */
+.md-rawblock > .md-rawblock-tooltip { display: none; }
+.md-rawblock-panel { position: relative; }
+
+.md-rawblock-input {
+  font-family: var(--monospace);
+  padding-left: 4px;
+  padding-right: 4px;
+  font-size: 0.9em;
+}
+
+.md-rawblock .md-rawblock-tooltip {
+  background: var(--bg-color);
+  display: none;
+  cursor: default;
+}
+
+.md-rawblock-on-edit > .md-rawblock-tooltip,
+.md-rawblock:hover > .md-rawblock-container,
+.md-rawblock:hover > .md-rawblock-tooltip {
+  transition: background 0.5s linear;
+  background: var(--rawblock-edit-panel-bd);
+  display: block;
+}
+
+.md-rawblock-on-edit > .md-rawblock-tooltip {
+  transition: none !important;
+  animation: none !important;
+}
+
+.md-rawblock-control:not(.md-rawblock-tooltip) { background: var(--rawblock-edit-panel-bd); }
+
+.md-rawblock:hover > .md-rawblock-tooltip {
+  transition: initial;
+  animation: showRawBlockTooltip 0.5s linear;
+  display: block;
+}
+
+@keyframes showRawBlockTooltip {
+  from { background: var(--bg-color); }
+  to { background: var(--rawblock-edit-panel-bd); }
+}
+
+.md-rawblock-tooltip {
+  top: -16px;
+  bottom: auto;
+  height: 16px;
+  line-height: 16px;
+  position: absolute;
+  background: inherit;
+  font-size: 12px;
+  right: 0;
+  padding: 0 6px;
+  z-index: 6;
+}
+
+.md-rawblock-tooltip-name {
+  padding-left: 8px;
+  opacity: 0.5;
+}
+
+.md-rawblock-tooltip-btn {
+  cursor: pointer;
+  font-size: 12.5px;
+  padding: 0 4px;
+  display: inline-block;
+  width: 20px;
+  text-align: center;
+}
+
+.md-rawblock-tooltip-btn svg { vertical-align: -1px; }
+
+.md-rawblock-tooltip-btn:hover {
+  background: var(--item-hover-bg-color);
+  color: var(--item-hover-text-color);
+}
+
+.md-rawblock-tooltip-ok-btn { display: none; }
+.md-rawblock-on-edit .md-rawblock-tooltip-ok-btn { display: inline-block; }
+.md-rawblock-on-edit .md-rawblock-tooltip-edit-btn { display: none; }
+
+.md-rawblock-after,
+.md-rawblock-before {
+  font-family: var(--monospace);
+  font-size: 0.8em;
+  padding-left: 1ch;
+  cursor: text;
+  color: grey;
+}
+
+/* Inline math (src/editor/mathinline.ts): the formula, or while selected its TeX in a
+   script element with a preview under it. */
+.md-inline-math {
+  display: inline-block;
+  position: relative;
+}
+
+.md-expand .md-inline-math,
+.md-inline-math.md-expand { display: inline; }
+.md-inline-math script { color: #8421a2; }
+.md-inline-math-container > script { display: none; }
+.md-expand .md-inline-math-container > script { display: inline; }
+.md-expand .md-inline-math-container > .MathJax { display: none !important; }
+.md-inline-math > .md-meta { display: none; }
+.md-inline-math.md-expand > .md-meta { display: inline; }
+mark .md-inline-math { color: inherit; }
+
+.md-inline-math > .md-inline-math-preview {
+  display: none;
+  font-size: 1em;
+  padding: 1ch;
+  top: 100%;
+  bottom: auto;
+  left: 0;
+  right: auto;
+  white-space: nowrap;
+}
+
+/* Over `#write .code-tooltip`'s width; the class is Marpora's own, so no theme targets it. */
+#write .md-inline-math-preview { width: max-content; }
+
+.md-inline-math.md-expand > .md-inline-math-preview { display: block; }
+.md-inline-math script:focus { outline: none; }
+
+.md-html-inline {
+  font-family: var(--monospace);
+  font-size: 0.9em;
+  color: var(--meta-content-color);
+}
+
+figure.md-table-fig {
+  overflow-x: auto;
+  margin: 1.2em 0;
+  padding: 0;
+  max-width: calc(100% + 16px);
+}
+
+figure.md-table-fig > table {
+  margin: 0;
+  width: 100%;
+  text-align: left;
+}
+
+table.md-table td { min-width: 32px; }
+
+.md-image > img {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.md-image.md-img-error > img {
+  min-width: 2em;
+  min-height: 1em;
+  outline: 1px dashed var(--meta-content-color);
+}
+
+.md-toc {
+  min-height: 3.58rem;
+  position: relative;
+  font-size: 0.9rem;
+  border-radius: 10px;
+}
+
+.md-toc-content {
+  margin: 0;
+}
+
+.md-toc-item {
+  display: block;
+  color: #4183c4;
+}
+
+.md-toc-inner {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.md-toc-h1 .md-toc-inner { margin-left: 0; font-weight: bold; }
+.md-toc-h2 .md-toc-inner { margin-left: 2em; }
+.md-toc-h3 .md-toc-inner { margin-left: 4em; }
+.md-toc-h4 .md-toc-inner { margin-left: 6em; }
+.md-toc-h5 .md-toc-inner { margin-left: 8em; }
+.md-toc-h6 .md-toc-inner { margin-left: 10em; }
+
+.md-def-footnote {
+  font-size: 0.9em;
+  color: var(--control-text-color);
+}
+
+.md-def-footnote::before {
+  content: "[^" attr(data-label) "]: ";
+  color: var(--meta-content-color);
+}
+
+sup.md-footnote {
+  padding: 2px 4px;
+  background-color: rgba(238, 238, 238, 0.7);
+  color: #555;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+sup.md-footnote a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/* Footnotes gathered at the end of an exported page (src/export.ts), as Typora does. */
+.footnotes-area { color: #888; margin-top: 0.714rem; padding-bottom: 0.143rem; white-space: normal; }
+#write .footnote-line { white-space: pre-wrap; }
+.footnote-line { margin-top: 0.714em; font-size: 0.7em; }
+.footnote-line a:not(.reversefootnote) { color: inherit; }
+.reversefootnote { font-family: ui-monospace, sans-serif; }
+.md-fn-count::after { content: "."; }
+
+.ProseMirror-selectednode {
+  outline: 2px solid #8cb4f0;
+}
+
+/* ---- Modes -------------------------------------------------------------- */
+
+.on-focus-mode #write .md-end-block:not(.md-focus):not(.md-focus-container),
+.on-focus-mode #write .md-end-block:not(.md-focus):not(.md-focus-container) *,
+.on-focus-mode #write > :not(.md-focus):not(.md-focus-container),
+.on-focus-mode #write > :not(.md-focus):not(.md-focus-container) * {
+  color: var(--blur-text-color) !important;
+  border-color: var(--blur-text-color) !important;
+}
+
+.on-focus-mode #write img {
+  opacity: 0.6;
+}
+
+.ty-on-typewriter-mode #write {
+  padding-top: 40vh;
+  padding-bottom: 50vh;
+}
+
+@media print {
+  content {
+    position: static;
+    overflow: visible;
+  }
+
+  #typora-sidebar,
+  footer.ty-footer {
+    display: none;
+  }
+}
+
+/* ---- Export (src/export.ts): the page is `body.typora-export`, as in Typora ---- */
+
+/* The app's window layout (a fixed-height body) does not apply to a scrolling page. */
+:root:has(> body.typora-export) { height: auto; }
+body.typora-export { height: auto; overflow: visible; overflow-x: hidden; }
+.typora-export #write { min-height: 0; }
+
+body.typora-export { padding-left: 30px; padding-right: 30px; }
+.typora-export .footnote-line,
+.typora-export li,
+.typora-export p { white-space: pre-wrap; }
+.typora-export .task-list-item input { pointer-events: none; }
+.typora-export .nodeLabel p { padding-right: 0; padding-left: 0; }
+
+@media screen and (max-width: 500px) {
+  body.typora-export { padding-left: 0; padding-right: 0; }
+}
+
+@media print {
+  html, body {
+    border: 1px solid transparent;
+    height: 99%;
+    page-break-after: avoid;
+    page-break-before: avoid;
+    font-variant-ligatures: no-common-ligatures;
+  }
+  #write {
+    border-color: transparent !important;
+    margin-top: 0;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .typora-export * { -webkit-print-color-adjust: exact; }
+  .typora-export #write { page-break-after: avoid; }
+  .typora-export #write::after { height: 0; }
+  .is-mac table { page-break-inside: avoid; }
+  #write > p:nth-child(1) { margin-top: 0; }
+  figure { overflow-x: visible; }
+  .typora-export h1,
+  .typora-export h2,
+  .typora-export h3,
+  .typora-export h4,
+  .typora-export h5,
+  .typora-export h6 { page-break-inside: avoid; }
+}

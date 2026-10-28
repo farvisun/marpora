@@ -1,0 +1,152 @@
+/* CodeMirror 5 in Typora's arrangement: fences are `.CodeMirror.cm-s-inner` inside
+   `pre.md-fences` (highlighted by src/editor/highlight.ts), source mode is
+   `#typora-source .CodeMirror.cm-s-typora-default`. Themes restyle both. */
+
+@import "codemirror/lib/codemirror.css";
+
+/* Fences size to their content and take the fence's font and colours. */
+.CodeMirror {
+  height: auto;
+  font-family: inherit;
+  color: inherit;
+}
+
+.CodeMirror.cm-s-inner {
+  background: inherit;
+}
+
+/* Typora tracks the active line (focus mode, line numbers) without painting it. */
+.CodeMirror-activeline-background {
+  background: inherit;
+}
+
+/* Tooltips under code: the language box of a fence, the preview of a math block. */
+.code-tooltip {
+  opacity: 1;
+  bottom: 0;
+  text-align: left;
+  font-size: 0.8em;
+  position: absolute;
+  right: 0;
+  background: inherit;
+  border-radius: 2px;
+  z-index: 20;
+  box-shadow: 0 1px 1px 0 rgba(0, 28, 36, 0.2);
+}
+
+#write .code-tooltip {
+  line-height: 1;
+  width: auto;
+}
+
+/* Shown under the fence holding the cursor. */
+.md-fences .code-tooltip {
+  display: none;
+  bottom: -2.5em;
+  padding-left: 20px;
+  padding-right: 20px;
+  float: right;
+  white-space: nowrap;
+}
+
+.md-fences.md-focus .code-tooltip {
+  display: block;
+}
+
+.code-tooltip .ty-input {
+  background-color: transparent;
+  border: 1px solid transparent;
+  margin: 2px 0;
+  border-radius: 3px;
+  text-align: center;
+  min-width: 140px;
+  display: inline-block;
+  padding: 0 4px;
+  line-height: 1.5;
+  white-space: pre;
+  outline: none;
+}
+
+.code-tooltip .ty-input:focus {
+  outline: 0;
+  box-shadow: none;
+  border-color: var(--primary-color, #4183c4);
+}
+
+.ty-cm-lang-input:empty::after {
+  content: attr(placeholder);
+  color: var(--meta-content-color);
+}
+
+/* CodeMirror's default palette, for themes that colour only some tokens. */
+.cm-s-inner .cm-keyword { color: #708; }
+.cm-s-inner .cm-atom { color: #219; }
+.cm-s-inner .cm-number { color: #164; }
+.cm-s-inner .cm-def { color: #00f; }
+.cm-s-inner .cm-variable,
+.cm-s-inner .cm-property { color: #000; }
+.cm-s-inner .cm-operator { color: #981a1a; }
+.cm-s-inner .cm-variable-2 { color: #05a; }
+.cm-s-inner .cm-variable-3,
+.cm-s-inner .cm-type { color: #085; }
+.cm-s-inner .cm-comment { color: #a50; }
+.cm-s-inner .cm-string { color: #a11; }
+.cm-s-inner .cm-string-2 { color: #f50; }
+.cm-s-inner .cm-meta,
+.cm-s-inner .cm-qualifier { color: #555; }
+.cm-s-inner .cm-builtin { color: #30a; }
+.cm-s-inner .cm-bracket { color: #997; }
+.cm-s-inner .cm-tag { color: #170; }
+.cm-s-inner .cm-attribute { color: #00c; }
+.cm-s-inner .cm-header { color: #00f; }
+.cm-s-inner .cm-quote { color: #090; }
+.cm-s-inner .cm-hr { color: #999; }
+.cm-s-inner .cm-link { color: #00c; }
+
+/* ---- Source mode ---------------------------------------------------------- */
+
+#typora-source {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background-color: inherit;
+}
+
+.typora-sourceview-on #typora-source {
+  display: block;
+}
+
+.typora-sourceview-on #write {
+  display: none;
+}
+
+#typora-source .CodeMirror {
+  height: 100%;
+  overflow-x: hidden;
+  font-family: var(--monospace);
+  background: inherit;
+}
+
+#typora-source .CodeMirror-lines {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 30px 30px 60px 60px;
+}
+
+#typora-source .cm-header,
+#typora-source .cm-strong {
+  font-weight: bold;
+}
+
+#typora-source .cm-formatting,
+#typora-source .cm-url {
+  color: var(--meta-content-color);
+}
+
+#typora-source .cm-comment {
+  font-family: var(--monospace);
+}
+
+.on-focus-mode #typora-source .CodeMirror-code > :not(.CodeMirror-activeline) * {
+  color: var(--blur-text-color) !important;
+}
