@@ -7,6 +7,7 @@ mod menu;
 mod pandoc;
 #[cfg(target_os = "macos")]
 mod pdf;
+mod save;
 mod settings;
 mod themes;
 mod watch;
@@ -21,10 +22,18 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(docs::Docs::default())
         .manage(watch::Watcher::default())
+        .manage(menu::Quitting::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::Destroyed = event {
-                window.state::<docs::Docs>().close_window(window.label());
+                let docs = window.state::<docs::Docs>();
+                // Closed with "Don't Save": keep the edits as a draft (or save them,
+                // with Auto Save on).
+                if let Some(id) = docs.for_window(window.label()) {
+                    save::settle(window.app_handle(), id);
+                }
+                docs.close_window(window.label());
+                menu::close_next(window.app_handle(), Some(window.label()));
                 window.state::<watch::Watcher>().update(window.app_handle());
             }
         })
@@ -38,6 +47,7 @@ pub fn run() {
             commands::open_path,
             commands::open_here,
             commands::reload_document,
+            commands::cancel_quit,
             commands::library_info,
             commands::list_folder,
             commands::list_documents,
@@ -58,6 +68,10 @@ pub fn run() {
             app.manage(settings::Store::load(app.handle()));
             app.manage(commands::ExportGrants::default());
             app.manage(library::Recent::load(app.handle()));
+            app.manage(save::Autosave::start(app.handle()));
+            if let Some(dir) = save::drafts_dir(app.handle()) {
+                std::thread::spawn(move || save::prune_drafts(&dir));
+            }
             app.set_menu(menu::build(app.handle())?)?;
 
             let paths = std::env::args().skip(1).filter(|a| !a.starts_with('-'));
@@ -88,6 +102,8 @@ pub fn run() {
         RunEvent::Reopen { has_visible_windows: false, .. } => {
             let _ = windows::open(app, None);
         }
+        // Quitting without closing the windows (from the Dock, or logging out).
+        RunEvent::Exit => save::settle_all(app),
         _ => {}
     });
 }

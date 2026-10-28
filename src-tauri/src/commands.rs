@@ -11,9 +11,10 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::docs::Docs;
 use crate::library::{self, Recent};
-use crate::watch::{self, Watcher};
+use crate::save::{self, Autosave};
 use crate::settings::{Settings, Store};
 use crate::themes::{self, ThemeCss, ThemeInfo};
+use crate::watch;
 use crate::{menu, pandoc, windows};
 
 #[derive(Serialize)]
@@ -72,10 +73,16 @@ pub fn initial_document(window: WebviewWindow, docs: State<Docs>) -> CmdResult<O
 }
 
 #[tauri::command]
-pub fn apply_patch(doc_id: u64, patch: Patch, docs: State<Docs>) -> CmdResult<PatchResult> {
+pub fn apply_patch(
+    doc_id: u64,
+    patch: Patch,
+    docs: State<Docs>,
+    autosave: State<Autosave>,
+) -> CmdResult<PatchResult> {
     let result = docs
         .with(doc_id, |open| open.doc.apply(&patch))
         .ok_or("document closed")?;
+    autosave.touch(doc_id);
     Ok(match result {
         Ok(version) => PatchResult::Applied { ok: true, version },
         Err(PatchError::Stale { current, .. }) => PatchResult::Rejected { ok: false, current },
@@ -99,13 +106,17 @@ pub fn set_document_text(
     text: String,
     docs: State<Docs>,
     store: State<Store>,
+    autosave: State<Autosave>,
 ) -> CmdResult<u64> {
     let flavor = store.get().flavor;
-    docs.with(doc_id, |open| {
-        open.doc.replace_text(&text, &flavor);
-        open.doc.version()
-    })
-    .ok_or_else(|| "document closed".into())
+    let version = docs
+        .with(doc_id, |open| {
+            open.doc.replace_text(&text, &flavor);
+            open.doc.version()
+        })
+        .ok_or("document closed")?;
+    autosave.touch(doc_id);
+    Ok(version)
 }
 
 #[tauri::command]
@@ -147,19 +158,8 @@ pub async fn save_document(
         }
     };
 
-    let (text, version) = docs
-        .with(doc_id, |open| (open.doc.text(), open.doc.version()))
-        .ok_or("document closed")?;
-    write_atomically(&path, &text).map_err(|e| format!("could not save {}: {e}", path.display()))?;
-    // The watcher reports canonical paths.
-    let path = std::fs::canonicalize(&path).unwrap_or(path);
-    docs.with(doc_id, |open| {
-        open.doc.mark_saved(version);
-        open.path = Some(path.clone());
-        open.disk = text;
-    });
+    let (path, version) = save::save_to(&app, doc_id, &path)?;
     library::remember(&app, &path);
-    app.state::<Watcher>().update(&app);
     windows::set_title(&window, Some(&path));
     Ok(Some(Saved {
         path: path_string(&path),
@@ -255,7 +255,7 @@ pub fn write_export(path: String, contents: String, grants: State<ExportGrants>)
     if !grants.0.lock().unwrap().remove(&path) {
         return Err(format!("{} was not chosen for export", path.display()));
     }
-    write_atomically(&path, &contents).map_err(|e| format!("could not write {}: {e}", path.display()))
+    save::write_atomically(&path, &contents).map_err(|e| format!("could not write {}: {e}", path.display()))
 }
 
 /// Export the page `html` (from the editor's HTML export) as a PDF at `path`, a path
@@ -444,6 +444,12 @@ pub fn recent_files(recent: State<Recent>) -> Vec<String> {
 }
 
 /// Frontend errors, printed where `tauri dev` shows them.
+/// The user cancelled closing a window, so File › Quit stops.
+#[tauri::command]
+pub fn cancel_quit(quitting: State<menu::Quitting>) {
+    quitting.0.store(false, std::sync::atomic::Ordering::SeqCst);
+}
+
 #[tauri::command]
 pub fn frontend_log(window: WebviewWindow, message: String) {
     eprintln!("[{}] {message}", window.label());
@@ -467,18 +473,6 @@ pub fn load_theme(app: AppHandle, id: String) -> Option<ThemeCss> {
 #[tauri::command]
 pub fn set_theme(app: AppHandle, id: String) {
     menu::set_theme(&app, &id);
-}
-
-/// Write via a temporary file in the same directory so a crash never leaves half a file.
-fn write_atomically(path: &Path, text: &str) -> std::io::Result<()> {
-    let dir = path.parent().unwrap_or(Path::new("."));
-    let name = path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
-    let tmp = dir.join(format!(".{name}.marpora-tmp"));
-    std::fs::write(&tmp, text)?;
-    if let Ok(meta) = std::fs::metadata(path) {
-        let _ = std::fs::set_permissions(&tmp, meta.permissions());
-    }
-    std::fs::rename(&tmp, path)
 }
 
 /// File name for an untitled document: its first heading, like Typora.

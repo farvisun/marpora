@@ -31,6 +31,10 @@ export interface Settings {
   flavor: Flavor;
   /** Number display equations (read when a window opens, like the flavor). */
   autoNumberMath: boolean;
+  /** Save documents that have a file shortly after each edit, and when they close. */
+  autoSave: boolean;
+  /** Keep copies of unsaved edits in the drafts folder. */
+  backupUnsavedDrafts: boolean;
 }
 
 /** A theme's CSS (src-tauri themes.rs). `css` is null for themes bundled with the app. */
@@ -107,6 +111,8 @@ export interface Backend {
   onDiskChanged(handler: (docId: number) => void): void;
   /** Replace the document with its file on disk, dropping unsaved edits. */
   reloadDocument(docId: number): Promise<void>;
+  /** The user cancelled closing this window, so quitting the app stops. */
+  cancelQuit(): Promise<void>;
   /** Resolve an image path relative to the document to a URL the webview can load. */
   assetUrl(docPath: string | null, src: string): string;
   settings(): Promise<Settings>;
@@ -148,6 +154,8 @@ export class MemoryBackend implements Backend {
     theme: "marpora",
     flavor: { inlineMath: false, highlight: false, subscript: false, superscript: false },
     autoNumberMath: true,
+    autoSave: false,
+    backupUnsavedDrafts: true,
   };
 
   constructor(private text = DEMO) {}
@@ -256,6 +264,8 @@ export class MemoryBackend implements Backend {
     if (await this.isDirty()) for (const h of this.diskHandlers) h(1);
     else await this.reloadDocument();
   }
+
+  async cancelQuit() {}
 
   async reloadDocument() {
     if (this.disk === null) return;

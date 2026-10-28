@@ -15,6 +15,8 @@ pub struct OpenDoc {
     /// A folder opened with File › Open Folder, shown in the sidebar instead of the
     /// document's folder.
     pub folder: Option<PathBuf>,
+    /// The backup of unsaved edits in `draftsRecover` (save.rs), once written.
+    pub draft: Option<PathBuf>,
 }
 
 #[derive(Default)]
@@ -59,6 +61,10 @@ impl Docs {
     pub fn paths(&self) -> Vec<PathBuf> {
         let inner = self.inner.lock().unwrap();
         inner.docs.values().filter_map(|d| d.path.clone()).collect()
+    }
+
+    pub fn ids(&self) -> Vec<u64> {
+        self.inner.lock().unwrap().docs.keys().copied().collect()
     }
 
     pub fn close_window(&self, label: &str) {

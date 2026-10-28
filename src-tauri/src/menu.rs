@@ -2,6 +2,7 @@
 //! the focused window as a `menu` event carrying the item id (see web/src/editor/commands.ts).
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, Runtime, Wry};
@@ -154,7 +155,8 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             Box::new(PredefinedMenuItem::hide_others(app, None)?),
             Box::new(PredefinedMenuItem::show_all(app, None)?),
             Box::new(PredefinedMenuItem::separator(app)?),
-            Box::new(PredefinedMenuItem::quit(app, None)?),
+            // Not the predefined item: windows with unsaved edits ask first.
+            Box::new(MenuItem::with_id(app, "quit", "Quit Marpora", true, Some("CmdOrCtrl+Q"))?),
         ],
     )?;
 
@@ -278,6 +280,7 @@ pub fn handle(app: &AppHandle, id: &str) {
         "new" => {
             let _ = windows::open(app, None);
         }
+        "quit" => quit(app),
         "open-folder" => {
             let handle = app.clone();
             app.dialog().file().pick_folder(move |dir| {
@@ -330,5 +333,38 @@ pub fn set_theme(app: &AppHandle, id: &str) {
         if let MenuItemKind::Check(check) = item {
             let _ = check.set_checked(check.id().as_ref() == wanted);
         }
+    }
+}
+
+/// Set while File › Quit closes the windows one after the other.
+#[derive(Default)]
+pub struct Quitting(pub AtomicBool);
+
+/// Close the windows, the focused one first; each asks about unsaved edits and may
+/// cancel the quit (`cancel_quit`). The app exits when the last one is gone.
+fn quit(app: &AppHandle) {
+    app.state::<Quitting>().0.store(true, Ordering::SeqCst);
+    close_next(app, None);
+}
+
+/// Continue quitting after window `closed` is gone.
+pub fn close_next(app: &AppHandle, closed: Option<&str>) {
+    if !app.state::<Quitting>().0.load(Ordering::SeqCst) {
+        return;
+    }
+    let windows: Vec<_> = app
+        .webview_windows()
+        .into_values()
+        .filter(|w| Some(w.label()) != closed)
+        .collect();
+    let next = windows
+        .iter()
+        .find(|w| w.is_focused().unwrap_or(false))
+        .or_else(|| windows.first());
+    match next {
+        Some(window) => {
+            let _ = window.close();
+        }
+        None => app.exit(0),
     }
 }

@@ -4,6 +4,7 @@ import type { EditorView } from "prosemirror-view";
 import { TextSelection } from "prosemirror-state";
 import { render } from "solid-js/web";
 import { App } from "./chrome/App";
+import { basename } from "./chrome/library";
 import { countText, docText, outlineOf, setUi, ui } from "./chrome/store";
 import { createEditor, runCommand } from "./editor/editor";
 import { DocSync } from "./editor/sync";
@@ -22,7 +23,8 @@ async function main() {
   setTimeout(() => document.body.classList.remove("no-animation"), 500);
 
   const [backend] = await Promise.all([connect(), initMarkdown()]);
-  const [settings, opened] = await Promise.all([backend.settings(), backend.initialDocument()]);
+  const [initialSettings, opened] = await Promise.all([backend.settings(), backend.initialDocument()]);
+  let settings = initialSettings;
   setFlavor(settings.flavor);
   setMathOptions({ autoNumber: settings.autoNumberMath });
   const showTheme = async (id: string) => {
@@ -31,6 +33,7 @@ async function main() {
   };
   await showTheme(settings.theme);
   backend.onSettings((s) => {
+    settings = s;
     if (s.theme !== ui.theme) void showTheme(s.theme);
   });
   const { doc } = parseMarkdown(opened.text);
@@ -74,6 +77,8 @@ async function main() {
     if (path === ui.path) return;
     await source.flush();
     await sync.flush();
+    // With Auto Save, the document is saved instead of opening the file in a new window.
+    if (settings.autoSave && ui.path && (await backend.isDirty(opened.id))) await save(false);
     await backend.openHere(path);
   };
 
@@ -123,11 +128,13 @@ async function main() {
       void reloadFromDisk("File content is changed by external applications. Reload content from disk ?").catch(report);
   });
 
+  /** Save the document; false when the user cancelled choosing a file. */
   const save = async (saveAs: boolean) => {
     await source.flush();
     await sync.flush();
     const result = await backend.save(opened.id, saveAs);
     if (result) setUi("path", result.path);
+    return result !== null;
   };
 
   /** The export page; built from the rendered document, which source mode hides. */
@@ -219,20 +226,37 @@ async function main() {
 
   if (inTauri) {
     const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-    const { ask } = await import("@tauri-apps/plugin-dialog");
+    const { message } = await import("@tauri-apps/plugin-dialog");
     const win = getCurrentWebviewWindow();
     await win.listen<string>("menu", (e) => handleMenu(e.payload));
     await win.onCloseRequested(async (event) => {
-      await source.flush();
-      await sync.flush();
-      if (!(await backend.isDirty(opened.id))) return;
-      const discard = await ask("Your changes will be lost if you don't save them.", {
-        title: "Do you want to save the changes?",
-        kind: "warning",
-        okLabel: "Don't Save",
-        cancelLabel: "Cancel",
-      });
-      if (!discard) event.preventDefault();
+      const keepOpen = () => {
+        event.preventDefault();
+        void backend.cancelQuit();
+      };
+      try {
+        await source.flush();
+        await sync.flush();
+        if (!(await backend.isDirty(opened.id))) return;
+        // With Auto Save, a document with a file is saved without asking.
+        if (settings.autoSave && ui.path) {
+          await save(false);
+          return;
+        }
+        const name = ui.path ? basename(ui.path) : "Untitled";
+        const answer = await message("Your changes will be lost if you don't save them.", {
+          title: `Do you want to save the changes made to the document “${name}”?`,
+          kind: "warning",
+          buttons: { yes: "Save", no: "Don't Save", cancel: "Cancel" },
+        });
+        // "Don't Save" closes; the edits stay in a draft (src-tauri save.rs).
+        if (answer === "No" || answer === "Don't Save") return;
+        if ((answer === "Yes" || answer === "Save") && (await save(false))) return;
+        keepOpen();
+      } catch (e) {
+        keepOpen();
+        report(e);
+      }
     });
   } else {
     // Browser build: no native menu, so the keymap covers editing; add save/sidebar keys.

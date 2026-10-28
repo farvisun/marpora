@@ -103,6 +103,7 @@ fn load(app: &AppHandle, label: &str, path: Option<PathBuf>, folder: Option<Path
             path,
             disk: text,
             folder,
+            draft: None,
         },
     );
     app.state::<Watcher>().update(app);

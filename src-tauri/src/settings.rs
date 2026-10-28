@@ -18,6 +18,11 @@ pub struct Settings {
     pub flavor: Flavor,
     /// Number display equations (Typora's "Auto Numbering Math Equations", on by default).
     pub auto_number_math: bool,
+    /// Save documents that have a file shortly after each edit (off by default, as in
+    /// Typora).
+    pub auto_save: bool,
+    /// Keep copies of unsaved edits in `draftsRecover` (on by default, as in Typora).
+    pub backup_unsaved_drafts: bool,
 }
 
 impl Default for Settings {
@@ -26,6 +31,8 @@ impl Default for Settings {
             theme: "marpora".to_owned(),
             flavor: Flavor::default(),
             auto_number_math: true,
+            auto_save: false,
+            backup_unsaved_drafts: true,
         }
     }
 }

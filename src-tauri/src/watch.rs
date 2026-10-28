@@ -138,6 +138,8 @@ pub fn reload(app: &AppHandle, label: &str, id: u64) -> Result<(), String> {
     let patch = docs
         .with(id, |open| {
             open.disk = text.clone();
+            // The dropped edits stay in their draft; new ones start another.
+            open.draft = None;
             let patch = open.doc.replace_text(&text, &flavor);
             open.doc.mark_saved(open.doc.version());
             patch

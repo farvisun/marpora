@@ -94,6 +94,10 @@ export class TauriBackend implements Backend {
     return invoke<void>("reload_document", { docId });
   }
 
+  cancelQuit() {
+    return invoke<void>("cancel_quit");
+  }
+
   assetUrl(docPath: string | null, src: string): string {
     if (src.startsWith("file://")) return convertFileSrc(decodeURI(src.slice(7)));
     if (URL_SCHEME.test(src)) return src;
