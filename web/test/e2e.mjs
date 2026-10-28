@@ -244,6 +244,64 @@ check("export offscreen diagram drawn", exported.diagram);
 check("export footnotes at the end", exported.footnotes);
 check("plain export has no styles", exported.plain);
 
+// Find and replace: Typora's panel, counts, options, replace, Replace All and its Undo.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "Cat cat CAT.\n\nconcat and cat.\n");
+  await m.sync.resync();
+  m.view.dispatch(m.view.state.tr.setSelection(m.view.state.selection.constructor.atStart(m.view.state.doc)));
+});
+await inline.keyboard.press("Meta+f");
+await inline.locator("#search-panel-input").fill("cat");
+const searchStatus = () => inline.locator("#search-panel-status").textContent();
+check("find counts matches", (await searchStatus()) === "1 / 5", await searchStatus());
+check("find marks hits", (await inline.locator("#write .md-search-hit").count()) === 5);
+await inline.keyboard.press("Enter");
+check("enter goes to the next match", (await searchStatus()) === "2 / 5", await searchStatus());
+await inline.keyboard.press("Shift+Enter");
+await inline.keyboard.press("Shift+Enter");
+check("shift-enter wraps to the last", (await searchStatus()) === "5 / 5", await searchStatus());
+await inline.locator("#searchpanel-case-option-btn").dispatchEvent("mousedown");
+check("case sensitive", (await searchStatus()) === "1 / 3", await searchStatus());
+await inline.locator("#searchpanel-word-option-btn").dispatchEvent("mousedown");
+check("whole word", (await searchStatus()) === "1 / 2", await searchStatus());
+await inline.locator("#search-panel-input").fill("zzz");
+check("no results", (await searchStatus()) === "No Results");
+await inline.locator("#searchpanel-case-option-btn").dispatchEvent("mousedown");
+await inline.locator("#searchpanel-word-option-btn").dispatchEvent("mousedown");
+await inline.locator("#searchpanel-regexp-option-btn").dispatchEvent("mousedown");
+await inline.locator("#search-panel-input").fill("c(a)t");
+check("regexp", (await searchStatus()) === "1 / 5", await searchStatus());
+await inline.locator("#searchpanel-regexp-option-btn").dispatchEvent("mousedown");
+await inline.keyboard.press("Meta+Alt+f");
+await inline.locator("#search-panel-input").fill("cat");
+await inline.locator("#search-panel-replace-input").fill("dog");
+await inline.locator("#search-panel-replace-btn").click();
+const docText = () => inline.evaluate(async () => {
+  await window.marpora.sync.flush();
+  return (await window.marpora.backend.documentText(1)).text;
+});
+check("replace one", (await docText()).startsWith("dog cat CAT."), await docText());
+check("replace moves on", (await searchStatus()) === "1 / 4", await searchStatus());
+await inline.locator("#search-panel-replaceall-btn").click();
+check("replace all", (await docText()) === "dog dog dog.\n\ncondog and dog.\n", await docText());
+check("replace all message", (await inline.locator("#searchpanel-msg-content").textContent()) === "Replaced 4 occurrence(s)");
+await inline.locator("#searchpanel-msg-undo-btn").click();
+check("undo replace all", (await docText()) === "dog cat CAT.\n\nconcat and cat.\n", await docText());
+await inline.keyboard.press("Escape");
+check("escape closes and clears", !(await inline.locator("#md-searchpanel").isVisible()) &&
+  (await inline.locator("#write .md-search-hit").count()) === 0);
+
+// The same panel searches the Markdown source in source mode.
+await inline.evaluate(() => window.marpora.handleMenu("source-mode"));
+await inline.waitForSelector("#typora-source .CodeMirror");
+await inline.keyboard.press("Meta+f");
+await inline.locator("#search-panel-input").fill("dog");
+const sourceHits = await inline.locator("#typora-source .cm-search-hit").allTextContents();
+check("source mode find", (await searchStatus()) === "1 / 1" && sourceHits.join("") === "dog", sourceHits.join("|"));
+await inline.keyboard.press("Escape");
+await inline.evaluate(() => window.marpora.handleMenu("source-mode"));
+
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();
 process.exit(failures ? 1 : 0);
