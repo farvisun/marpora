@@ -158,7 +158,7 @@ pub async fn save_document(
         open.path = Some(path.clone());
         open.disk = text;
     });
-    app.state::<Recent>().add(&path);
+    library::remember(&app, &path);
     app.state::<Watcher>().update(&app);
     windows::set_title(&window, Some(&path));
     Ok(Some(Saved {
@@ -362,25 +362,37 @@ pub fn reload_document(app: AppHandle, window: WebviewWindow, doc_id: u64) -> Cm
     watch::reload(&app, window.label(), doc_id)
 }
 
-/// The folder the sidebar's Files tab shows: the document's folder.
+/// The folder the sidebar's Files tab shows: an opened folder, else the document's.
 fn library_root(window: &WebviewWindow, docs: &Docs) -> Option<PathBuf> {
     let id = docs.for_window(window.label())?;
-    let path = docs.with(id, |open| open.path.clone())??;
+    let (path, folder) = docs.with(id, |open| (open.path.clone(), open.folder.clone()))?;
+    if folder.is_some() {
+        return folder;
+    }
+    let path = path?;
     let dir = path.parent()?;
     Some(std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf()))
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryInfo {
     folder: Option<String>,
+    /// The folder was opened with File › Open Folder (the sidebar shows it at once).
+    opened_folder: bool,
     /// The home folder, which the sidebar and Quick Open write as `~`.
     home: Option<String>,
 }
 
 #[tauri::command]
 pub fn library_info(window: WebviewWindow, docs: State<Docs>) -> LibraryInfo {
+    let opened_folder = docs
+        .for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.folder.is_some()))
+        .unwrap_or(false);
     LibraryInfo {
         folder: library_root(&window, &docs).as_deref().map(path_string),
+        opened_folder,
         home: std::env::var("HOME").ok(),
     }
 }

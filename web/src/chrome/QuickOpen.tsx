@@ -2,7 +2,7 @@
 // folder, filtered by name as you type. Ranking is in library.ts.
 
 import { createEffect, createSignal, For, on, Show } from "solid-js";
-import type { Backend } from "../ipc";
+import type { Backend, LibraryInfo } from "../ipc";
 import { basename, highlight, type QuickItem, quickPath, rankQuick } from "./library";
 import { setUi, ui } from "./store";
 
@@ -18,7 +18,7 @@ export function QuickOpen(props: { backend: Backend; onOpenFile(path: string): v
   const [recent, setRecent] = createSignal<QuickItem[]>([]);
   const [files, setFiles] = createSignal<QuickItem[]>([]);
   const [searching, setSearching] = createSignal(false);
-  const [info, setInfo] = createSignal<{ folder: string | null; home: string | null }>({ folder: null, home: null });
+  const [info, setInfo] = createSignal<LibraryInfo>({ folder: null, openedFolder: false, home: null });
   const [active, setActive] = createSignal(0);
 
   createEffect(

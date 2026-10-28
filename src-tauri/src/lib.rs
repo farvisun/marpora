@@ -60,14 +60,9 @@ pub fn run() {
             app.manage(library::Recent::load(app.handle()));
             app.set_menu(menu::build(app.handle())?)?;
 
-            let paths: Vec<PathBuf> = std::env::args()
-                .skip(1)
-                .filter(|a| !a.starts_with('-'))
-                .map(PathBuf::from)
-                .filter(|p| p.is_file())
-                .collect();
-            for p in &paths {
-                windows::open(app.handle(), Some(p.clone()))?;
+            let paths = std::env::args().skip(1).filter(|a| !a.starts_with('-'));
+            for p in paths.map(PathBuf::from) {
+                open_path(app.handle(), p)?;
             }
             Ok(())
         })
@@ -80,7 +75,7 @@ pub fn run() {
         RunEvent::Opened { urls } => {
             for url in urls {
                 if let Ok(path) = url.to_file_path() {
-                    let _ = windows::open(app, Some(path));
+                    let _ = open_path(app, path);
                 }
             }
         }
@@ -95,4 +90,15 @@ pub fn run() {
         }
         _ => {}
     });
+}
+
+/// Open a file in a window, or a folder in a window's sidebar.
+fn open_path(app: &tauri::AppHandle, path: PathBuf) -> tauri::Result<()> {
+    if path.is_dir() {
+        windows::open_folder(app, path)
+    } else if path.is_file() {
+        windows::open(app, Some(path))
+    } else {
+        Ok(())
+    }
 }

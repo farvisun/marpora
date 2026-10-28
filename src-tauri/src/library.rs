@@ -208,20 +208,33 @@ impl Recent {
     }
 
     pub fn add(&self, file: &Path) {
-        let files = {
-            let mut files = self.files.lock().unwrap();
-            push_recent(&mut files, file.to_string_lossy().into_owned());
-            files.clone()
-        };
+        let mut files = self.files.lock().unwrap();
+        push_recent(&mut files, file.to_string_lossy().into_owned());
+        self.save(&files);
+    }
+
+    pub fn clear(&self) {
+        let mut files = self.files.lock().unwrap();
+        files.clear();
+        self.save(&files);
+    }
+
+    fn save(&self, files: &[String]) {
         let Some(path) = &self.path else { return };
         let saved = path
             .parent()
             .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| std::fs::write(path, serde_json::to_string_pretty(&files)?));
+            .and_then(|()| std::fs::write(path, serde_json::to_string_pretty(files)?));
         if let Err(e) = saved {
             eprintln!("could not save recent files to {}: {e}", path.display());
         }
     }
+}
+
+/// Add `file` to the recent files and to File › Open Recent.
+pub fn remember(app: &AppHandle, file: &Path) {
+    app.state::<Recent>().add(file);
+    crate::menu::refresh_recent(app);
 }
 
 fn push_recent(files: &mut Vec<String>, file: String) {

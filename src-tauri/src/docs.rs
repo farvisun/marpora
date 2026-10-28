@@ -12,6 +12,9 @@ pub struct OpenDoc {
     /// The file's text when last read or written, to tell other programs' changes
     /// from our own saves (watch.rs).
     pub disk: String,
+    /// A folder opened with File › Open Folder, shown in the sidebar instead of the
+    /// document's folder.
+    pub folder: Option<PathBuf>,
 }
 
 #[derive(Default)]

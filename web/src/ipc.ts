@@ -66,6 +66,8 @@ export interface LibraryDoc {
 
 export interface LibraryInfo {
   folder: string | null;
+  /** The window was opened on a folder (File › Open Folder). */
+  openedFolder: boolean;
   home: string | null;
 }
 
@@ -167,7 +169,7 @@ export class MemoryBackend implements Backend {
   library: { root: string; files: Record<string, string>; recent: string[] } = { root: "", files: {}, recent: [] };
 
   async libraryInfo(): Promise<LibraryInfo> {
-    return { folder: this.library.root || null, home: "/home/me" };
+    return { folder: this.library.root || null, openedFolder: false, home: "/home/me" };
   }
 
   async listFolder(path: string): Promise<LibraryEntry[]> {

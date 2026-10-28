@@ -98,6 +98,11 @@ async function main() {
   );
   refresh();
   view.focus();
+  // A window opened on a folder starts with its files showing, as in Typora.
+  if (!opened.path)
+    void backend.libraryInfo().then((info) => {
+      if (info.openedFolder) setUi({ sidebar: true, sidebarTab: "files" });
+    });
 
   backend.onRemotePatch((id, patch) => {
     if (id === opened.id) void sync.applyRemote(patch).then(() => source.reload());

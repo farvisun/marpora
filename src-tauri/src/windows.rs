@@ -7,7 +7,7 @@ use marpora_core::Document;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::docs::{Docs, OpenDoc};
-use crate::library::Recent;
+use crate::library;
 use crate::watch::Watcher;
 
 static NEXT_WINDOW: AtomicU64 = AtomicU64::new(1);
@@ -24,11 +24,23 @@ pub fn open(app: &AppHandle, path: Option<PathBuf>) -> tauri::Result<()> {
     }
 
     let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
-    load(app, &label, path.clone());
+    load(app, &label, path.clone(), None);
+    build(app, &label, title_for(path.as_deref()))
+}
+
+/// Open `dir` in a new window's sidebar, as Typora opens a folder, with no document.
+pub fn open_folder(app: &AppHandle, dir: PathBuf) -> tauri::Result<()> {
+    let dir = std::fs::canonicalize(&dir).unwrap_or(dir);
+    let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
+    load(app, &label, None, Some(dir));
+    build(app, &label, "Untitled".to_owned())
+}
+
+fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<()> {
 
     let (width, height) = window_size();
-    let builder = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
-        .title(title_for(path.as_deref()))
+    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+        .title(title)
         .inner_size(width, height)
         .min_inner_size(420.0, 300.0);
     #[cfg(target_os = "macos")]
@@ -64,19 +76,25 @@ pub fn replace(app: &AppHandle, window: &WebviewWindow, path: PathBuf) -> tauri:
     {
         return w.set_focus();
     }
-    load(app, window.label(), Some(path.clone()));
+    // Files opened from an opened folder keep it in the sidebar.
+    let folder = docs
+        .for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.folder.clone()))
+        .flatten()
+        .filter(|dir| path.starts_with(dir));
+    load(app, window.label(), Some(path.clone()), folder);
     set_title(window, Some(&path));
     window.reload()
 }
 
 /// Read `path` (or start an untitled document) as the document of window `label`.
-fn load(app: &AppHandle, label: &str, path: Option<PathBuf>) {
+fn load(app: &AppHandle, label: &str, path: Option<PathBuf>, folder: Option<PathBuf>) {
     let text = match &path {
         Some(p) => std::fs::read_to_string(p).unwrap_or_default(),
         None => String::new(),
     };
     if let Some(p) = &path {
-        app.state::<Recent>().add(p);
+        library::remember(app, p);
     }
     app.state::<Docs>().insert(
         label,
@@ -84,6 +102,7 @@ fn load(app: &AppHandle, label: &str, path: Option<PathBuf>) {
             doc: Document::from_markdown(&text),
             path,
             disk: text,
+            folder,
         },
     );
     app.state::<Watcher>().update(app);
