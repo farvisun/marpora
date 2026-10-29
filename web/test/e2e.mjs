@@ -358,7 +358,7 @@ check("footer shows the folder", (await lib.locator("#sidebar-footer-main-item-l
   await lib.locator("#sidebar-new-file-btn").isVisible() && await lib.locator("#switch-file-list-btn .switch-file-list-btn-to-list").isVisible());
 await lib.click("#sidebar-menu-btn .sidebar-footer-item");
 const menuText = () => lib.locator("#sidebar-files-menu > li").evaluateAll((lis) => lis.map((li) => li.textContent.trim()));
-check("footer menu", (await menuText()).join() === "Action,New File,Reveal in Finder,Open Folder...,Refresh Folder,Sort,Recent Locations,other,notes",
+check("footer menu", (await menuText()).join() === "Action,New File,Search,Reveal in Finder,Open Folder...,Refresh Folder,Sort,Recent Locations,other,notes",
   (await menuText()).join());
 check("current folder marked", (await lib.locator(".selected-folder-menu-item").textContent()).trim() === "notes");
 const treeOrder = () => lib.locator(".file-node-root > .file-node-children > .file-tree-node > .file-node-content .file-node-title").allTextContents();

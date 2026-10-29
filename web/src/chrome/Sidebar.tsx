@@ -344,6 +344,7 @@ function SidebarFooter(props: {
                 </span>
               </li>
               <MenuItem id="new-file-from-sidebar-menu" label="New File" onMouseDown={act(newFile)} />
+              <MenuItem id="search-from-sidebar-menu" label="Search" onMouseDown={act(async () => showFileSearch())} />
               <MenuItem
                 id="reveal-folder-from-sidebar-menu"
                 label="Reveal in Finder"
