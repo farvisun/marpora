@@ -319,6 +319,12 @@ async function main() {
     const { message } = await import("@tauri-apps/plugin-dialog");
     const win = getCurrentWebviewWindow();
     await win.listen<string>("menu", (e) => handleMenu(e.payload));
+    // View › Readonly Mode: nothing edits the document, in either mode.
+    await win.listen<boolean>("readonly", (e) => {
+      view.setProps({ editable: () => !e.payload });
+      source.setReadonly(e.payload);
+      document.body.classList.toggle("ty-readonly", e.payload);
+    });
     await win.onCloseRequested(async (event) => {
       const keepOpen = () => {
         event.preventDefault();

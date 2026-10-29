@@ -63,6 +63,11 @@ fn path_string(p: &Path) -> String {
 
 #[tauri::command]
 pub fn initial_document(window: WebviewWindow, docs: State<Docs>) -> CmdResult<OpenedDoc> {
+    // A new page starts editable.
+    let app = window.app_handle();
+    app.state::<menu::WindowFlags>()
+        .reset_readonly(window.label());
+    menu::sync_window_checks(app, window.label());
     let id = docs
         .for_window(window.label())
         .ok_or("no document for this window")?;

@@ -28,10 +28,15 @@ pub fn run() {
         .manage(docs::Docs::default())
         .manage(watch::Watcher::default())
         .manage(menu::Quitting::default())
+        .manage(menu::WindowFlags::default())
         .manage(search::Searches::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
+            if let WindowEvent::Focused(true) = event {
+                menu::sync_window_checks(window.app_handle(), window.label());
+            }
             if let WindowEvent::Destroyed = event {
+                window.state::<menu::WindowFlags>().forget(window.label());
                 let docs = window.state::<docs::Docs>();
                 // Closed with "Don't Save": keep the edits as a draft (or save them,
                 // with Auto Save on).

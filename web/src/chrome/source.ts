@@ -52,6 +52,13 @@ export class SourceMode {
   /** Text the core has, to skip sending unchanged text. */
   private sent = "";
   active = false;
+  /** View › Readonly Mode. */
+  private readonly = false;
+
+  setReadonly(on: boolean) {
+    this.readonly = on;
+    this.editor?.setOption("readOnly", on);
+  }
 
   /** The source editor, once source mode has been entered. */
   get codeMirror(): CodeMirrorEditor | null {
@@ -79,6 +86,7 @@ export class SourceMode {
     await this.sync.flush();
     const { text } = await this.backend.documentText(this.docId);
     const editor = await this.ensureEditor(text);
+    editor.setOption("readOnly", this.readonly);
     this.sent = text;
     editor.setValue(text);
     editor.clearHistory();

@@ -1,7 +1,9 @@
 //! Native menus laid out like Typora's. Items that act on the document are forwarded to
 //! the focused window as a `menu` event carrying the item id (see web/src/editor/commands.ts).
 
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
@@ -289,8 +291,14 @@ const FORMAT_END: &[Item] = &[
     ("clear-format", "Clear Format", Some("CmdOrCtrl+\\")),
 ];
 
-const VIEW: &[Item] = &[
-    ("source-mode", "Source Code Mode", Some("CmdOrCtrl+/")),
+const VIEW_MODES: &[Item] = &[
+    ("-", "", None),
+    ("focus-mode", "Focus Mode", Some("F8")),
+    ("typewriter-mode", "Typewriter Mode", Some("F9")),
+    ("-", "", None),
+];
+
+const VIEW_SIDEBAR: &[Item] = &[
     ("-", "", None),
     (
         "toggle-sidebar",
@@ -302,10 +310,98 @@ const VIEW: &[Item] = &[
     ("file-tree", "File Tree", Some("Ctrl+Cmd+3")),
     ("search", "Search", Some("CmdOrCtrl+Shift+F")),
     ("-", "", None),
-    ("focus-mode", "Focus Mode", Some("F8")),
-    ("typewriter-mode", "Typewriter Mode", Some("F9")),
+    ("zoom-actual", "Actual Size", Some("CmdOrCtrl+Shift+0")),
+    ("zoom-in", "Zoom In", Some("CmdOrCtrl+Shift+=")),
+    ("zoom-out", "Zoom Out", Some("CmdOrCtrl+Shift+-")),
     ("-", "", None),
 ];
+
+/// Zoom levels for View › Zoom In and Zoom Out, as browsers step them.
+const ZOOMS: &[f64] = &[
+    0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0,
+];
+
+/// Per-window View settings: Readonly Mode, Always on Top and the zoom.
+#[derive(Default)]
+pub struct WindowFlags {
+    readonly: Mutex<HashSet<String>>,
+    on_top: Mutex<HashSet<String>>,
+    zoom: Mutex<HashMap<String, f64>>,
+}
+
+impl WindowFlags {
+    pub fn reset_readonly(&self, label: &str) {
+        self.readonly.lock().unwrap().remove(label);
+    }
+
+    pub fn forget(&self, label: &str) {
+        self.readonly.lock().unwrap().remove(label);
+        self.on_top.lock().unwrap().remove(label);
+        self.zoom.lock().unwrap().remove(label);
+    }
+}
+
+fn check_item(app: &AppHandle, id: &str) -> Option<CheckMenuItem<Wry>> {
+    let Some(MenuItemKind::Submenu(view)) = app.menu().and_then(|m| m.get("view")) else {
+        return None;
+    };
+    match view.get(id) {
+        Some(MenuItemKind::Check(check)) => Some(check),
+        _ => None,
+    }
+}
+
+/// Show the focused window's Readonly Mode and Always on Top in the View menu.
+pub fn sync_window_checks(app: &AppHandle, label: &str) {
+    let flags = app.state::<WindowFlags>();
+    for (id, set) in [
+        ("readonly", &flags.readonly),
+        ("always-on-top", &flags.on_top),
+    ] {
+        if let Some(check) = check_item(app, id) {
+            let _ = check.set_checked(set.lock().unwrap().contains(label));
+        }
+    }
+}
+
+/// Flip `label` in `set`; returns whether it is now in it.
+fn toggle(set: &Mutex<HashSet<String>>, label: &str) -> bool {
+    let mut set = set.lock().unwrap();
+    if !set.remove(label) {
+        set.insert(label.to_owned());
+        return true;
+    }
+    false
+}
+
+/// View items acting on the focused window itself.
+fn handle_window_view(app: &AppHandle, window: &tauri::WebviewWindow, id: &str) {
+    let flags = app.state::<WindowFlags>();
+    let label = window.label();
+    match id {
+        "readonly" => {
+            let on = toggle(&flags.readonly, label);
+            let _ = window.emit_to(label, "readonly", on);
+        }
+        "always-on-top" => {
+            let on = toggle(&flags.on_top, label);
+            let _ = window.set_always_on_top(on);
+        }
+        _ => {
+            let mut zoom = flags.zoom.lock().unwrap();
+            let now = zoom.get(label).copied().unwrap_or(1.0);
+            let next = match id {
+                "zoom-in" => ZOOMS.iter().copied().find(|&z| z > now + 1e-3),
+                "zoom-out" => ZOOMS.iter().rev().copied().find(|&z| z < now - 1e-3),
+                _ => Some(1.0),
+            }
+            .unwrap_or(now);
+            zoom.insert(label.to_owned(), next);
+            let _ = window.set_zoom(next);
+        }
+    }
+    sync_window_checks(app, label);
+}
 
 fn items<R: Runtime>(
     app: &AppHandle<R>,
@@ -466,15 +562,28 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         )?));
     }
 
-    let mut view = items(app, VIEW)?;
-    view.push(Box::new(CheckMenuItem::with_id(
-        app,
+    let check = |id: &str, label: &str, on: bool| {
+        CheckMenuItem::with_id(app, id, label, true, on, None::<&str>)
+    };
+    let mut view: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = vec![
+        Box::new(MenuItem::with_id(
+            app,
+            "source-mode",
+            "Source Code Mode",
+            true,
+            Some("CmdOrCtrl+/"),
+        )?),
+        Box::new(check("readonly", "Readonly Mode", false)?),
+    ];
+    view.extend(items(app, VIEW_MODES)?);
+    view.push(Box::new(check(
         "status-bar",
         "Status Bar",
-        true,
         app.state::<Store>().get().show_status_bar,
-        None::<&str>,
     )?));
+    view.extend(items(app, VIEW_SIDEBAR)?);
+    view.push(Box::new(check("always-on-top", "Always on Top", false)?));
+    view.push(Box::new(PredefinedMenuItem::fullscreen(app, None)?));
 
     let window = submenu(
         app,
@@ -483,7 +592,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             Box::new(PredefinedMenuItem::minimize(app, None)?),
             Box::new(PredefinedMenuItem::maximize(app, None)?),
             Box::new(PredefinedMenuItem::separator(app)?),
-            Box::new(PredefinedMenuItem::fullscreen(app, None)?),
+            Box::new(PredefinedMenuItem::bring_all_to_front(app, None)?),
         ],
     )?;
 
@@ -617,8 +726,14 @@ pub fn handle(app: &AppHandle, id: &str) {
                 .webview_windows()
                 .into_values()
                 .find(|w| w.is_focused().unwrap_or(false));
-            if let Some(w) = focused {
-                let _ = w.emit_to(w.label(), "menu", id);
+            let Some(w) = focused else { return };
+            match id {
+                "readonly" | "always-on-top" | "zoom-in" | "zoom-out" | "zoom-actual" => {
+                    handle_window_view(app, &w, id)
+                }
+                _ => {
+                    let _ = w.emit_to(w.label(), "menu", id);
+                }
             }
         }
     }

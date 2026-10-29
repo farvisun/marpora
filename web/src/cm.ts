@@ -41,6 +41,7 @@ export interface CodeMirrorEditor {
   operation<T>(fn: () => T): T;
   off(event: string, handler: (...args: never[]) => void): void;
   getLine(line: number): string;
+  setOption(name: string, value: unknown): void;
   lineCount(): number;
   findWordAt(pos: CodeMirrorPos): { anchor: CodeMirrorPos; head: CodeMirrorPos };
   replaceSelection(text: string, select?: "around" | "start"): void;
