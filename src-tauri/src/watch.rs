@@ -24,9 +24,9 @@ pub struct Watcher {
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct RemotePatchEvent {
-    doc_id: u64,
-    patch: RemotePatch,
+pub struct RemotePatchEvent {
+    pub doc_id: u64,
+    pub patch: RemotePatch,
 }
 
 #[derive(Serialize, Clone)]

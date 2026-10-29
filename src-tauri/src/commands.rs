@@ -100,6 +100,12 @@ pub fn apply_patch(
     })
 }
 
+/// The editor's selection, for agents' get_selection; none when it is empty.
+#[tauri::command]
+pub fn report_selection(doc_id: u64, selection: Option<crate::agent::Selection>) {
+    crate::agent::set_selection(doc_id, selection);
+}
+
 #[tauri::command]
 pub fn document_text(doc_id: u64, docs: State<Docs>) -> CmdResult<DocText> {
     docs.with(doc_id, |open| DocText {

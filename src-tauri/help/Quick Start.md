@@ -46,6 +46,17 @@ Right-click in the text for the same actions, plus the ones that fit what you cl
 - **View › Typewriter Mode** (F9) keeps the current line in the middle of the window.
 - Click the word count in the status bar for words, characters, lines and reading time.
 
+## Agents
+
+Coding agents such as Claude Code and Codex can read and edit the documents open in Marpora. Their edits show at once, and ⌘Z takes them back. Connect one through MCP:
+
+```sh
+claude mcp add marpora -- /Applications/Marpora.app/Contents/MacOS/marpora mcp
+codex mcp add marpora -- /Applications/Marpora.app/Contents/MacOS/marpora mcp
+```
+
+The agent can then list, read and edit open documents, see what you have selected, open files and save them.
+
 ## Themes
 
 Pick a theme from the **Themes** menu. To add your own, put a `.css` file in the themes folder (**Help › Custom Themes**) and choose it from the menu. Typora themes work unchanged.

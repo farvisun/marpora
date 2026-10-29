@@ -98,6 +98,23 @@ async function main() {
     document.body.classList.toggle("ignore-line-break", s.ignoreLineBreak);
     setWhitespace(view, { indentFirstLine: s.indentFirstLine, ignoreLineBreak: s.ignoreLineBreak });
   };
+  /** Tell agents what is selected, when it changes. */
+  let selectionTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastSelection = "null";
+  const reportSelection = (v: EditorView) => {
+    const { from, to, empty } = v.state.selection;
+    const doc = v.state.doc;
+    const startBlock = doc.resolve(from).index(0);
+    const $to = doc.resolve(to);
+    // A selection ending at the very start of a block leaves that block out.
+    const atStart = $to.depth > 0 && $to.start(1) === to;
+    const endBlock = Math.max(startBlock, $to.index(0) - (atStart ? 1 : 0));
+    const selection = empty ? null : { text: doc.textBetween(from, to, "\n\n", " "), startBlock, endBlock };
+    const json = JSON.stringify(selection);
+    if (json === lastSelection) return;
+    lastSelection = json;
+    void backend.reportSelection(opened.id, selection).catch(() => {});
+  };
   const mountEditor = (el: HTMLElement) => {
     view = createEditor(el, {
       doc,
@@ -117,6 +134,8 @@ async function main() {
         setUi("activeHeading", ui.outline.findLastIndex((h) => h.pos <= head));
         if (!refreshTimer) refreshTimer = setTimeout(refresh, 150);
         search.refresh();
+        clearTimeout(selectionTimer);
+        selectionTimer = setTimeout(() => reportSelection(v), 250);
       },
     });
     showWhitespace(settings);

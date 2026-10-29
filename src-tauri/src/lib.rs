@@ -1,5 +1,6 @@
 //! Marpora desktop app: windows, menus and IPC around `marpora-core`.
 
+mod agent;
 mod commands;
 #[cfg(target_os = "macos")]
 mod context_menu;
@@ -7,6 +8,7 @@ mod docs;
 mod images;
 mod library;
 mod links;
+pub mod mcp;
 mod menu;
 #[cfg(target_os = "macos")]
 mod native_menu;
@@ -36,6 +38,7 @@ pub fn run() {
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::Focused(true) = event {
+                agent::focused(window.label());
                 menu::sync_window_checks(window.app_handle(), window.label());
             }
             if let WindowEvent::Destroyed = event {
@@ -80,6 +83,7 @@ pub fn run() {
             commands::recent_files,
             commands::clear_recent,
             commands::recent_folders,
+            commands::report_selection,
             commands::pin_recent_folder,
             commands::remove_recent_folder,
             commands::search_library,
@@ -113,6 +117,7 @@ pub fn run() {
             app.manage(commands::ExportGrants::default());
             app.manage(library::Recent::load(app.handle()));
             app.manage(save::Autosave::start(app.handle()));
+            agent::serve(app.handle());
             if let Some(dir) = save::drafts_dir(app.handle()) {
                 std::thread::spawn(move || save::prune_drafts(&dir));
             }

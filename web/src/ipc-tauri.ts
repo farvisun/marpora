@@ -3,6 +3,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { MenuContext } from "./editor/contextmenu";
 import type {
+  AgentSelection,
   RecentFolder,
   Backend,
   FileSearchQuery,
@@ -125,6 +126,10 @@ export class TauriBackend implements Backend {
 
   trashDocument() {
     return invoke<void>("trash_document");
+  }
+
+  reportSelection(docId: number, selection: AgentSelection | null) {
+    return invoke<void>("report_selection", { docId, selection });
   }
 
   setContextMenu(context: MenuContext) {

@@ -4,6 +4,13 @@
 import type { MenuContext } from "./editor/contextmenu";
 import { type Flavor, parseMarkdown } from "./md";
 
+/** A selection as agents see it: its text, and the top level blocks it spans. */
+export interface AgentSelection {
+  text: string;
+  startBlock: number;
+  endBlock: number;
+}
+
 /** A folder in the sidebar menu's Recent Locations. */
 export interface RecentFolder {
   path: string;
@@ -205,6 +212,8 @@ export interface Backend {
   readClipboard(): Promise<string | null>;
   /** What the editor's right click is on, for the native context menu. */
   setContextMenu(context: MenuContext): Promise<void>;
+  /** The editor's selection, for agents (the MCP server's get_selection); null when empty. */
+  reportSelection(docId: number, selection: AgentSelection | null): Promise<void>;
   /** Open a link from the document; returns the heading a `#…` link names. */
   openLink(href: string): Promise<string | null>;
   /** Store a pasted image (`ext`: png, jpg, ...) for document `docId`; returns its path for the document. */
@@ -460,6 +469,11 @@ export class MemoryBackend implements Backend {
 
   /** Test hook: the last context menu context. */
   contextMenu: MenuContext | null = null;
+  /** Test hook: the selection last reported for agents. */
+  selection: AgentSelection | null = null;
+  async reportSelection(_docId: number, selection: AgentSelection | null) {
+    this.selection = selection;
+  }
 
   async setContextMenu(context: MenuContext) {
     this.contextMenu = context;

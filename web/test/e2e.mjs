@@ -542,6 +542,9 @@ await inline.evaluate(() => {
 });
 await inline.waitForTimeout(250);
 check("selection counted", (await wcLabel()) === "9 / 24 Characters", await wcLabel());
+await inline.waitForTimeout(150);
+const agentSel = await inline.evaluate(() => JSON.stringify(window.marpora.backend.selection));
+check("selection reported for agents", agentSel === JSON.stringify({ text: "two three", startBlock: 0, endBlock: 0 }), agentSel);
 await inline.evaluate(() => window.marpora.handleMenu("word-count-popover"));
 check("menu toggles the popover", (await inline.locator("#footer-word-count-info .footer-word-count-info-line").textContent()).includes("2 Words"));
 await inline.keyboard.press("Escape");
