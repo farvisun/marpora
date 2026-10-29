@@ -1,13 +1,14 @@
 // Window chrome around the editor, using Typora's element ids and classes so themes
 // that style the sidebar and footer apply.
 
-import { createEffect } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import type { Backend } from "../ipc";
 import { QuickOpen } from "./QuickOpen";
 import type { Search } from "./search";
 import { SearchPanel } from "./SearchPanel";
 import { Sidebar } from "./Sidebar";
 import { setUi, ui } from "./store";
+import { TableDialog } from "./TableDialog";
 
 export interface ChromeProps {
   backend: Backend;
@@ -22,6 +23,8 @@ export interface ChromeProps {
   mountEditor(el: HTMLElement): void;
   mountSource(el: HTMLElement): void;
   search: Search;
+  /** Insert a table of `cols` columns and `rows` rows, the header included. */
+  onInsertTable(cols: number, rows: number): void;
 }
 
 export function App(props: ChromeProps) {
@@ -41,6 +44,9 @@ export function App(props: ChromeProps) {
         selectedText={props.selectedText}
       />
       <QuickOpen backend={props.backend} onOpenFile={props.onOpenFile} />
+      <Show when={ui.tableDialog}>
+        <TableDialog onInsert={props.onInsertTable} />
+      </Show>
       <content>
         <div ref={(el) => props.mountEditor(el)} />
         <div id="typora-source" ref={(el) => props.mountSource(el)} />

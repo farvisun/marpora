@@ -120,6 +120,11 @@ function insertBlock(make: () => PMNode): Command {
   };
 }
 
+/** A table of `cols` columns and `bodyRows` rows under the header, at the cursor. */
+export function insertTable(cols: number, bodyRows: number): Command {
+  return insertBlock(() => createTable(cols, bodyRows));
+}
+
 export function createTable(cols: number, bodyRows: number, headers?: string[]): PMNode {
   const cell = (type: NodeType, text?: string) => type.create(null, text ? schema.text(text) : null);
   const row = (type: NodeType, texts?: string[]) =>

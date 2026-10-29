@@ -65,6 +65,8 @@ export const [ui, setUi] = createStore({
   dirty: false,
   /** Quick Open (⇧⌘O) is showing. */
   quickOpen: false,
+  /** Paragraph › Table › Insert Table's dialog is showing. */
+  tableDialog: false,
   /** Bumped when the sidebar should list its folder again (Show hidden files changed). */
   libraryVersion: 0,
   /** The sidebar file being renamed in place. */

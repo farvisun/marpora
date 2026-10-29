@@ -444,6 +444,27 @@ tmd = await tableRun();
 check("toolbar deletes the table", tmd === "after", JSON.stringify(tmd));
 check("toolbar gone with the table", (await inline.locator(".ty-table-edit").count()) === 0);
 
+// Paragraph › Table › Insert Table asks for the size in Typora's dialog.
+const tableDialog = inline.locator("#table-insert-dialog");
+await tableAt("after");
+await inline.evaluate(() => window.marpora.handleMenu("table"));
+await inline.waitForTimeout(50);
+check("insert table dialog", (await tableDialog.locator(".modal-title").textContent()) === "Insert Table" &&
+  (await inline.locator("#table-insert-col").inputValue()) === "3" && (await inline.locator("#table-insert-row").inputValue()) === "4" &&
+  (await inline.evaluate(() => document.activeElement?.id)) === "table-insert-col");
+await inline.keyboard.press("Escape");
+check("escape closes the dialog", (await tableDialog.count()) === 0);
+await inline.evaluate(() => window.marpora.handleMenu("table"));
+await inline.waitForTimeout(50);
+await inline.keyboard.type("2x");
+await inline.keyboard.press("ArrowUp");
+await inline.keyboard.press("Tab");
+await inline.keyboard.type("2");
+await inline.keyboard.press("Enter");
+tmd = await tableRun();
+check("dialog inserts the table", tableDialog && (await tableDialog.count()) === 0 &&
+  /^after\n\n\| +\| +\| +\|\n\| -+ \| -+ \| -+ \|\n\| +\| +\| +\|$/.test(tmd), JSON.stringify(tmd));
+
 // Format menu: underline, inline math and comments; links open with ⌘-click.
 await inline.evaluate(async () => {
   const m = window.marpora;

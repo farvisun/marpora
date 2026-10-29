@@ -7,6 +7,7 @@ import { App } from "./chrome/App";
 import { basename } from "./chrome/library";
 import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { dropFiles, imageExtension, insertImages } from "./editor/clipboard";
+import { insertTable } from "./editor/commands";
 import { createEditor, runCommand } from "./editor/editor";
 import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
@@ -148,6 +149,10 @@ async function main() {
         onOpenMatch={(path, line) => void openMatch(path, line).catch(report)}
         selectedText={selectedText}
         mountEditor={mountEditor}
+        onInsertTable={(cols, rows) => {
+          insertTable(cols, rows - 1)(view.state, view.dispatch, view);
+          view.focus();
+        }}
         mountSource={(el) => (sourceHost = el)}
         onOutlineClick={(pos) => {
           const tr = view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos + 1)));
@@ -263,6 +268,9 @@ async function main() {
         return void save(false);
       case "save-as":
         return void save(true);
+      case "table":
+        if (source.active) return;
+        return setUi("tableDialog", true);
       case "insert-local-images":
         return void insertLocalImages().catch(report);
       case "open-location":

@@ -1642,3 +1642,84 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
   .typora-export h5,
   .typora-export h6 { page-break-inside: avoid; }
 }
+
+/* Dialogs: Typora's Bootstrap 3 modal with its mac.css changes (Insert Table). */
+.modal-backdrop { position: fixed; inset: 0; z-index: 1040; background: rgba(0, 0, 0, 0.15); backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px); }
+.modal { position: fixed; inset: 0; z-index: 1050; overflow-x: hidden; overflow-y: auto; outline: 0; font-size: 14px; }
+.modal .modal-dialog { position: relative; width: 300px; margin: 40px auto; text-align: center; font-size: 13px; }
+.modal-content {
+  position: relative;
+  background-color: var(--bg-color, #fff);
+  background-clip: padding-box;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  outline: 0;
+}
+.modal-header { padding: 15px; min-height: 16.43px; border: none; }
+.modal-title { margin: 0; line-height: 1.42857143; font-size: 1.15em; font-weight: bold; }
+.modal-body { position: relative; padding: 15px; max-height: calc(90vh - 150px); overflow: auto; }
+.modal-footer { padding: 15px; text-align: right; border-top: 0; }
+.modal .row { margin: 0 -15px; }
+.modal .row::after { content: ""; display: table; clear: both; }
+.modal .input-group { position: relative; display: table; border-collapse: separate; }
+.modal .input-group-addon {
+  display: table-cell;
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  color: #555;
+  text-align: center;
+  background-color: #eee;
+  border: 1px solid #ccc;
+  border-radius: 4px 0 0 4px;
+  border-right: 0;
+}
+.modal .form-control {
+  position: relative;
+  z-index: 2;
+  display: table-cell;
+  float: left;
+  width: 100%;
+  height: 34px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.42857143;
+  color: inherit;
+  background-color: inherit;
+  border: 1px solid #ccc;
+  border-radius: 0 4px 4px 0;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+  transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+}
+.modal .form-control:focus { border-color: #66afe9; outline: 0; box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(102, 175, 233, 0.6); }
+.modal-footer .btn {
+  display: inline-block;
+  margin: 0;
+  padding: 2px 16px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.42857143;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.modal-footer .btn + .btn { margin-left: 5px; }
+.modal-footer .btn-default { color: #333; background-color: #fff; }
+.modal-footer .btn-default:hover { background-color: #e6e6e6; }
+.modal-footer .btn-primary { color: #fff; background-color: #007aff; }
+.modal-footer .btn-primary:hover { background-color: rgba(0, 122, 255, 0.9); }
+#table-insert-dialog .row { min-height: 30px; }
+#table-insert-dialog .col-lg-6 { position: relative; width: calc(50% - 20px); float: left; margin-right: 20px; padding: 0 15px; box-sizing: border-box; }
+#table-insert-col,
+#table-insert-row { margin-left: 8px; }
