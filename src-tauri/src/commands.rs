@@ -12,6 +12,7 @@ use tauri_plugin_dialog::DialogExt;
 use crate::docs::Docs;
 use crate::library::{self, Recent};
 use crate::save::{self, Autosave};
+use crate::search::{self, Searches};
 use crate::settings::{Settings, Store};
 use crate::themes::{self, ThemeCss, ThemeInfo};
 use crate::watch;
@@ -450,6 +451,26 @@ pub fn recent_files(recent: State<Recent>) -> Vec<String> {
 #[tauri::command]
 pub fn recent_folders(recent: State<Recent>) -> Vec<String> {
     recent.folders()
+}
+
+/// Find in the sidebar's folder (its Search). A newer search stops this one.
+#[tauri::command]
+pub async fn search_library(
+    app: AppHandle,
+    window: WebviewWindow,
+    query: search::Query,
+    docs: State<'_, Docs>,
+    store: State<'_, Store>,
+) -> CmdResult<search::Results> {
+    let root = library_root(&window, &docs).ok_or("no folder is open")?;
+    let hidden = store.get().show_hidden_files;
+    let id = app.state::<Searches>().start();
+    tauri::async_runtime::spawn_blocking(move || {
+        let searches = app.state::<Searches>();
+        search::search(&root, &query, hidden, || searches.current() != id)
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Create an untitled file in the sidebar's folder (its footer's New File). Returns

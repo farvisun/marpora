@@ -114,6 +114,7 @@ const VIEW: &[Item] = &[
     ("outline", "Outline", Some("Ctrl+Cmd+1")),
     ("articles", "Articles", Some("Ctrl+Cmd+2")),
     ("file-tree", "File Tree", Some("Ctrl+Cmd+3")),
+    ("search", "Search", Some("CmdOrCtrl+Shift+F")),
     ("-", "", None),
     ("focus-mode", "Focus Mode", Some("F8")),
     ("typewriter-mode", "Typewriter Mode", Some("F9")),

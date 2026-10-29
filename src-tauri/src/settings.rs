@@ -36,6 +36,10 @@ pub struct Settings {
     /// Sidebar "Group By Folder" turned off: one sorted list, folders mixed with files.
     pub list_no_group: bool,
     pub tree_no_group: bool,
+    /// The sidebar Search's options.
+    pub file_search_case_sensitive: bool,
+    pub file_search_whole_word: bool,
+    pub file_search_use_regexp: bool,
 }
 
 impl Default for Settings {
@@ -53,6 +57,9 @@ impl Default for Settings {
             tree_sort: 0,
             list_no_group: false,
             tree_no_group: false,
+            file_search_case_sensitive: false,
+            file_search_whole_word: false,
+            file_search_use_regexp: false,
         }
     }
 }

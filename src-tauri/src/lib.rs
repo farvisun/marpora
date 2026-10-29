@@ -8,6 +8,7 @@ mod pandoc;
 #[cfg(target_os = "macos")]
 mod pdf;
 mod save;
+mod search;
 mod settings;
 mod themes;
 mod watch;
@@ -23,6 +24,7 @@ pub fn run() {
         .manage(docs::Docs::default())
         .manage(watch::Watcher::default())
         .manage(menu::Quitting::default())
+        .manage(search::Searches::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::Destroyed = event {
@@ -54,6 +56,7 @@ pub fn run() {
             commands::recent_files,
             commands::clear_recent,
             commands::recent_folders,
+            commands::search_library,
             commands::new_library_file,
             commands::reveal_library,
             commands::switch_library_folder,
