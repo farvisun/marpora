@@ -16,6 +16,7 @@ import { linkAt, openLink } from "./editor/links";
 import { imageAt, imageNode, removeImage, setImageSrc, setImageZoom, switchImageSyntax, withSrc } from "./editor/imagetools";
 import { frontMatterValue, rootedSrc, setFrontMatterValue } from "./editor/frontmatter";
 import { DocSync } from "./editor/sync";
+import { remoteHighlight } from "./editor/remotehighlight";
 import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
 import { blockOfLine, SourceMode } from "./chrome/source";
@@ -118,7 +119,7 @@ async function main() {
   const mountEditor = (el: HTMLElement) => {
     view = createEditor(el, {
       doc,
-      plugins: [sync.plugin()],
+      plugins: [sync.plugin(), remoteHighlight()],
       assetUrl: (src) => backend.assetUrl(ui.path, rootedSrc(src, imageRoot)),
       openLink: (href) => backend.openLink(href),
       saveImage: async (image) =>

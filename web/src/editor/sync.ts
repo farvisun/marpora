@@ -9,6 +9,7 @@ import { Plugin, PluginKey, type Transaction } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
 import type { Backend, Patch, RemotePatch } from "../ipc";
 import { parseMarkdown, serializeBlocks } from "../md";
+import { highlightKey } from "./remotehighlight";
 import { schema } from "./schema";
 
 /** Transactions carrying this meta came from the core and must not be sent back. */
@@ -152,7 +153,11 @@ export class DocSync {
     const from = blockPos(doc, start);
     const to = blockPos(doc, start + remote.delete);
     const content = insert.length || doc.childCount > remote.delete ? insert : [schema.nodes.paragraph.create()];
-    const tr = view.state.tr.replaceWith(from, to, content).setMeta(remoteMeta, true);
+    const size = content.reduce((n, node) => n + node.nodeSize, 0);
+    const tr = view.state.tr
+      .replaceWith(from, to, content)
+      .setMeta(remoteMeta, true)
+      .setMeta(highlightKey, { from, to: from + size });
     this.synced = replaceBlocks(this.synced, { ...remote, insert: content });
     this.version = patch.version;
     view.dispatch(tr);

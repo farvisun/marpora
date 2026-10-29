@@ -1812,3 +1812,10 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
 #table-insert-dialog .col-lg-6 { position: relative; width: calc(50% - 20px); float: left; margin-right: 20px; padding: 0 15px; box-sizing: border-box; }
 #table-insert-col,
 #table-insert-row { margin-left: 8px; }
+
+/* A block changed from outside the editor (editor/remotehighlight.ts). */
+@keyframes md-remote-fade {
+  from { background-color: color-mix(in srgb, var(--primary-color, #4183c4) 22%, transparent); }
+  to { background-color: transparent; }
+}
+#write .md-remote-edit { animation: md-remote-fade 1.6s ease-out; border-radius: 2px; }

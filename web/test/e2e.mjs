@@ -1055,6 +1055,10 @@ await disk.evaluate(() => window.marpora.backend.changeOnDisk("# From disk\n\nOn
 await disk.waitForSelector("#write h1:text('From disk')");
 check("clean document reloads in place", (await diskText()) === "# From disk\n\nOne\n" &&
   !(await disk.evaluate(() => window.marpora.backend.isDirty(1))));
+await disk.waitForSelector("#write .md-remote-edit", { timeout: 1000 });
+check("outside changes light up", (await disk.locator("#write .md-remote-edit").count()) > 0);
+await disk.waitForFunction(() => !document.querySelector("#write .md-remote-edit"), null, { timeout: 3000 });
+check("and fade away", (await disk.locator("#write .md-remote-edit").count()) === 0);
 let asked = null;
 disk.on("dialog", (d) => { asked = d.message(); void (asked && globalThis.acceptDialog ? d.accept() : d.dismiss()); });
 await disk.click("#write p");
