@@ -1,5 +1,6 @@
 // File › Export for a Marp deck: the slides as a page of their own, for an HTML file
-// (slides one under another) or a PDF (one slide a page, at the slide's size).
+// (slides one under another) or a PDF (one slide a page, at the slide's size). The PDF's
+// page also makes the PowerPoint file, where Rust cuts its picture into slides.
 
 import { imagePath } from "../export";
 import { renderDeck } from "./marp";
@@ -9,6 +10,8 @@ export interface DeckPage {
   /** The slide size in CSS pixels, from the theme (1280 × 720 by default). */
   width: number;
   height: number;
+  /** Each slide's speaker notes. */
+  notes: string[];
 }
 
 const escape = (s: string) => s.replace(/[&<>"]/g, (c) => `&${{ "&": "amp", "<": "lt", ">": "gt", '"': "quot" }[c]};`);
@@ -70,5 +73,5 @@ ${options.print ? `<script>${PRINT_ALIGN}</script>` : ""}
 </body>
 </html>
 `;
-  return { html, width, height };
+  return { html, width, height, notes: deck.notes };
 }

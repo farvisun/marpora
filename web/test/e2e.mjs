@@ -1241,6 +1241,9 @@ check("slides: html export is the deck", (deckHtml.match(/<svg[^>]*data-marpit-s
 const deckPdf = await deckExport("export-pdf");
 check("slides: pdf export at the slide size", deckPdf.startsWith("slides 1280x720\n") && !/<svg[^>]*data-marpit-svg/.test(deckPdf) && (deckPdf.match(/<section/g) ?? []).length === 4 && deckPdf.includes("alignContent"),
   deckPdf.slice(0, 120));
+const deckPptx = await deckExport("export-slides-pptx");
+check("slides: powerpoint export from the print page with notes", deckPptx.startsWith('pptx 1280x720\n["","","",""]\n') &&
+  (deckPptx.match(/<section/g) ?? []).length === 4 && deckPptx.includes("alignContent"), deckPptx.slice(0, 120));
 // View › Present Slides: the presenter view here, the audience in its own page.
 await deck.evaluate(() => {
   const { view } = window.marpora;

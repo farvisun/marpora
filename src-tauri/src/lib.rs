@@ -16,6 +16,8 @@ mod native_menu;
 mod pandoc;
 #[cfg(target_os = "macos")]
 mod pdf;
+#[cfg(target_os = "macos")]
+mod pptx;
 mod present;
 mod save;
 mod search;
@@ -123,6 +125,7 @@ pub fn run() {
             commands::write_export,
             commands::export_pdf,
             commands::export_slides_pdf,
+            commands::export_slides_pptx,
             present::present_open,
             present::present_send,
             present::present_close,

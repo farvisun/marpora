@@ -79,6 +79,9 @@ pub enum Output {
     Printer,
     /// Save the whole page, laid out this wide (Preferences › Export), as a PNG file.
     Png(PathBuf, f64),
+    /// Save a deck's slides, stacked at this size (CSS pixels), as pictures in a
+    /// PowerPoint file, with each slide's notes.
+    Pptx(PathBuf, (f64, f64), Vec<String>),
 }
 
 type Done = Box<dyn FnOnce(Result<(), String>)>;
@@ -104,7 +107,7 @@ define_class!(
         #[unsafe(method(webView:didFinishNavigation:))]
         fn did_finish(&self, web: &WKWebView, _navigation: Option<&WKNavigation>) {
             match self.ivars().output {
-                Output::Png(..) => self.snapshot(web),
+                Output::Png(..) | Output::Pptx(..) => self.snapshot(web),
                 _ => self.print(web),
             }
         }
@@ -202,7 +205,7 @@ impl PrintJob {
             let drawn = RcBlock::new(move |pdf: *mut NSData, error: *mut NSError| {
                 // SAFETY: WebKit passes the PDF, or null and an error.
                 match unsafe { pdf.as_ref() } {
-                    Some(pdf) => job.finish(job.write_png(pdf, scale)),
+                    Some(pdf) => job.finish(job.write_snapshot(pdf, scale)),
                     None => job.failed(error, "could not draw the page"),
                 }
             });
@@ -218,50 +221,30 @@ impl PrintJob {
         }
     }
 
-    /// Rasterize the one-page `pdf` at `scale` pixels per point into the PNG file.
-    fn write_png(&self, pdf: &NSData, scale: f64) -> Result<(), String> {
-        let Output::Png(path, _) = &self.ivars().output else {
-            return Err("not an image export".into());
-        };
+    /// Rasterize the one-page `pdf` at `scale` pixels per point: all of it into the PNG
+    /// file, or slide by slide into the PowerPoint file.
+    fn write_snapshot(&self, pdf: &NSData, scale: f64) -> Result<(), String> {
         let image =
             NSImage::initWithData(NSImage::alloc(), pdf).ok_or("could not read the page")?;
         let size = image.size();
-        let pixels = |points: f64| (points * scale).round() as isize;
-        // SAFETY: an RGBA bitmap that allocates its own memory (null planes, row and pixel
-        // sizes worked out by AppKit).
-        let bitmap = unsafe {
-            NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
-                NSBitmapImageRep::alloc(),
-                std::ptr::null_mut(),
-                pixels(size.width),
-                pixels(size.height),
-                8,
-                4,
-                true,
-                false,
-                NSDeviceRGBColorSpace,
-                0,
-                0,
-            )
-        }
-        .ok_or("the page is too large for an image")?;
-        bitmap.setSize(size);
-        let context = NSGraphicsContext::graphicsContextWithBitmapImageRep(&bitmap)
-            .ok_or("could not draw the image")?;
-        NSGraphicsContext::saveGraphicsState_class();
-        NSGraphicsContext::setCurrentContext(Some(&context));
-        image.drawInRect(NSRect::new(NSPoint::new(0.0, 0.0), size));
-        NSGraphicsContext::restoreGraphicsState_class();
-        // SAFETY: an empty property dictionary is valid for PNG.
-        let png = unsafe {
-            bitmap.representationUsingType_properties(
-                NSBitmapImageFileType::PNG,
-                &NSDictionary::new(),
-            )
-        }
-        .ok_or("could not encode the image")?;
-        std::fs::write(path, png.to_vec())
-            .map_err(|e| format!("could not write {}: {e}", path.display()))
+        let (path, bytes) = match &self.ivars().output {
+            Output::Png(path, _) => (path, rasterize(&image, size, 0.0, scale)?),
+            Output::Pptx(path, (width, height), notes) => {
+                // The slides are stacked from the top; the image's origin is its bottom.
+                let count = notes
+                    .len()
+                    .min((size.height / height).round() as usize)
+                    .max(1);
+                let slide = NSSize::new(*width, *height);
+                let slides = (0..count)
+                    .map(|i| rasterize(&image, slide, size.height - (i + 1) as f64 * height, scale))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let bytes = crate::pptx::package(&slides, notes, *width, *height);
+                (path, bytes)
+            }
+            _ => return Err("not an image export".into()),
+        };
+        std::fs::write(path, bytes).map_err(|e| format!("could not write {}: {e}", path.display()))
     }
 
     fn failed(&self, error: *mut NSError, fallback: &str) {
@@ -284,6 +267,42 @@ impl PrintJob {
     }
 }
 
+/// The `size` (points) of `image` from `bottom` up, at `scale` pixels per point, as a PNG.
+fn rasterize(image: &NSImage, size: NSSize, bottom: f64, scale: f64) -> Result<Vec<u8>, String> {
+    let pixels = |points: f64| (points * scale).round() as isize;
+    // SAFETY: an RGBA bitmap that allocates its own memory (null planes, row and pixel
+    // sizes worked out by AppKit).
+    let bitmap = unsafe {
+        NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
+            NSBitmapImageRep::alloc(),
+            std::ptr::null_mut(),
+            pixels(size.width),
+            pixels(size.height),
+            8,
+            4,
+            true,
+            false,
+            NSDeviceRGBColorSpace,
+            0,
+            0,
+        )
+    }
+    .ok_or("the page is too large for an image")?;
+    bitmap.setSize(size);
+    let context = NSGraphicsContext::graphicsContextWithBitmapImageRep(&bitmap)
+        .ok_or("could not draw the image")?;
+    NSGraphicsContext::saveGraphicsState_class();
+    NSGraphicsContext::setCurrentContext(Some(&context));
+    image.drawInRect(NSRect::new(NSPoint::new(0.0, -bottom), image.size()));
+    NSGraphicsContext::restoreGraphicsState_class();
+    // SAFETY: an empty property dictionary is valid for PNG.
+    let png = unsafe {
+        bitmap.representationUsingType_properties(NSBitmapImageFileType::PNG, &NSDictionary::new())
+    }
+    .ok_or("could not encode the image")?;
+    Ok(png.to_vec())
+}
+
 /// Print or snapshot the page in `html_file` (which may load any local file) as
 /// `output`. Runs on the main thread; `done` is called when the job ends.
 pub fn print(window: &NSWindow, html_file: &Path, output: Output, done: Done) {
@@ -299,6 +318,7 @@ pub fn print(window: &NSWindow, html_file: &Path, output: Output, done: Done) {
         // Offscreen but inside a window, which WebKit needs to lay the page out.
         let width = match output {
             Output::Png(_, width) => width,
+            Output::Pptx(_, (width, _), _) => width,
             _ => 800.0,
         };
         let frame = NSRect::new(NSPoint::new(-20000.0, 0.0), NSSize::new(width, 1000.0));

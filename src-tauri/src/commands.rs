@@ -338,16 +338,43 @@ pub async fn export_slides_pdf(
     if !grants.0.lock().unwrap().remove(&path) {
         return Err(format!("{} was not chosen for export", path.display()));
     }
-    if !(width.is_finite()
-        && height.is_finite()
-        && (100.0..=10000.0).contains(&width)
-        && (100.0..=10000.0).contains(&height))
-    {
-        return Err("bad slide size".into());
-    }
+    check_slide_size(width, height)?;
     // CSS pixels are three quarters of a point.
     let paper = (width * 0.75, height * 0.75);
     print_page(window, html, PageOutput::Pdf(path, Some(paper))).await
+}
+
+/// Export a slide deck's page `html` (slides stacked at `width` × `height` CSS pixels)
+/// as a PowerPoint file at `path`, a path the user chose through `export_path`: each
+/// slide a picture, with its `notes`.
+#[tauri::command]
+pub async fn export_slides_pptx(
+    window: WebviewWindow,
+    path: String,
+    html: String,
+    width: f64,
+    height: f64,
+    notes: Vec<String>,
+    grants: State<'_, ExportGrants>,
+) -> CmdResult<()> {
+    let path = PathBuf::from(path);
+    if !grants.0.lock().unwrap().remove(&path) {
+        return Err(format!("{} was not chosen for export", path.display()));
+    }
+    check_slide_size(width, height)?;
+    if notes.is_empty() || notes.len() > 1000 {
+        return Err("bad slide count".into());
+    }
+    print_page(window, html, PageOutput::Pptx(path, (width, height), notes)).await
+}
+
+fn check_slide_size(width: f64, height: f64) -> CmdResult<()> {
+    let ok = |v: f64| v.is_finite() && (100.0..=10000.0).contains(&v);
+    if ok(width) && ok(height) {
+        Ok(())
+    } else {
+        Err("bad slide size".into())
+    }
 }
 
 /// Export the page `html` as a PNG image of all of it at `path`, a path the user chose
@@ -380,6 +407,8 @@ enum PageOutput {
     Pdf(PathBuf, Option<(f64, f64)>),
     /// A PNG file, and the page's width.
     Png(PathBuf, f64),
+    /// A PowerPoint file of slides of this size, with their notes.
+    Pptx(PathBuf, (f64, f64), Vec<String>),
     Printer,
 }
 
@@ -417,6 +446,7 @@ async fn print_page(window: WebviewWindow, html: String, output: PageOutput) -> 
             let output = match output {
                 PageOutput::Pdf(path, slide) => crate::pdf::Output::Pdf(path, slide),
                 PageOutput::Png(path, width) => crate::pdf::Output::Png(path, width),
+                PageOutput::Pptx(path, size, notes) => crate::pdf::Output::Pptx(path, size, notes),
                 PageOutput::Printer => crate::pdf::Output::Printer,
             };
             let done = Box::new(move |r| {

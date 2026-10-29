@@ -410,8 +410,10 @@ async function main() {
     }
   };
 
-  const exportAs = async (format: "html" | "html-plain" | "pdf" | "image") => {
-    const [name, extension] = format === "pdf" ? ["PDF", "pdf"] : format === "image" ? ["PNG", "png"] : ["HTML", "html"];
+  const exportAs = async (format: "html" | "html-plain" | "pdf" | "image" | "pptx") => {
+    if (format === "pptx" && !ui.deck) throw new Error("Only a Marp slide deck (marp: true in its front matter) exports to PowerPoint.");
+    const [name, extension] =
+      format === "pdf" ? ["PDF", "pdf"] : format === "image" ? ["PNG", "png"] : format === "pptx" ? ["PowerPoint", "pptx"] : ["HTML", "html"];
     const target = await backend.exportPath(opened.id, name, extension);
     if (!target) return;
     // A Marp deck exports its slides.
@@ -419,9 +421,10 @@ async function main() {
       await sync.flush();
       const { text } = await backend.documentText(opened.id);
       const title = ui.path ? basename(ui.path).replace(/\.[^.]*$/, "") : "Slides";
-      const print = format === "pdf";
+      const print = format === "pdf" || format === "pptx";
       const deck = await deckPage(text, { title, docPath: ui.path, target, print });
-      if (print) await backend.exportSlidesPdf(target, deck.html, deck.width, deck.height);
+      if (format === "pptx") await backend.exportSlidesPptx(target, deck.html, deck.width, deck.height, deck.notes);
+      else if (print) await backend.exportSlidesPdf(target, deck.html, deck.width, deck.height);
       else await backend.writeExport(target, deck.html);
       return;
     }
@@ -440,6 +443,8 @@ async function main() {
         return void exportAs("pdf").catch(exportFailed);
       case "export-image":
         return void exportAs("image").catch(exportFailed);
+      case "export-slides-pptx":
+        return void exportAs("pptx").catch(exportFailed);
       case "print":
         return void page({ target: null, print: true })
           .then((html) => backend.print(html))
