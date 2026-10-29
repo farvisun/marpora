@@ -4,7 +4,7 @@
 // apart from the editor's theme.
 
 import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
-import { marpBrowser, renderDeck } from "../marp/marp";
+import { localCss, marpBrowser, renderDeck } from "../marp/marp";
 import { report } from "../ipc";
 import { setUi, ui } from "./store";
 
@@ -49,7 +49,7 @@ export function SlidePreview(props: SlidePreviewProps) {
     const deck = await renderDeck(await props.markdown());
     if (seq !== rendering || !host) return;
     root ??= host.attachShadow({ mode: "open" });
-    root.innerHTML = `<style>${PREVIEW_CSS}\n${deck.css}</style>${deck.html}`;
+    root.innerHTML = `<style>${localCss(deck.css)}\n${PREVIEW_CSS}</style>${deck.html}`;
     resolveImages(root, props.assetUrl);
     cleanup?.();
     cleanup = await marpBrowser(root);

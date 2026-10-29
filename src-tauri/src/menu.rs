@@ -490,6 +490,7 @@ const VIEW_MODES: &[Item] = &[
     ("-", "", None),
     // Marp decks (`marp: true` in the front matter): web/src/chrome/SlidePreview.tsx.
     ("slide-preview", "Slide Preview", Some("CmdOrCtrl+Alt+M")),
+    ("present", "Present Slides", Some("CmdOrCtrl+Alt+Enter")),
     ("-", "", None),
 ];
 

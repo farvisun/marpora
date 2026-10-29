@@ -99,6 +99,8 @@ export const [ui, setUi] = createStore({
   deck: false,
   /** The slide holding the cursor, in a deck. */
   slide: 0,
+  /** View › Present Slides is running (chrome/Presenter.tsx). */
+  presenting: false,
   /** Bumped (debounced) when the document changes. */
   docSeq: 0,
   /** Bumped when the sidebar should list its folder again (Show hidden files changed). */

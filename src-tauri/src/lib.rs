@@ -16,6 +16,7 @@ mod native_menu;
 mod pandoc;
 #[cfg(target_os = "macos")]
 mod pdf;
+mod present;
 mod save;
 mod search;
 mod settings;
@@ -43,6 +44,7 @@ pub fn run() {
         .manage(menu::ClosedFiles::default())
         .manage(search::Searches::default())
         .manage(ai::Tasks::default())
+        .manage(present::Presents::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::Focused(true) = event {
@@ -50,6 +52,7 @@ pub fn run() {
                 menu::sync_window_checks(window.app_handle(), window.label());
             }
             if let WindowEvent::Destroyed = event {
+                present::closed(window.app_handle(), window.label());
                 window.state::<menu::WindowFlags>().forget(window.label());
                 let docs = window.state::<docs::Docs>();
                 // Closed with "Don't Save": keep the edits as a draft (or save them,
@@ -120,6 +123,9 @@ pub fn run() {
             commands::write_export,
             commands::export_pdf,
             commands::export_slides_pdf,
+            present::present_open,
+            present::present_send,
+            present::present_close,
             commands::export_image,
             commands::export_pandoc,
             commands::print_page_html,

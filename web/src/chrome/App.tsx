@@ -6,6 +6,7 @@ import type { EditorView } from "prosemirror-view";
 import type { Backend } from "../ipc";
 import { AiChat } from "./AiChat";
 import { InlineAi } from "./InlineAi";
+import { Presenter } from "./Presenter";
 import { SlidePreview, type SlidePreviewProps } from "./SlidePreview";
 import { OutlinePopover } from "./OutlinePopover";
 import { QuickOpen } from "./QuickOpen";
@@ -56,6 +57,7 @@ export function App(props: ChromeProps) {
       <InlineAi backend={props.backend} view={props.view} />
       <AiChat backend={props.backend} view={props.view} />
       <SlidePreview {...props.slides} />
+      <Presenter markdown={props.slides.markdown} />
       <Show when={ui.tableDialog}>
         <TableDialog onInsert={props.onInsertTable} />
       </Show>

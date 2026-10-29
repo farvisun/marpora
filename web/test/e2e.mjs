@@ -1188,7 +1188,9 @@ check("chat: new chat clears", (await chat.locator(".md-ai-chat-msg").count()) =
 await ai.close();
 
 // View › Slide Preview: a Marp deck's slides beside the editor, in step with the text.
-const deck = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+// A context of its own, so View › Present's audience page can share its BroadcastChannel.
+const deckContext = await browser.newContext({ viewport: { width: 1100, height: 700 } });
+const deck = await deckContext.newPage();
 deck.on("pageerror", (e) => errors.push(e.message));
 await deck.goto(process.env.URL ?? "http://localhost:1420/");
 await deck.waitForSelector("#write");
@@ -1239,6 +1241,40 @@ check("slides: html export is the deck", (deckHtml.match(/<svg[^>]*data-marpit-s
 const deckPdf = await deckExport("export-pdf");
 check("slides: pdf export at the slide size", deckPdf.startsWith("slides 1280x720\n") && !/<svg[^>]*data-marpit-svg/.test(deckPdf) && (deckPdf.match(/<section/g) ?? []).length === 4 && deckPdf.includes("alignContent"),
   deckPdf.slice(0, 120));
+// View › Present Slides: the presenter view here, the audience in its own page.
+await deck.evaluate(() => {
+  const { view } = window.marpora;
+  view.dispatch(view.state.tr.setSelection(view.state.selection.constructor.atStart(view.state.doc)));
+  window.marpora.handleMenu("present");
+});
+await deck.locator("#marp-presenter").waitFor();
+await deck.waitForFunction(() => window.marporaAudienceOpened === 1);
+const audience = await deckContext.newPage();
+audience.on("pageerror", (e) => errors.push(e.message));
+await audience.goto((process.env.URL ?? "http://localhost:1420/") + "present.html");
+await audience.waitForFunction(() => window.marporaAudience?.state().slides === 4);
+const audienceState = () => audience.evaluate(() => window.marporaAudience.state());
+check("present: audience gets the deck", (await audienceState()).index === 0 &&
+  (await audience.evaluate(() => !!document.getElementById("stage").shadowRoot.querySelector("svg[data-marpit-svg]"))));
+check("present: presenter view", (await deck.locator(".presenter-count").textContent()) === "1 / 4" &&
+  (await deck.evaluate(() => !!document.querySelector(".presenter-next").shadowRoot.querySelector("svg[data-marpit-svg]"))));
+await audience.keyboard.press("ArrowRight");
+await deck.waitForFunction(() => document.querySelector(".presenter-count")?.textContent === "2 / 4");
+await audience.waitForFunction(() => window.marporaAudience.state().index === 1);
+check("present: audience keys move the show", true);
+await deck.keyboard.press("End");
+await audience.waitForFunction(() => window.marporaAudience.state().index === 3);
+await deck.keyboard.press("ArrowRight");
+check("present: presenter keys, and no slide past the last", (await deck.locator(".presenter-count").textContent()) === "4 / 4");
+await deck.keyboard.press("b");
+await audience.waitForFunction(() => window.marporaAudience.state().black === true);
+check("present: black screen", await audience.evaluate(() => document.body.classList.contains("black")));
+await audience.keyboard.press("Escape");
+await deck.waitForFunction(() => !document.querySelector("#marp-presenter"));
+check("present: escape ends the show", !(await deck.evaluate(() => document.body.classList.contains("presenting"))) &&
+  (await audience.evaluate(() => !document.getElementById("ended").hidden)));
+await audience.close();
+
 await deck.evaluate(() => window.marpora.handleMenu("ai-chat"));
 check("slides: chat takes the place of the preview", (await deck.locator("#marp-preview").count()) === 0 && (await deck.locator("#md-ai-chat").count()) === 1);
 await deck.close();

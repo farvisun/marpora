@@ -453,6 +453,10 @@ async function main() {
         return setUi("tableDialog", true);
       case "ai-chat":
         return setUi({ aiChat: !ui.aiChat, slidePreview: false });
+      case "present":
+        if (!ui.deck || ui.presenting) return;
+        setUi("slide", slideAt(view.state.doc, view.state.selection.head));
+        return setUi("presenting", true);
       case "slide-preview":
         if (!ui.slidePreview) setUi("slide", slideAt(view.state.doc, view.state.selection.head));
         return setUi({ slidePreview: !ui.slidePreview, aiChat: false });

@@ -71,6 +71,14 @@ export async function renderDeck(markdown: string, { script = false, plain = fal
   return { html, css, slides, notes: comments.map((c) => c.join("\n\n")) };
 }
 
+/** A deck's CSS for showing in the app: without `@charset` and the web font imports
+ * some themes have (Gaia's from fonts.bunny.net), so the app fetches nothing on its
+ * own and works offline; a pending import would also hold back the whole sheet in a
+ * shadow root. Exports keep them. */
+export function localCss(css: string): string {
+  return css.replace(/@charset\s+"[^"]*"\s*;/gi, "").replace(/@import\s+(?:url\()?\s*["']?https?:[^;]*;/gi, "");
+}
+
 /** Apply Marp's browser fixes (WebKit's scaling of inline SVG slides) under `root`. */
 export async function marpBrowser(root: ParentNode): Promise<() => void> {
   const { browser } = await import("@marp-team/marp-core/browser");

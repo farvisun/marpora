@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Document windows and Preferences",
-  "windows": ["doc-*", "preferences"],
+  "description": "Document windows, Preferences and slide shows",
+  "windows": ["doc-*", "preferences", "present-*"],
   "permissions": [
     "core:default",
     "core:window:allow-set-title",
