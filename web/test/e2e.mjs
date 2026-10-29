@@ -1174,6 +1174,8 @@ await ai.keyboard.press("Escape");
 await ai.evaluate(() => window.marpora.handleMenu("ai-chat"));
 const chat = ai.locator("#md-ai-chat");
 await chat.waitFor();
+// The page slides over (a 0.4 s transition, as the sidebar's).
+await ai.waitForFunction(() => getComputedStyle(document.querySelector("content")).right === "320px", null, { timeout: 2000 }).catch(() => {});
 check("chat: panel opens beside the page", (await ai.evaluate(() => document.body.classList.contains("ai-chat-open"))) &&
   (await ai.locator("content").evaluate((c) => getComputedStyle(c).right)) === "320px");
 await aiSelect("Second");
