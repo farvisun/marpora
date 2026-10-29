@@ -1,0 +1,16 @@
+[package]
+name = "marpora-llm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+reqwest = { version = "0.13", features = ["stream"] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["process", "io-util", "rt", "macros"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["process", "io-util", "rt", "macros"] }
