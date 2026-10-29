@@ -465,6 +465,29 @@ tmd = await tableRun();
 check("dialog inserts the table", tableDialog && (await tableDialog.count()) === 0 &&
   /^after\n\n\| +\| +\| +\|\n\| -+ \| -+ \| -+ \|\n\| +\| +\| +\|$/.test(tmd), JSON.stringify(tmd));
 
+// Right clicks tell the backend what they are on, for the native context menu.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "## Title\n\n> a **[site](https://x.test)** b\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n```js\nlet x;\n```\n");
+  await m.sync.resync();
+});
+const contextOf = async (locator) => {
+  await locator.click({ button: "right" });
+  return inline.evaluate(() => JSON.stringify(window.marpora.backend.contextMenu));
+};
+let cx = await contextOf(inline.locator("#write h2"));
+check("context menu on a heading", cx === JSON.stringify({ editor: true, link: false, table: false, block: null, active: ["heading-2"] }), cx);
+cx = await contextOf(inline.locator("#write a").first());
+check("context menu on a link", /"link":true/.test(cx) &&
+  JSON.parse(cx).active.sort().join() === "link,paragraph,quote,strong", cx);
+cx = await contextOf(inline.locator("#write td").first());
+check("context menu in a table", /"table":true/.test(cx), cx);
+cx = await contextOf(inline.locator("#write pre.md-fences").first());
+check("context menu in a code block", /"block":"code"/.test(cx), cx);
+await inline.mouse.click(3, 3, { button: "right" });
+cx = await inline.evaluate(() => JSON.stringify(window.marpora.backend.contextMenu));
+check("context menu outside the editor", cx === JSON.stringify({ editor: false }), cx);
+
 // Format menu: underline, inline math and comments; links open with ⌘-click.
 await inline.evaluate(async () => {
   const m = window.marpora;

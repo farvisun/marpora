@@ -1,6 +1,8 @@
 //! Marpora desktop app: windows, menus and IPC around `marpora-core`.
 
 mod commands;
+#[cfg(target_os = "macos")]
+mod context_menu;
 mod docs;
 mod images;
 mod library;
@@ -59,6 +61,7 @@ pub fn run() {
             commands::trash_document,
             commands::read_clipboard,
             commands::write_clipboard,
+            commands::set_context_menu,
             commands::apply_patch,
             commands::document_text,
             commands::set_document_text,

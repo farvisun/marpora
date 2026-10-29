@@ -111,7 +111,10 @@ fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<WebviewWi
     }
     window.set_focus()?;
     #[cfg(target_os = "macos")]
-    tab_button::install(app);
+    {
+        tab_button::install(app);
+        crate::context_menu::install(&window);
+    }
     Ok(window)
 }
 

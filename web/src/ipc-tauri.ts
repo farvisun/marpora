@@ -1,6 +1,7 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import type { MenuContext } from "./editor/contextmenu";
 import type {
   Backend,
   FileSearchQuery,
@@ -97,6 +98,10 @@ export class TauriBackend implements Backend {
 
   trashDocument() {
     return invoke<void>("trash_document");
+  }
+
+  setContextMenu(context: MenuContext) {
+    return invoke<void>("set_context_menu", { context });
   }
 
   writeClipboard(text: string, html?: string) {

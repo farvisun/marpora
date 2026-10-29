@@ -9,6 +9,7 @@ import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrom
 import { dropFiles, imageExtension, insertImages } from "./editor/clipboard";
 import { insertTable } from "./editor/commands";
 import { createEditor, runCommand } from "./editor/editor";
+import { trackContextMenu } from "./editor/contextmenu";
 import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
 import { DocSync } from "./editor/sync";
@@ -79,6 +80,11 @@ async function main() {
   };
 
   setClipboardWriter((text, html) => backend.writeClipboard(text, html));
+  trackContextMenu(
+    () => view,
+    () => !source.active,
+    (cx) => void backend.setContextMenu(cx).catch(report),
+  );
   const mountEditor = (el: HTMLElement) => {
     view = createEditor(el, {
       doc,

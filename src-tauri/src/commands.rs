@@ -65,6 +65,8 @@ fn path_string(p: &Path) -> String {
 pub fn initial_document(window: WebviewWindow, docs: State<Docs>) -> CmdResult<OpenedDoc> {
     // A new page starts editable.
     let app = window.app_handle();
+    #[cfg(target_os = "macos")]
+    crate::context_menu::install(&window);
     app.state::<menu::WindowFlags>()
         .reset_readonly(window.label());
     menu::sync_window_checks(app, window.label());
@@ -859,6 +861,17 @@ pub fn open_link(
 
 /// Put `text` (and `html`) on the pasteboard, for Edit › Copy as …: menu items are not
 /// user gestures, so the webview's own clipboard API refuses them.
+/// What the editor's right click is on, for the context menu (context_menu.rs).
+#[tauri::command]
+pub fn set_context_menu(app: AppHandle, window: tauri::WebviewWindow, context: serde_json::Value) {
+    #[cfg(target_os = "macos")]
+    if let Ok(cx) = serde_json::from_value(context) {
+        crate::context_menu::set(&app, window.label(), cx);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (app, window, context);
+}
+
 #[tauri::command]
 pub fn write_clipboard(text: String, html: Option<String>) -> CmdResult<()> {
     #[cfg(target_os = "macos")]

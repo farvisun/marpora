@@ -1,6 +1,7 @@
 // The editor's view of the Rust core. In the Tauri app this is IPC; in a plain browser
 // (vite dev without Tauri, tests) an in-memory backend stands in.
 
+import type { MenuContext } from "./editor/contextmenu";
 import { type Flavor, parseMarkdown } from "./md";
 
 export interface Patch {
@@ -167,6 +168,8 @@ export interface Backend {
   writeClipboard(text: string, html?: string): Promise<void>;
   /** The system clipboard's text. */
   readClipboard(): Promise<string | null>;
+  /** What the editor's right click is on, for the native context menu. */
+  setContextMenu(context: MenuContext): Promise<void>;
   /** Open a link from the document; returns the heading a `#…` link names. */
   openLink(href: string): Promise<string | null>;
   /** Store a pasted image (`ext`: png, jpg, ...) for document `docId`; returns its path for the document. */
@@ -377,6 +380,13 @@ export class MemoryBackend implements Backend {
 
   async readClipboard() {
     return this.clipboard.text;
+  }
+
+  /** Test hook: the last context menu context. */
+  contextMenu: MenuContext | null = null;
+
+  async setContextMenu(context: MenuContext) {
+    this.contextMenu = context;
   }
 
   /** Test hook: links opened. */
