@@ -472,6 +472,33 @@ content { transition-duration: 0.4s; }
   white-space: nowrap;
 }
 .dropdown-menu > li > a:hover { background: var(--item-hover-bg-color); color: var(--text-color); }
+/* The sidebar's context menu (chrome/FileMenu.tsx), with Typora's and Bootstrap's rules. */
+.context-menu {
+  width: 224px;
+  font-size: 13px;
+  position: fixed;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  background-color: var(--bg-color);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.context-menu.show { display: block; }
+.dropdown-menu .divider {
+  height: 1px;
+  margin: 9px 0;
+  overflow: hidden;
+  border-top: var(--window-border);
+  background: 0 0;
+  opacity: 0.5;
+}
+.context-menu.dropdown-menu > li > a { cursor: default; }
+.context-menu.dropdown-menu > .active > a,
+.context-menu.dropdown-menu > li > a:hover {
+  background-color: var(--item-hover-bg-color);
+  color: var(--item-hover-text-color);
+}
+
 #sidebar-files-menu {
   inset: auto 4px 2px;
   font-size: 12px;

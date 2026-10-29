@@ -317,6 +317,46 @@ pub fn untitled_name(dir: &Path) -> String {
     }
 }
 
+/// A free name for a new folder in `dir`: `Untitled Folder`, else one past the highest
+/// `Untitled Folder N`, as Typora numbers them.
+pub fn untitled_folder_name(dir: &Path) -> String {
+    let next = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            match name.strip_prefix("untitled folder")? {
+                "" => Some(1),
+                rest => rest.strip_prefix(' ')?.parse::<u32>().ok().map(|n| n + 1),
+            }
+        })
+        .max()
+        .unwrap_or(0);
+    if next == 0 {
+        "Untitled Folder".to_owned()
+    } else {
+        format!("Untitled Folder {next}")
+    }
+}
+
+/// The name for a copy of `name` in a folder holding `taken`: `a (copy).md`, then
+/// `a (copy) (copy).md`, as Typora's Duplicate names them.
+pub fn copy_name(name: &str, taken: impl Fn(&str) -> bool) -> String {
+    let (mut stem, ext) = match name.rfind('.') {
+        Some(dot) if dot > 0 => (name[..dot].to_owned(), &name[dot..]),
+        _ => (name.to_owned(), ""),
+    };
+    loop {
+        stem.push_str(" (copy)");
+        let candidate = format!("{stem}{ext}");
+        if !taken(&candidate) {
+            return candidate;
+        }
+    }
+}
+
 fn push_recent(files: &mut Vec<String>, file: String) {
     files.retain(|f| *f != file);
     files.insert(0, file);
@@ -406,6 +446,27 @@ mod tests {
         touch(&dir.join("untitled 4.markdown"), "");
         touch(&dir.join("Untitled notes.md"), "");
         assert_eq!(untitled_name(&dir), "Untitled 5.md");
+    }
+
+    #[test]
+    fn untitled_folders_count_up() {
+        let dir = temp_dir("untitled-folder");
+        assert_eq!(untitled_folder_name(&dir), "Untitled Folder");
+        std::fs::create_dir_all(dir.join("Untitled Folder")).unwrap();
+        assert_eq!(untitled_folder_name(&dir), "Untitled Folder 1");
+        std::fs::create_dir_all(dir.join("untitled folder 3")).unwrap();
+        touch(&dir.join("Untitled Folder 9"), "");
+        assert_eq!(untitled_folder_name(&dir), "Untitled Folder 4");
+    }
+
+    #[test]
+    fn copies_are_named_like_typora() {
+        assert_eq!(copy_name("a.md", |_| false), "a (copy).md");
+        assert_eq!(
+            copy_name("a.md", |n| n == "a (copy).md"),
+            "a (copy) (copy).md"
+        );
+        assert_eq!(copy_name(".env", |_| false), ".env (copy)");
     }
 
     #[test]

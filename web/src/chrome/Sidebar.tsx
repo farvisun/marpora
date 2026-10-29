@@ -16,6 +16,7 @@ import {
   summaryLines,
   summaryOf,
 } from "./library";
+import { createLibraryFile, FileMenu, type FileMenuTarget, RENAME_KEY } from "./FileMenu";
 import { FileSearchResults, FileSearchTabs, SearchIcon } from "./FileSearch";
 import {
   hideFileSearch,
@@ -70,6 +71,28 @@ export function Sidebar(props: SidebarProps) {
   const pending = sessionStorage.getItem(RENAME_KEY);
   sessionStorage.removeItem(RENAME_KEY);
   if (pending && pending === ui.path) setUi("renaming", pending);
+  const [fileMenu, setFileMenu] = createSignal<FileMenuTarget | null>(null);
+  /** Right click: on a tree row or list item, its menu; on the tree's empty space,
+   * New File and New Folder for the sidebar's folder. */
+  const openFileMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    const target = e.target as Element;
+    const row = target.closest(".file-node-content, .file-list-item");
+    const node = row?.closest<HTMLElement>(".file-library-node");
+    if (ui.fileTree && !node) {
+      const dir = folder();
+      if (dir) setFileMenu({ x: e.clientX, y: e.clientY, path: dir, isDirectory: true, root: true, emptyTree: true });
+      return;
+    }
+    setFileMenu({
+      x: e.clientX,
+      y: e.clientY,
+      path: node?.dataset.path ?? null,
+      isDirectory: node?.dataset.isDirectory === "true",
+      root: !!node?.classList.contains("file-node-root"),
+      emptyTree: false,
+    });
+  };
   /** Finish an inline rename; `name` is null when cancelled. */
   const rename = async (path: string, name: string | null) => {
     setUi("renaming", null);
@@ -182,7 +205,7 @@ export function Sidebar(props: SidebarProps) {
             {(node) => <OutlineEntry node={node} onClick={props.onOutlineClick} />}
           </For>
         </div>
-        <div id="file-library" class="sidebar-content-content">
+        <div id="file-library" class="sidebar-content-content" onContextMenu={openFileMenu}>
           <div
             id="file-library-tree"
             class="no-selection"
@@ -237,6 +260,11 @@ export function Sidebar(props: SidebarProps) {
           </div>
         </div>
       </div>
+      <Show when={fileMenu()} keyed>
+        {(target) => (
+          <FileMenu target={target} backend={props.backend} onOpenFile={props.onOpenFile} onClose={() => setFileMenu(null)} />
+        )}
+      </Show>
       <SidebarFooter
         backend={props.backend}
         folder={folder()}
@@ -294,16 +322,13 @@ function SidebarFooter(props: {
   const hideMenu = () => setMenuShown(false);
   /** Menu items act on a left mousedown, as in Typora. */
   const act = (run: () => Promise<unknown>) => (e: MouseEvent) => {
-    if (e.button === 0) void run().catch(report);
+    if (e.button !== 0) return;
+    // The item taking focus would end a rename the action starts, so the menu closes here.
+    e.preventDefault();
+    hideMenu();
+    void run().catch(report);
   };
-  /** Typora opens a new file and lets its name be typed in place. */
-  const newFile = async () => {
-    const path = await props.backend.newLibraryFile();
-    setUi("libraryVersion", (v) => v + 1);
-    sessionStorage.setItem(RENAME_KEY, path);
-    setUi("renaming", path);
-    props.onOpenFile(path);
-  };
+  const newFile = () => createLibraryFile(props.backend, props.onOpenFile);
   const switchFolder = async (dir?: string) => {
     if (await props.backend.switchLibraryFolder(dir)) props.onFolderChanged();
   };
@@ -545,8 +570,6 @@ function OutlineEntry(props: { node: OutlineNode; onClick(pos: number): void }) 
   );
 }
 
-const RENAME_KEY = "marpora.rename";
-
 /** The box a file's name is typed into: Enter or leaving it renames, Esc cancels. The
  * name without its extension starts selected, as in Finder. */
 function RenameInput(props: { name: string; class?: string; onDone(name: string | null): void }) {
@@ -557,18 +580,22 @@ function RenameInput(props: { name: string; class?: string; onDone(name: string 
     done = true;
     props.onDone(name === props.name ? null : name);
   };
-  onMount(() =>
-    requestAnimationFrame(() => {
-      // In the tree, Typora fits the box to the room left in the sidebar.
-      const div = input.parentElement;
-      const room = document.getElementById("sidebar-content")?.clientWidth;
-      if (div?.classList.contains("file-tree-rename-div") && room)
-        input.style.width = `${Math.max(140, Math.min(200, room - 48 - div.offsetLeft))}px`;
-      input.focus();
-      const dot = props.name.lastIndexOf(".");
-      input.setSelectionRange(0, dot > 0 ? dot : props.name.length);
-    }),
-  );
+  const focus = () => {
+    if (done || !input.isConnected || document.activeElement === input) return;
+    // In the tree, Typora fits the box to the room left in the sidebar.
+    const div = input.parentElement;
+    const room = document.getElementById("sidebar-content")?.clientWidth;
+    if (div?.classList.contains("file-tree-rename-div") && room)
+      input.style.width = `${Math.max(140, Math.min(200, room - 48 - div.offsetLeft))}px`;
+    input.focus();
+    const dot = props.name.lastIndexOf(".");
+    input.setSelectionRange(0, dot > 0 ? dot : props.name.length);
+  };
+  // Again a frame later: a list that is still being redrawn may not show it yet.
+  onMount(() => {
+    focus();
+    requestAnimationFrame(focus);
+  });
   return (
     <input
       ref={input}
@@ -582,7 +609,9 @@ function RenameInput(props: { name: string; class?: string; onDone(name: string 
         if (e.key === "Enter") finish(input.value);
         else if (e.key === "Escape") finish(null);
       }}
-      onBlur={() => finish(input.value)}
+      // Checked a moment later: WebKit blurs a box while taking it out of the page with
+      // its list, which is no reason to rename.
+      onBlur={() => setTimeout(() => input.isConnected && document.activeElement !== input && finish(input.value))}
     />
   );
 }
@@ -646,8 +675,10 @@ function TreeNode(props: {
   onRename(path: string, name: string | null): void;
 }) {
   const e = props.entry;
-  // Folders on the way to the open document start expanded, as in Typora.
-  const [open, setOpen] = createSignal(!!props.root || !!ui.path?.startsWith(`${e.path}/`));
+  // Folders on the way to the open document, or to a file being renamed, start expanded, as in Typora.
+  const [open, setOpen] = createSignal(
+    !!props.root || !!ui.path?.startsWith(`${e.path}/`) || !!ui.renaming?.startsWith(`${e.path}/`),
+  );
   const [children, setChildren] = createSignal<LibraryEntry[] | null>(null);
   createEffect(() => {
     if (e.isDirectory && open() && !children()) void props.list(e.path).then(setChildren);

@@ -66,8 +66,24 @@ export class TauriBackend implements Backend {
     return invoke<string[]>("recent_folders");
   }
 
-  newLibraryFile() {
-    return invoke<string>("new_library_file");
+  newLibraryFile(dir?: string, folder?: boolean) {
+    return invoke<string>("new_library_file", { dir, folder });
+  }
+
+  duplicateLibraryFile(path: string) {
+    return invoke<string>("duplicate_library_file", { path });
+  }
+
+  trashLibraryFile(path: string) {
+    return invoke<void>("trash_library_file", { path });
+  }
+
+  revealLibraryFile(path: string) {
+    return invoke<void>("reveal_library_file", { path });
+  }
+
+  openLibraryFileInWindow(path: string) {
+    return invoke<void>("open_library_file_in_window", { path });
   }
 
   renameLibraryFile(path: string, name: string) {

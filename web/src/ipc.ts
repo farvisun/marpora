@@ -141,8 +141,16 @@ export interface Backend {
   recentFiles(): Promise<string[]>;
   /** Recently opened folders, newest first (the sidebar menu's Recent Locations). */
   recentFolders(): Promise<string[]>;
-  /** Create an untitled file in the library folder; returns its path. */
-  newLibraryFile(): Promise<string>;
+  /** Create an untitled file, or folder, in `dir` (the library folder by default); returns its path. */
+  newLibraryFile(dir?: string, folder?: boolean): Promise<string>;
+  /** Copy a library file next to it as `name (copy).md`; returns the copy. */
+  duplicateLibraryFile(path: string): Promise<string>;
+  /** Move a library file or folder to the Trash. */
+  trashLibraryFile(path: string): Promise<void>;
+  /** Show a library file or folder selected in Finder. */
+  revealLibraryFile(path: string): Promise<void>;
+  /** Open a library file, or folder, in a new window. */
+  openLibraryFileInWindow(path: string): Promise<void>;
   /** Rename `path`, in the library folder, to `name` in its folder; returns the new path. */
   renameLibraryFile(path: string, name: string): Promise<string>;
   /** The window's document moved (renamed in a sidebar); `path` is where it is now. */
@@ -292,12 +300,33 @@ export class MemoryBackend implements Backend {
     return this.library.folders;
   }
 
-  async newLibraryFile() {
+  async newLibraryFile(dir = this.library.root, folder = false) {
     let n = 0;
-    const name = () => `${this.library.root}/Untitled${n ? ` ${n}` : ""}.md`;
+    const name = () => `${dir}/Untitled${folder ? " Folder" : ""}${n ? ` ${n}` : ""}${folder ? "" : ".md"}`;
     while (name() in this.library.files) n++;
-    this.library.files[name()] = "";
+    if (folder) this.libraryLog.push(`mkdir ${name()}`);
+    else this.library.files[name()] = "";
     return name();
+  }
+
+  async duplicateLibraryFile(path: string) {
+    const copy = path.replace(/(\.[^./]*)?$/, " (copy)$1");
+    this.library.files[copy] = this.library.files[path] ?? "";
+    this.libraryLog.push(`duplicate ${path}`);
+    return copy;
+  }
+
+  async trashLibraryFile(path: string) {
+    for (const p of Object.keys(this.library.files)) if (p === path || p.startsWith(`${path}/`)) delete this.library.files[p];
+    this.libraryLog.push(`trash ${path}`);
+  }
+
+  async revealLibraryFile(path: string) {
+    this.libraryLog.push(`reveal ${path}`);
+  }
+
+  async openLibraryFileInWindow(path: string) {
+    this.libraryLog.push(`window ${path}`);
   }
 
   async renameLibraryFile(path: string, name: string) {

@@ -442,6 +442,41 @@ check("rename renames", (await lib.evaluate(() => window.marpora.backend.library
   (await renameInput.count()) === 0 && (await lib.locator("#file-library-tree .file-tree-node[data-path='/home/me/notes/Plan.md']").count()) === 1,
   await lib.evaluate(() => window.marpora.backend.libraryLog.join()));
 
+// The context menu, with Typora's items for a file, a folder and the tree's empty space.
+const menuItems = () => lib.locator("#file-menu > li").evaluateAll((lis) => lis.map((li) => li.textContent.trim() || "-").join("|"));
+const lastLog = () => lib.evaluate(() => window.marpora.backend.libraryLog.at(-1));
+const fileRow = (path) => lib.locator(`#file-library-tree .file-tree-node[data-path='${path}'] > .file-node-content`);
+await fileRow("/home/me/notes/todo.md").click({ button: "right" });
+check("file menu items", (await menuItems()) ===
+  "Open|Open in New Window|-|New File|New Folder|-|Search|-|Articles (List View)|File Tree (Tree View)|-|Rename|Duplicate|-|Delete|-|Copy File Path|Open File Location",
+  await menuItems());
+await lib.locator("#file-menu [data-action='duplicate'] a").dispatchEvent("mousedown");
+await lib.waitForTimeout(100);
+check("duplicate", (await lastLog()) === "duplicate /home/me/notes/todo.md" && (await lib.locator("#file-menu").count()) === 0 &&
+  (await fileRow("/home/me/notes/todo (copy).md").count()) === 1, await lastLog());
+await fileRow("/home/me/notes/todo (copy).md").click({ button: "right" });
+await lib.locator("#file-menu [data-action='delete'] a").dispatchEvent("mousedown");
+await lib.waitForTimeout(100);
+check("delete moves to the trash", (await lastLog()) === "trash /home/me/notes/todo (copy).md" &&
+  (await fileRow("/home/me/notes/todo (copy).md").count()) === 0, await lastLog());
+await fileRow("/home/me/notes/sub").click({ button: "right" });
+check("folder menu items", (await menuItems()) ===
+  "Open in New Window|-|New File|New Folder|-|Search|-|Articles (List View)|File Tree (Tree View)|-|Rename|-|Delete|-|Copy File Path|Open File Location",
+  await menuItems());
+await lib.locator("#file-menu [data-action='rename'] a").dispatchEvent("mousedown");
+const folderRename = lib.locator("#file-library-tree .file-node-on-edit[data-path='/home/me/notes/sub'] input");
+check("rename from the menu", await folderRename.waitFor({ timeout: 2000 }).then(() => true, () => false));
+await lib.keyboard.press("Escape");
+check("escape cancels the rename", (await folderRename.count()) === 0 && (await lastLog()) === "trash /home/me/notes/todo (copy).md",
+  `${await folderRename.count()} ${await lastLog()} ${await lib.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`);
+await lib.evaluate(() => {
+  const tree = document.querySelector("#file-library-tree");
+  tree.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 100, clientY: 500 }));
+});
+check("empty space offers new files", (await menuItems()) === "New File|New Folder", await menuItems());
+await lib.keyboard.press("Escape");
+check("escape closes the menu", (await lib.locator("#file-menu").count()) === 0);
+
 // The sidebar's Search (⇧⌘F): find in the folder's files.
 await lib.evaluate(() => window.marpora.handleMenu("search"));
 check("search box replaces the tabs", await lib.locator("#typora-sidebar.ty-show-search #file-library-search-input").isVisible() &&

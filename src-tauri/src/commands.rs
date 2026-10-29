@@ -527,15 +527,119 @@ pub async fn search_library(
 /// Create an untitled file in the sidebar's folder (its footer's New File). Returns
 /// its path; the window opens it.
 #[tauri::command]
-pub fn new_library_file(window: WebviewWindow, docs: State<Docs>) -> CmdResult<String> {
-    let dir = library_root(&window, &docs).ok_or("no folder is open")?;
-    let path = dir.join(library::untitled_name(&dir));
-    std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&path)
-        .map_err(|e| format!("could not create {}: {e}", path.display()))?;
+pub fn new_library_file(
+    window: WebviewWindow,
+    dir: Option<String>,
+    folder: Option<bool>,
+    docs: State<Docs>,
+) -> CmdResult<String> {
+    let dir = match dir {
+        Some(d) => in_library(&window, &docs, &d, true)?,
+        None => library_root(&window, &docs).ok_or("no folder is open")?,
+    };
+    let created = if folder.unwrap_or(false) {
+        let path = dir.join(library::untitled_folder_name(&dir));
+        std::fs::create_dir(&path).map(|_| path)
+    } else {
+        let path = dir.join(library::untitled_name(&dir));
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .map(|_| path)
+    };
+    let path = created.map_err(|e| format!("could not create a file in {}: {e}", dir.display()))?;
     Ok(path_string(&path))
+}
+
+/// `path`, made canonical, if it is in this window's sidebar folder: the folder itself
+/// only with `root`. Sidebar file commands only touch what the sidebar shows.
+fn in_library(window: &WebviewWindow, docs: &Docs, path: &str, root: bool) -> CmdResult<PathBuf> {
+    let dir = library_root(window, docs).ok_or("no folder is open")?;
+    let path = std::fs::canonicalize(path).map_err(|e| format!("could not find {path}: {e}"))?;
+    if !path.starts_with(&dir) || (path == dir && !root) {
+        return Err(format!("{} is not in the sidebar's folder", path.display()));
+    }
+    Ok(path)
+}
+
+/// Copy `path` next to it as `name (copy).md` (the sidebar's Duplicate); returns the copy.
+#[tauri::command]
+pub fn duplicate_library_file(
+    window: WebviewWindow,
+    path: String,
+    docs: State<Docs>,
+) -> CmdResult<String> {
+    let path = in_library(&window, &docs, &path, false)?;
+    if !path.is_file() {
+        return Err(format!("{} is not a file", path.display()));
+    }
+    let dir = path.parent().ok_or("no folder")?;
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    let copy = dir.join(library::copy_name(&name, |n| dir.join(n).exists()));
+    std::fs::copy(&path, &copy).map_err(|e| format!("could not copy {}: {e}", path.display()))?;
+    Ok(path_string(&copy))
+}
+
+/// Move `path` to the Trash (the sidebar's Delete).
+#[tauri::command]
+pub fn trash_library_file(window: WebviewWindow, path: String, docs: State<Docs>) -> CmdResult<()> {
+    trash(&in_library(&window, &docs, &path, false)?)
+}
+
+#[cfg(target_os = "macos")]
+fn trash(path: &Path) -> CmdResult<()> {
+    use objc2_foundation::{NSFileManager, NSString, NSURL};
+    let url = NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()));
+    NSFileManager::defaultManager()
+        .trashItemAtURL_resultingItemURL_error(&url, None)
+        .map_err(|e| {
+            format!(
+                "could not move {} to the Trash: {}",
+                path.display(),
+                e.localizedDescription()
+            )
+        })
+}
+
+#[cfg(not(target_os = "macos"))]
+fn trash(_path: &Path) -> CmdResult<()> {
+    Err("moving files to the Trash is not available on this platform yet".into())
+}
+
+/// Show `path` selected in Finder (the sidebar's Open File Location).
+#[tauri::command]
+pub fn reveal_library_file(
+    window: WebviewWindow,
+    path: String,
+    docs: State<Docs>,
+) -> CmdResult<()> {
+    let path = in_library(&window, &docs, &path, true)?;
+    #[cfg(target_os = "macos")]
+    return std::process::Command::new("open")
+        .arg("-R")
+        .arg(&path)
+        .spawn()
+        .map(drop)
+        .map_err(|e| format!("could not show {}: {e}", path.display()));
+    #[cfg(not(target_os = "macos"))]
+    reveal(path.parent().unwrap_or(&path))
+}
+
+/// Open `path`, a file or a folder from the sidebar, in a new window.
+#[tauri::command]
+pub fn open_library_file_in_window(
+    app: AppHandle,
+    window: WebviewWindow,
+    path: String,
+    docs: State<Docs>,
+) -> CmdResult<()> {
+    let path = in_library(&window, &docs, &path, true)?;
+    let opened = match path.is_dir() {
+        true => windows::open_folder(&app, path),
+        false => windows::open(&app, Some(path)),
+    };
+    opened.map_err(|e| e.to_string())
 }
 
 /// Rename `path`, a file or folder under the sidebar's folder, to `name` in the same
