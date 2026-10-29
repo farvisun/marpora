@@ -3,11 +3,12 @@
 //! an error. API keys live in the Keychain, never in settings.json.
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use marpora_llm::{Provider, Request};
 use serde::Serialize;
-use tauri::{Emitter, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 
 use crate::settings::{Settings, Store};
 
@@ -179,4 +180,95 @@ pub fn ai_keys() -> HashMap<&'static str, bool> {
         .into_iter()
         .map(|p| (p, !key(p).is_empty()))
         .collect()
+}
+
+/// A custom prompt (AI › Custom Prompts): a Markdown file in `prompts_dir`, its name the
+/// label and its text, without front matter, the instruction.
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct Prompt {
+    pub name: String,
+    pub instruction: String,
+}
+
+pub fn prompts_dir(app: &AppHandle) -> Option<PathBuf> {
+    app.path().app_config_dir().ok().map(|d| d.join("prompts"))
+}
+
+/// The prompts in `dir`, by name; empty and oversized files are left out.
+pub fn read_prompts(dir: &Path) -> Vec<Prompt> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut out: Vec<Prompt> = entries
+        .flatten()
+        .filter_map(|e| {
+            let path = e.path();
+            let name = path.file_stem()?.to_str()?.to_owned();
+            let md = path
+                .extension()
+                .is_some_and(|x| x.eq_ignore_ascii_case("md"));
+            if !md || name.starts_with('.') || e.metadata().ok()?.len() > 64 * 1024 {
+                return None;
+            }
+            let text = std::fs::read_to_string(&path).ok()?;
+            let instruction = without_front_matter(&text).trim().to_owned();
+            (!instruction.is_empty()).then_some(Prompt { name, instruction })
+        })
+        .collect();
+    out.sort_by_key(|p| p.name.to_lowercase());
+    out
+}
+
+fn without_front_matter(text: &str) -> &str {
+    let Some(rest) = text
+        .strip_prefix("---\n")
+        .or_else(|| text.strip_prefix("---\r\n"))
+    else {
+        return text;
+    };
+    match rest.find("\n---") {
+        Some(end) => rest[end + 4..]
+            .trim_start_matches(['-', '\r'])
+            .trim_start_matches('\n'),
+        None => text,
+    }
+}
+
+#[tauri::command]
+pub fn ai_prompts(app: AppHandle) -> Vec<Prompt> {
+    prompts_dir(&app)
+        .map(|d| read_prompts(&d))
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prompts_are_the_markdown_files() {
+        let dir = std::env::temp_dir().join(format!("marpora-prompts-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("Make Formal.md"),
+            "---\ntitle: x\n---\nRewrite it formally.\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("bullets.md"), "  Turn it into a bulleted list.\n").unwrap();
+        std::fs::write(dir.join("empty.md"), "\n").unwrap();
+        std::fs::write(dir.join("notes.txt"), "not a prompt").unwrap();
+        let prompts = read_prompts(&dir);
+        std::fs::remove_dir_all(&dir).unwrap();
+        let got: Vec<(&str, &str)> = prompts
+            .iter()
+            .map(|p| (p.name.as_str(), p.instruction.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("bullets", "Turn it into a bulleted list."),
+                ("Make Formal", "Rewrite it formally.")
+            ]
+        );
+    }
 }

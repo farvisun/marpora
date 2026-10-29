@@ -211,6 +211,10 @@ export class TauriBackend implements Backend {
     return invoke<void>("ai_cancel", { id });
   }
 
+  aiPrompts() {
+    return invoke<{ name: string; instruction: string }[]>("ai_prompts");
+  }
+
   onAi(handler: (event: AiEvent) => void) {
     void getCurrentWebviewWindow().listen<AiEvent>("ai", (e) => handler(e.payload));
   }

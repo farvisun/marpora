@@ -1195,7 +1195,7 @@ pub fn read_clipboard() -> Option<String> {
 }
 
 /// Open folder `dir` in the file manager, creating it first.
-fn reveal(dir: &Path) -> CmdResult<()> {
+pub(crate) fn reveal(dir: &Path) -> CmdResult<()> {
     std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     system_open(dir.as_os_str())
 }

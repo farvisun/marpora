@@ -52,6 +52,8 @@ pub fn run() {
             if let WindowEvent::Focused(true) = event {
                 agent::focused(window.label());
                 menu::sync_window_checks(window.app_handle(), window.label());
+                // Prompts edited elsewhere show up when the user comes back.
+                menu::refresh_prompts(window.app_handle());
             }
             if let WindowEvent::Destroyed = event {
                 present::closed(window.app_handle(), window.label());
@@ -127,6 +129,7 @@ pub fn run() {
             commands::export_slides_pdf,
             commands::export_slides_pptx,
             commands::marp_themes,
+            ai::ai_prompts,
             commands::open_marp_theme_folder,
             present::present_open,
             present::present_send,

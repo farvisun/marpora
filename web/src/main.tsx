@@ -574,6 +574,17 @@ async function main() {
           const run = preset.id !== "translate";
           return setUi("inlineAi", { instruction: preset.instruction, run, seq: (ui.inlineAi?.seq ?? 0) + 1 });
         }
+        if (id.startsWith("prompt:")) {
+          if (source.active) return;
+          const name = id.slice(7);
+          return void backend
+            .aiPrompts()
+            .then((list) => {
+              const prompt = list.find((p) => p.name === name);
+              if (prompt) setUi("inlineAi", { instruction: prompt.instruction, run: true, seq: (ui.inlineAi?.seq ?? 0) + 1 });
+            })
+            .catch(report);
+        }
         if (id.startsWith("theme:")) return void backend.setTheme(id.slice(6));
         if (id.startsWith("image-zoom:")) return void (!source.active && setImageZoom(view, Number(id.slice(11))));
         if (id.startsWith("image-insert:"))

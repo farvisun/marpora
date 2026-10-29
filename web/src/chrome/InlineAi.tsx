@@ -1,12 +1,13 @@
 // AI › Ask AI… (⇧⌘J): a prompt under the selection that asks the model to rewrite it, or
 // to write at the cursor. The answer streams into a preview; Enter puts it in place of
-// the selection (one undo step), Escape throws it away.
+// the selection (one undo step), Escape throws it away. The list offers the presets and
+// the user's own prompts (AI › Custom Prompts).
 
 import type { EditorView } from "prosemirror-view";
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import type { Backend } from "../ipc";
 import { markdownSlice } from "../editor/clipboard";
-import { aiRequest, aiTargetOf, cleanAnswer, newRequestId, PRESETS, setAiTarget, type Target } from "../editor/ai";
+import { aiRequest, aiTargetOf, cleanAnswer, newRequestId, type Preset, PRESETS, setAiTarget, type Target } from "../editor/ai";
 import { parseMarkdown } from "../md";
 import { setUi, ui } from "./store";
 
@@ -21,6 +22,7 @@ export function InlineAi(props: { backend: Backend; view: () => EditorView }) {
   const [place, setPlace] = createSignal({ top: 0, left: 0 });
   /** The target is a selection, not a cursor. */
   const [selected, setSelected] = createSignal(false);
+  const [custom, setCustom] = createSignal<Preset[]>([]);
   let box: HTMLDivElement | undefined;
   let field: HTMLInputElement | undefined;
   let running = 0;
@@ -28,9 +30,8 @@ export function InlineAi(props: { backend: Backend; view: () => EditorView }) {
 
   const presets = () => {
     const q = input().trim().toLowerCase();
-    return PRESETS.filter((p) => (selected() ? p.id !== "continue" : p.id === "continue" || p.id === "translate")).filter(
-      (p) => !q || p.label.toLowerCase().includes(q),
-    );
+    const own = PRESETS.filter((p) => (selected() ? p.id !== "continue" : p.id === "continue" || p.id === "translate"));
+    return [...own, ...custom()].filter((p) => !q || p.label.toLowerCase().includes(q));
   };
 
   const stop = () => {
@@ -127,6 +128,10 @@ export function InlineAi(props: { backend: Backend; view: () => EditorView }) {
         const view = props.view();
         const { from, to } = view.state.selection;
         stop();
+        void props.backend
+          .aiPrompts()
+          .then((list) => setCustom(list.map((p) => ({ id: `prompt:${p.name}`, label: p.name, instruction: p.instruction }))))
+          .catch(() => setCustom([]));
         setAiTarget(view, { from, to });
         setSelected(from < to);
         setInput(open.instruction);
@@ -137,7 +142,11 @@ export function InlineAi(props: { backend: Backend; view: () => EditorView }) {
         field?.focus();
         requestAnimationFrame(() => {
           position({ from, to });
-          if (open.run) choose(Math.max(0, presets().findIndex((p) => p.instruction === open.instruction)));
+          if (!open.run) return;
+          // A custom prompt from the menu runs before the list has it.
+          const index = presets().findIndex((p) => p.instruction === open.instruction);
+          if (index >= 0) choose(index);
+          else run(open.instruction);
         });
       },
     ),

@@ -279,6 +279,8 @@ export interface Backend {
   aiStart(id: number, request: AiRequest): Promise<void>;
   /** Stop AI request `id`. */
   aiCancel(id: number): Promise<void>;
+  /** The user's own prompts (AI › Custom Prompts), from their prompts folder. */
+  aiPrompts(): Promise<{ name: string; instruction: string }[]>;
   onAi(handler: (event: AiEvent) => void): void;
   onSettings(handler: (settings: Settings) => void): void;
   /** Ask where to export the document as `format` (`extension`); `null` when cancelled. */
@@ -685,6 +687,11 @@ export class MemoryBackend implements Backend {
   }
   async aiCancel(id: number) {
     this.aiCancelled.add(id);
+  }
+  /** Test hook: the custom prompts. */
+  prompts: { name: string; instruction: string }[] = [];
+  async aiPrompts() {
+    return this.prompts;
   }
   onAi(handler: (e: AiEvent) => void) {
     this.aiHandlers.push(handler);

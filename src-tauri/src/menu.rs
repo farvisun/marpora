@@ -478,6 +478,10 @@ const AI: &[Item] = &[
     ("ai:summarize", "Summarize", None),
     ("ai:translate", "Translate…", None),
     ("ai:continue", "Continue Writing", None),
+];
+
+/// The AI menu after Custom Prompts.
+const AI_END: &[Item] = &[
     ("-", "", None),
     ("ai-chat", "AI Chat", Some("CmdOrCtrl+Alt+J")),
     ("-", "", None),
@@ -835,6 +839,19 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
     format.push(Box::new(submenu(app, "Image", image)?));
     format.extend(items(app, FORMAT_END)?);
 
+    let mut ai = items(app, AI)?;
+    ai.push(Box::new(Submenu::with_id_and_items(
+        app,
+        "ai-prompts",
+        "Custom Prompts",
+        true,
+        &prompt_items(app)?
+            .iter()
+            .map(|b| b.as_ref())
+            .collect::<Vec<_>>(),
+    )?));
+    ai.extend(items(app, AI_END)?);
+
     let current = app.state::<Store>().get().theme;
     let mut theme_items: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
     let mut last_source = Source::Bundled;
@@ -947,7 +964,13 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             &submenu(app, "Edit", edit)?,
             &submenu(app, "Paragraph", paragraph)?,
             &submenu(app, "Format", format)?,
-            &submenu(app, "AI", items(app, AI)?)?,
+            &Submenu::with_id_and_items(
+                app,
+                "ai",
+                "AI",
+                true,
+                &ai.iter().map(|b| b.as_ref()).collect::<Vec<_>>(),
+            )?,
             &Submenu::with_id_and_items(
                 app,
                 "view",
@@ -1002,6 +1025,56 @@ fn recent_items(app: &AppHandle) -> tauri::Result<Vec<Box<dyn tauri::menu::IsMen
         None::<&str>,
     )?));
     Ok(out)
+}
+
+/// AI › Custom Prompts: `prompt:<name>` for each file in the prompts folder.
+fn prompt_items(app: &AppHandle) -> tauri::Result<Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>>> {
+    let prompts = crate::ai::prompts_dir(app)
+        .map(|d| crate::ai::read_prompts(&d))
+        .unwrap_or_default();
+    let mut out: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
+    if prompts.is_empty() {
+        out.push(Box::new(MenuItem::new(
+            app,
+            "No Prompts",
+            false,
+            None::<&str>,
+        )?));
+    }
+    for p in prompts {
+        out.push(Box::new(MenuItem::with_id(
+            app,
+            format!("prompt:{}", p.name),
+            &p.name,
+            true,
+            None::<&str>,
+        )?));
+    }
+    out.push(Box::new(PredefinedMenuItem::separator(app)?));
+    out.push(Box::new(MenuItem::with_id(
+        app,
+        "ai-prompts-folder",
+        "Open Prompts Folder",
+        true,
+        None::<&str>,
+    )?));
+    Ok(out)
+}
+
+/// Rebuild AI › Custom Prompts from the prompts folder.
+pub fn refresh_prompts(app: &AppHandle) {
+    let Some(MenuItemKind::Submenu(ai)) = app.menu().and_then(|m| m.get("ai")) else {
+        return;
+    };
+    let Some(MenuItemKind::Submenu(prompts)) = ai.get("ai-prompts") else {
+        return;
+    };
+    for item in prompts.items().unwrap_or_default() {
+        let _ = prompts.remove(&item);
+    }
+    for item in prompt_items(app).unwrap_or_default() {
+        let _ = prompts.append(item.as_ref());
+    }
 }
 
 /// Rebuild File › Open Recent after the recent files changed.
@@ -1142,6 +1215,11 @@ pub fn handle(app: &AppHandle, id: &str) {
         }
         "ai-settings" => {
             let _ = windows::open_preferences(app, Some("ai"));
+        }
+        "ai-prompts-folder" => {
+            if let Some(dir) = crate::ai::prompts_dir(app) {
+                let _ = crate::commands::reveal(&dir);
+            }
         }
         "open-folder" => {
             let handle = app.clone();

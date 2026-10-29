@@ -1152,6 +1152,23 @@ await aiBox.waitFor();
 check("ai: translate asks for the language", (await ai.locator(".md-ai-input input").inputValue()) === "Translate it to " &&
   (await ai.evaluate(() => window.marpora.backend.aiRequests.length)) === 4);
 await ai.keyboard.press("Escape");
+// AI › Custom Prompts: the user's prompt files, from the menu and in the prompt's list.
+await ai.evaluate(() => {
+  window.marpora.backend.prompts = [{ name: "Make Formal", instruction: "Rewrite it formally." }];
+  window.marpora.backend.aiReplies.push("Deux");
+});
+await aiSelect("two");
+await ai.evaluate(() => window.marpora.handleMenu("prompt:Make Formal"));
+await ai.locator(".md-ai-actions .btn-primary").waitFor();
+check("ai: custom prompt runs from the menu", (await ai.evaluate(() => window.marpora.backend.aiRequests.at(-1).messages[0].content)).endsWith("Rewrite it formally."));
+await ai.keyboard.press("Escape");
+await aiSelect("two");
+await ai.evaluate(() => window.marpora.handleMenu("ai-ask"));
+await ai.locator(".md-ai-presets li", { hasText: "Make Formal" }).waitFor({ timeout: 3000 }).catch(() => {});
+await ai.keyboard.type("formal");
+check("ai: custom prompts in the list", (await ai.locator(".md-ai-presets li").allTextContents()).join() === "Make Formal",
+  (await ai.locator(".md-ai-presets li").allTextContents()).join());
+await ai.keyboard.press("Escape");
 
 // AI › AI Chat: questions carry the document and selection; answers go in on a click.
 await ai.evaluate(() => window.marpora.handleMenu("ai-chat"));
