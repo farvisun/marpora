@@ -5,10 +5,10 @@ import { TextSelection } from "prosemirror-state";
 import { render } from "solid-js/web";
 import { App } from "./chrome/App";
 import { basename } from "./chrome/library";
-import { countText, docText, outlineOf, setUi, ui } from "./chrome/store";
+import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { createEditor, runCommand } from "./editor/editor";
 import { DocSync } from "./editor/sync";
-import { connect, inTauri } from "./ipc";
+import { connect, inTauri, report } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
 import { SourceMode } from "./chrome/source";
 import { applyTheme } from "./chrome/theme";
@@ -32,8 +32,10 @@ async function main() {
     refreshDiagrams();
   };
   await showTheme(settings.theme);
+  setUi("librarySort", librarySortOf(settings));
   backend.onSettings((s) => {
     if (s.showHiddenFiles !== settings.showHiddenFiles) setUi("libraryVersion", (v) => v + 1);
+    setUi("librarySort", librarySortOf(s));
     settings = s;
     if (s.theme !== ui.theme) void showTheme(s.theme);
   });
@@ -307,13 +309,6 @@ function exportFailed(e: unknown) {
   );
 }
 
-function report(e: unknown) {
-  const message = e instanceof Error ? (e.stack ?? e.message) : String(e);
-  console.error(e);
-  if (inTauri) {
-    void import("@tauri-apps/api/core").then(({ invoke }) => invoke("frontend_log", { message }));
-  }
-}
 
 window.addEventListener("error", (e) => report(e.error ?? e.message));
 window.addEventListener("unhandledrejection", (e) => report(e.reason));

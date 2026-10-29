@@ -317,6 +317,7 @@ await lib.evaluate(async () => {
       "/home/me/notes/sub/deep.md": "Deep",
     },
     recent: ["/home/me/notes/Welcome.md", "/home/me/old/plan.md"],
+    folders: ["/home/me/notes", "/home/me/other"],
   };
   await backend.setText(1, "# One\n\n## Two\n\n# Three\n");
   await sync.resync();
@@ -351,6 +352,32 @@ check("folder expands", true);
 await lib.locator(".file-tree-node[data-path$='deep.md'] > .file-node-content").click();
 check("tree opens the file", (await opened()).at(-1) === "/home/me/notes/sub/deep.md");
 
+// The footer's menu: actions, sorting and recent folders.
+await lib.hover("#file-library-tree");
+check("footer shows the folder", (await lib.locator("#sidebar-footer-main-item-label").textContent()).trim() === "notes" &&
+  await lib.locator("#sidebar-new-file-btn").isVisible() && await lib.locator("#switch-file-list-btn .switch-file-list-btn-to-list").isVisible());
+await lib.click("#sidebar-menu-btn .sidebar-footer-item");
+const menuText = () => lib.locator("#sidebar-files-menu > li").evaluateAll((lis) => lis.map((li) => li.textContent.trim()));
+check("footer menu", (await menuText()).join() === "Action,New File,Reveal in Finder,Open Folder...,Refresh Folder,Sort,Recent Locations,other,notes",
+  (await menuText()).join());
+check("current folder marked", (await lib.locator(".selected-folder-menu-item").textContent()).trim() === "notes");
+const treeOrder = () => lib.locator(".file-node-root > .file-node-children > .file-tree-node > .file-node-content .file-node-title").allTextContents();
+await lib.click("#ty-sort-by-name-btn");
+await lib.click("#ty-sort-by-name-btn");
+check("sort by name, descending", (await treeOrder()).join() === "sub,Welcome.md,todo.md" &&
+  (await lib.getAttribute("#ty-sort-by-name-btn", "aria-label")) === "Sort by Name (Descending)", (await treeOrder()).join());
+await lib.click("#ty-group-by-folder-btn");
+check("ungrouped mixes folders in", (await treeOrder()).join() === "Welcome.md,todo.md,sub", (await treeOrder()).join());
+check("sort saved in settings", await lib.evaluate(async () => {
+  const s = await window.marpora.backend.settings();
+  return s.treeSort === -1 && s.treeNoGroup && s.listSort === 0;
+}));
+check("sort buttons keep the menu open", await lib.locator("#sidebar-files-menu").isVisible());
+await lib.click("#new-file-from-sidebar-menu");
+await lib.waitForTimeout(100);
+check("new file opens", (await opened()).at(-1) === "/home/me/notes/Untitled.md" && !(await lib.locator("#sidebar-files-menu").isVisible()),
+  `${(await opened()).at(-1)} ${await lib.locator("#sidebar-files-menu").isVisible()}`);
+
 await lib.click("#write");
 await lib.keyboard.press("Meta+Shift+o");
 await lib.waitForSelector("#typora-quick-open .typora-quick-open-item");
@@ -366,6 +393,11 @@ check("enter opens and closes", (await opened()).at(-1) === "/home/me/notes/sub/
 await lib.keyboard.press("Meta+Shift+o");
 await lib.keyboard.press("Escape");
 check("escape closes quick open", !(await lib.locator("#typora-quick-open").isVisible()));
+await lib.hover("#file-library-tree");
+await lib.click("#sidebar-menu-btn .sidebar-footer-item");
+await lib.click(".folder-menu-item[data-path='/home/me/other'] a");
+await lib.waitForFunction(() => document.querySelector("#sidebar-footer-main-item-label").textContent.trim() === "other");
+check("recent location switches the folder", (await lib.evaluate(() => window.marpora.backend.libraryLog)).join() === "switch /home/me/other");
 
 await lib.reload();
 await lib.waitForSelector("#write");

@@ -50,6 +50,10 @@ export class MemoryPrefs implements PrefsApi {
     recordRecent: true,
     showHiddenFiles: false,
     quitOnLastWindowClosed: false,
+    listSort: 0,
+    treeSort: 0,
+    listNoGroup: false,
+    treeNoGroup: false,
   };
   /** Actions taken, for tests. */
   log: string[] = [];

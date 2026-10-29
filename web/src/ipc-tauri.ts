@@ -60,6 +60,26 @@ export class TauriBackend implements Backend {
     return invoke<string[]>("recent_files");
   }
 
+  recentFolders() {
+    return invoke<string[]>("recent_folders");
+  }
+
+  newLibraryFile() {
+    return invoke<string>("new_library_file");
+  }
+
+  revealLibrary() {
+    return invoke<void>("reveal_library");
+  }
+
+  switchLibraryFolder(dir?: string) {
+    return invoke<boolean>("switch_library_folder", { dir: dir ?? null });
+  }
+
+  updateSettings(patch: Partial<Settings>) {
+    return invoke<Settings>("update_settings", { patch });
+  }
+
   applyPatch(docId: number, patch: Patch) {
     return invoke<PatchResult>("apply_patch", { docId, patch });
   }

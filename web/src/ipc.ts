@@ -41,6 +41,12 @@ export interface Settings {
   showHiddenFiles: boolean;
   /** Quit when the last window closes instead of staying in the Dock. */
   quitOnLastWindowClosed: boolean;
+  /** Sidebar order (chrome/library.ts `SortType`) for the article list and file tree. */
+  listSort: number;
+  treeSort: number;
+  /** "Group By Folder" turned off: one sorted list, folders mixed with files. */
+  listNoGroup: boolean;
+  treeNoGroup: boolean;
 }
 
 /** A theme's CSS (src-tauri themes.rs). `css` is null for themes bundled with the app. */
@@ -104,6 +110,16 @@ export interface Backend {
   listDocuments(summaries: boolean): Promise<LibraryDocs>;
   /** Recently opened files, newest first. */
   recentFiles(): Promise<string[]>;
+  /** Recently opened folders, newest first (the sidebar menu's Recent Locations). */
+  recentFolders(): Promise<string[]>;
+  /** Create an untitled file in the library folder; returns its path. */
+  newLibraryFile(): Promise<string>;
+  /** Show the library folder in Finder. */
+  revealLibrary(): Promise<void>;
+  /** Show recent folder `dir` in the sidebar, or one the user picks; false if cancelled. */
+  switchLibraryFolder(dir?: string): Promise<boolean>;
+  /** Change some settings; every window hears about it through `onSettings`. */
+  updateSettings(patch: Partial<Settings>): Promise<Settings>;
   applyPatch(docId: number, patch: Patch): Promise<PatchResult>;
   /** Full text, used to resynchronise after a rejected patch. */
   documentText(docId: number): Promise<{ text: string; version: number }>;
@@ -165,6 +181,10 @@ export class MemoryBackend implements Backend {
     recordRecent: true,
     showHiddenFiles: false,
     quitOnLastWindowClosed: false,
+    listSort: 0,
+    treeSort: 0,
+    listNoGroup: false,
+    treeNoGroup: false,
   };
 
   constructor(private text = DEMO) {}
@@ -183,7 +203,14 @@ export class MemoryBackend implements Backend {
   }
 
   /** Test hook: a fake library folder, as path to text. */
-  library: { root: string; files: Record<string, string>; recent: string[] } = { root: "", files: {}, recent: [] };
+  library: { root: string; files: Record<string, string>; recent: string[]; folders: string[] } = {
+    root: "",
+    files: {},
+    recent: [],
+    folders: [],
+  };
+  /** Test hook: library actions taken. */
+  libraryLog: string[] = [];
 
   async libraryInfo(): Promise<LibraryInfo> {
     return { folder: this.library.root || null, openedFolder: false, home: "/home/me" };
@@ -209,7 +236,7 @@ export class MemoryBackend implements Backend {
         path,
         folder: path.slice(0, cut),
         modified: Date.now() - i * 60_000,
-        created: 0,
+        created: i,
         summary: summaries ? text.slice(0, 600) : "",
       };
     });
@@ -218,6 +245,35 @@ export class MemoryBackend implements Backend {
 
   async recentFiles() {
     return this.library.recent;
+  }
+
+  async recentFolders() {
+    return this.library.folders;
+  }
+
+  async newLibraryFile() {
+    let n = 0;
+    const name = () => `${this.library.root}/Untitled${n ? ` ${n}` : ""}.md`;
+    while (name() in this.library.files) n++;
+    this.library.files[name()] = "";
+    return name();
+  }
+
+  async revealLibrary() {
+    this.libraryLog.push("reveal");
+  }
+
+  async switchLibraryFolder(dir?: string) {
+    if (!dir) return false;
+    this.library.root = dir;
+    this.libraryLog.push("switch " + dir);
+    return true;
+  }
+
+  async updateSettings(patch: Partial<Settings>) {
+    this.current = { ...this.current, ...patch };
+    for (const h of this.settingsHandlers) h(this.current);
+    return this.current;
   }
 
   async applyPatch(_id: number, p: Patch): Promise<PatchResult> {
@@ -369,3 +425,12 @@ A **Typora-style** editor with *seamless* live preview. Edit \`inline code\`, ~~
 fn main() {}
 \`\`\`
 `;
+
+/** Log an error to the console and, in the app, to its log. */
+export function report(e: unknown) {
+  const message = e instanceof Error ? (e.stack ?? e.message) : String(e);
+  console.error(e);
+  if (inTauri) {
+    void import("@tauri-apps/api/core").then(({ invoke }) => invoke("frontend_log", { message }));
+  }
+}

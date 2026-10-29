@@ -2,6 +2,7 @@
 
 import type { Node as PMNode } from "prosemirror-model";
 import { createStore } from "solid-js/store";
+import type { Settings } from "../ipc";
 
 /** Sidebar state kept across reloads of the window (opening a file reloads it). */
 interface SidebarState {
@@ -32,6 +33,13 @@ export function saveSidebar() {
   }
 }
 
+export type LibrarySort = Pick<Settings, "listSort" | "treeSort" | "listNoGroup" | "treeNoGroup">;
+
+export function librarySortOf(s: Settings): LibrarySort {
+  const { listSort, treeSort, listNoGroup, treeNoGroup } = s;
+  return { listSort, treeSort, listNoGroup, treeNoGroup };
+}
+
 export interface OutlineItem {
   level: number;
   text: string;
@@ -59,6 +67,8 @@ export const [ui, setUi] = createStore({
   quickOpen: false,
   /** Bumped when the sidebar should list its folder again (Show hidden files changed). */
   libraryVersion: 0,
+  /** The sidebar's orders, from the settings (chrome/library.ts `SortType`). */
+  librarySort: { listSort: 0, treeSort: 0, listNoGroup: false, treeNoGroup: false } as LibrarySort,
   /** The find and replace panel (chrome/search.ts). */
   search: {
     open: false,

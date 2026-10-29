@@ -112,18 +112,75 @@ export interface FolderGroup {
   files: LibraryDoc[];
 }
 
-/** The article list grouped by folder (in the order folders were found), each sorted naturally. */
-export function groupByFolder(files: LibraryDoc[]): FolderGroup[] {
+/** Typora's sidebar orders; negative is descending. */
+export const SortType = {
+  CreateDateDescend: -3,
+  DateDescend: -2,
+  AlphabetDescend: -1,
+  NaturalDescend: -10,
+  Natural: 0,
+  Alphabet: 1,
+  Date: 2,
+  CreateDate: 3,
+} as const;
+
+/** Typora's name order: by the part before the first dot, ignoring case. */
+function compareNames(a: string, b: string): number {
+  if (a === b) return 0;
+  a = a.toLowerCase();
+  b = b.toLowerCase();
+  const [sa, sb] = [a.replace(/\..+/, ""), b.replace(/\..+/, "")];
+  return sa === sb ? a.localeCompare(b) : sa.localeCompare(sb);
+}
+
+/** A comparator for sort type `sort` (Typora's `compareItem`). */
+export function compareItems(sort: number) {
+  return (a: { name: string; modified: number; created: number }, b: typeof a): number => {
+    switch (sort) {
+      case SortType.Alphabet:
+        return compareNames(a.name, b.name);
+      case SortType.AlphabetDescend:
+        return compareNames(b.name, a.name);
+      case SortType.Date:
+        return a.modified - b.modified;
+      case SortType.DateDescend:
+        return b.modified - a.modified;
+      case SortType.CreateDate:
+        return a.created - b.created;
+      case SortType.CreateDateDescend:
+        return b.created - a.created;
+      case SortType.NaturalDescend:
+        return -naturalCompare(a.name, b.name);
+      default:
+        return naturalCompare(a.name, b.name);
+    }
+  };
+}
+
+/** Files by folder, folders in the order found, each sorted by `sort`. With `noGroup`,
+ * one group of every file. */
+export function groupByFolder(files: LibraryDoc[], sort = 0, noGroup = false): FolderGroup[] {
+  const compare = compareItems(sort);
+  if (noGroup) return files.length ? [{ folder: "", files: [...files].sort(compare) }] : [];
   const groups = new Map<string, LibraryDoc[]>();
   for (const f of files) {
     const g = groups.get(f.folder);
     if (g) g.push(f);
     else groups.set(f.folder, [f]);
   }
-  return [...groups].map(([folder, files]) => ({
-    folder,
-    files: files.sort((a, b) => naturalCompare(a.name, b.name)),
-  }));
+  return [...groups].map(([folder, files]) => ({ folder, files: files.sort(compare) }));
+}
+
+/** One level of the file tree: folders, then files, each sorted; mixed with `noGroup`. */
+export function sortEntries<T extends { name: string; modified: number; created: number; isDirectory: boolean }>(
+  entries: T[],
+  sort = 0,
+  noGroup = false,
+): T[] {
+  const compare = compareItems(sort);
+  if (noGroup) return [...entries].sort(compare);
+  const of = (dir: boolean) => entries.filter((e) => e.isDirectory === dir).sort(compare);
+  return [...of(true), ...of(false)];
 }
 
 export const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);

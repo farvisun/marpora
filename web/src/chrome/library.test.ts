@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { highlight, naturalCompare, naturalDate, quickPath, rankQuick, splitName, summaryLines, summaryOf } from "./library";
+import { compareItems, groupByFolder, highlight, naturalCompare, SortType, sortEntries, naturalDate, quickPath, rankQuick, splitName, summaryLines, summaryOf } from "./library";
 
 describe("summaryOf", () => {
   it("strips Markdown syntax", () => {
@@ -37,6 +37,34 @@ describe("naturalCompare", () => {
   it("orders numbers by value and months by month", () => {
     const names = ["note 10.md", "note 2.md", "March.md", "jan.md", "Apple.md"];
     expect(names.sort(naturalCompare)).toEqual(["Apple.md", "jan.md", "March.md", "note 2.md", "note 10.md"]);
+  });
+});
+
+describe("sidebar sorting", () => {
+  const item = (name: string, modified: number, created: number) => ({ name, modified, created });
+  const names = (xs: { name: string }[]) => xs.map((x) => x.name);
+  const items = [item("b 10.md", 1, 3), item("B 9.md", 3, 1), item("a.md", 2, 2)];
+
+  it("orders by Typora's sort types", () => {
+    const by = (sort: number) => names([...items].sort(compareItems(sort)));
+    expect(by(SortType.Natural)).toEqual(["a.md", "B 9.md", "b 10.md"]);
+    expect(by(SortType.NaturalDescend)).toEqual(["b 10.md", "B 9.md", "a.md"]);
+    expect(by(SortType.Alphabet)).toEqual(["a.md", "b 10.md", "B 9.md"]);
+    expect(by(SortType.DateDescend)).toEqual(["B 9.md", "a.md", "b 10.md"]);
+    expect(by(SortType.CreateDate)).toEqual(["B 9.md", "a.md", "b 10.md"]);
+  });
+
+  it("groups by folder unless told not to", () => {
+    const doc = (folder: string, name: string, modified: number) => ({ folder, name, path: `${folder}/${name}`, modified, created: 0, summary: "" });
+    const files = [doc("/n", "z.md", 1), doc("/n/sub", "a.md", 2), doc("/n", "b.md", 3)];
+    expect(groupByFolder(files).map((g) => [g.folder, names(g.files)])).toEqual([
+      ["/n", ["b.md", "z.md"]],
+      ["/n/sub", ["a.md"]],
+    ]);
+    expect(names(groupByFolder(files, SortType.DateDescend, true)[0].files)).toEqual(["b.md", "a.md", "z.md"]);
+    const entries = [{ ...item("z", 0, 0), isDirectory: true }, { ...item("a.md", 0, 0), isDirectory: false }];
+    expect(names(sortEntries(entries))).toEqual(["z", "a.md"]);
+    expect(names(sortEntries(entries, 0, true))).toEqual(["a.md", "z"]);
   });
 });
 

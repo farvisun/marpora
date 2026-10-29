@@ -394,6 +394,136 @@ content { transition-duration: 0.4s; }
 .file-node-icon svg,
 .file-node-open-state svg { vertical-align: middle; margin-top: -3px; fill: currentColor; }
 
+/* The Files tab's footer and its menu, shown while the pointer is over the sidebar.
+   Items that need a folder get `show` once one is open. */
+.sidebar-footer {
+  border-top: var(--window-border);
+  opacity: 0;
+  flex: 0 0;
+  width: 100%;
+  background: inherit;
+  z-index: 2;
+  display: none;
+  line-height: 24px;
+  left: 0;
+  bottom: 0;
+  position: absolute;
+}
+.sidebar-footer.show-sidebar-footer-context { opacity: 1; display: block; }
+.pin-outline #typora-sidebar:hover .sidebar-footer:not(.show-sidebar-footer-context) {
+  animation: fadein 0.5s;
+  opacity: 1;
+  display: block;
+}
+.active-tab-outline .sidebar-footer { display: none !important; }
+#ty-sidebar-footer .show { display: block !important; }
+#ty-sidebar-footer .not-empty-menu-group { display: none; }
+.sidebar-footer-item { display: inline-block; font-size: 12px; cursor: default; }
+.sidebar-footer .sidebar-footer-item { padding-top: 2px; }
+.html-for-mac .sidebar-footer .sidebar-footer-item { padding-top: 6px; padding-bottom: 3px; }
+.footer-item:hover,
+.sidebar-footer-item:hover { background: var(--item-hover-bg-color); color: var(--item-hover-text-color); }
+.footer-btn { cursor: default; padding-left: 8px; padding-right: 8px; opacity: 0.8; display: none; font-size: 12px; }
+.sidebar-footer-main-item { flex: 1; display: inline-block; background: inherit; overflow: hidden; }
+.sidebar-footer-main-item-label { flex: 1; text-align: center; opacity: 0.8; text-overflow: ellipsis; overflow-x: hidden; }
+.sidebar-footer-main-item .footer-btn { display: inline-block; }
+#sidebar-menu-btn > .sidebar-footer-item { display: flex; white-space: nowrap; overflow-x: hidden; }
+#switch-file-list-btn { float: left; }
+.switch-file-list-btn-to-list,
+.switch-file-list-btn-to-tree { display: none; }
+.use-file-list-style .switch-file-list-btn-to-tree,
+.use-file-tree-style .switch-file-list-btn-to-list { display: inline; }
+.sidebar-footer svg { vertical-align: middle; margin-top: -3px; fill: currentColor; }
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  display: none;
+  float: left;
+  min-width: 160px;
+  padding: 0;
+  margin: 2px 0 0;
+  list-style: none;
+  font-size: 14px;
+  text-align: left;
+  border-radius: 4px;
+  background-clip: padding-box;
+  background-color: var(--bg-color);
+  transition: opacity 0.25s ease-in-out;
+  transform-origin: center top;
+  box-shadow: rgba(15, 15, 15, 0.03) 0 0 0 1px, rgba(15, 15, 15, 0.04) 0 3px 6px, rgba(15, 15, 15, 0.05) 0 9px 24px;
+}
+.dropdown-menu:focus { outline: 0; }
+.dropdown-menu > li { font-size: 13px; list-style-type: none; }
+.dropdown-menu > li > a {
+  display: block;
+  padding: 3px 20px;
+  clear: both;
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--text-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.dropdown-menu > li > a:hover { background: var(--item-hover-bg-color); color: var(--text-color); }
+#sidebar-files-menu {
+  inset: auto 4px 2px;
+  font-size: 12px;
+  padding-top: 4px;
+  border: var(--window-border);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  background: inherit;
+}
+.show-sidebar-footer-context #sidebar-files-menu { display: block; }
+#sidebar-files-menu.dropdown-menu > li { font-size: 12.5px; }
+#sidebar-files-menu.dropdown-menu > li > a { line-height: 1.428571; }
+#sidebar-files-menu li { display: none; white-space: nowrap; overflow-x: hidden; text-overflow: ellipsis; }
+#sidebar-files-menu a {
+  text-decoration: none;
+  white-space: nowrap;
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  cursor: default;
+}
+#sidebar-files-menu .folder-menu-groupm a { padding-right: 4px; }
+#sidebar-files-menu > .show + .menuitem-group-label.show { border-top: var(--window-border); }
+.menuitem-group-label { padding-left: 8px; cursor: default; }
+#close-sidebar-menu-btn { float: right; margin-right: 8px; margin-top: 4px; cursor: default; opacity: 0.8; line-height: 1; }
+#close-sidebar-menu-btn svg { margin-top: 0; }
+.sort-button-area { float: right; }
+.ty-side-sort-btn {
+  margin: 4px 8px 4px -8px;
+  height: 22px;
+  width: 22px;
+  display: inline-block;
+  text-align: center;
+  line-height: 22px;
+  border-radius: 2px;
+  cursor: default;
+  opacity: 0.4;
+}
+.ty-side-sort-btn:hover { color: var(--primary-color); opacity: 1; }
+.ty-side-sort-btn.active { color: var(--primary-color); opacity: 1; background: var(--active-file-bg-color); }
+.clearfix::before,
+.clearfix::after { content: " "; display: table; }
+.clearfix::after { clear: both; }
+.folder-menu-item .fa-folder-o { margin-right: 4px; }
+.selected-folder-menu-item a::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  width: 7px;
+  height: 7px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--primary-color);
+}
+
 /* Quick Open (chrome/QuickOpen.tsx) */
 #typora-quick-open {
   position: fixed;
@@ -488,7 +618,8 @@ footer.ty-footer {
   z-index: 3;
 }
 
-.footer-btn {
+/* The status bar's own buttons; the sidebar footer has Typora's `.footer-btn` rules. */
+footer.ty-footer .footer-btn {
   border: 0;
   background: transparent;
   color: inherit;
@@ -500,8 +631,8 @@ footer.ty-footer {
   opacity: 0.75;
 }
 
-.footer-btn:hover,
-.footer-btn.active {
+footer.ty-footer .footer-btn:hover,
+footer.ty-footer .footer-btn.active {
   opacity: 1;
   background: var(--item-hover-bg-color);
 }
