@@ -99,10 +99,17 @@ pub fn settle_all(app: &AppHandle) {
 /// and the version written.
 pub fn save_to(app: &AppHandle, id: u64, path: &Path) -> Result<(PathBuf, u64), String> {
     let docs = app.state::<Docs>();
+    let final_newline = app
+        .state::<crate::settings::Store>()
+        .get()
+        .insert_final_newline;
     // `disk` is set first so the watcher takes the write for our own.
     let (text, version, before) = docs
         .with(id, |open| {
-            let text = open.doc.text();
+            let mut text = open.doc.text();
+            if final_newline && !text.is_empty() && !text.ends_with('\n') {
+                text.push_str(if open.doc.crlf() { "\r\n" } else { "\n" });
+            }
             let before = std::mem::replace(&mut open.disk, text.clone());
             (text, open.doc.version(), before)
         })

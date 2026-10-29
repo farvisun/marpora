@@ -58,6 +58,14 @@ export interface Settings {
   imageStorage: string;
   /** Refer to images in the document's folder by relative paths. */
   useRelativeImagePath: boolean;
+  /** Edit › Line Endings › Insert Final New Line On Save. */
+  insertFinalNewline: boolean;
+  /** Edit › Whitespace and Line Breaks (editor/whitespace.ts): Typora's options. */
+  indentFirstLine: boolean;
+  /** "Visible <br/>" turned off. */
+  hideBr: boolean;
+  /** "Preserve single line break": soft breaks show as spaces. */
+  ignoreLineBreak: boolean;
 }
 
 /** A sidebar Search (src-tauri search.rs). */
@@ -257,6 +265,10 @@ export class MemoryBackend implements Backend {
     showStatusBar: true,
     imageStorage: "",
     useRelativeImagePath: true,
+    insertFinalNewline: false,
+    indentFirstLine: false,
+    hideBr: false,
+    ignoreLineBreak: false,
   };
 
   constructor(private text = DEMO) {}

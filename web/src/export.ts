@@ -109,6 +109,7 @@ const EDITING_PARTS = [
   ".md-meta",
   ".ProseMirror-widget:not(input):not(.md-alert-text)",
   ".md-alert-src",
+  ".md-softbreak-space",
   "img.ProseMirror-separator",
   '[mdtype="meta_block"]',
 ].join(",");
@@ -141,12 +142,14 @@ function clean(write: HTMLElement) {
     block.innerHTML = block.querySelector(".md-rawblock-input")?.textContent ?? "";
   }
   const parents = new Set<Element>();
-  for (const el of write.querySelectorAll(".md-html-inline")) if (el.parentElement) parents.add(el.parentElement);
+  for (const el of write.querySelectorAll(".md-html-inline, .md-br")) if (el.parentElement) parents.add(el.parentElement);
   for (const parent of parents) {
     // Opening and closing tags are separate nodes, so rebuild the parent's markup.
     parent.innerHTML = [...parent.childNodes]
       .map((n) => {
-        if (n instanceof Element && n.classList.contains("md-html-inline")) return n.textContent ?? "";
+        if (n instanceof Element && (n.classList.contains("md-html-inline") || n.classList.contains("md-br"))) {
+          return n.textContent ?? "";
+        }
         return n instanceof Element ? n.outerHTML : escapeHtml(n.textContent ?? "");
       })
       .join("");

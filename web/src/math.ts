@@ -192,6 +192,11 @@ const cache = new Map<string, Rendered>();
 const CACHE_LIMIT = 500;
 let chain: Promise<unknown> = Promise.resolve();
 
+/** Forget rendered formulas, so they render again. */
+export function clearMathCache() {
+  cache.clear();
+}
+
 /** Render TeX, numbering its equations from `start`. Results are cached. */
 export function renderTex(tex: string, display: boolean, start = 1): Promise<Rendered> {
   const numbered = display && options.autoNumber;

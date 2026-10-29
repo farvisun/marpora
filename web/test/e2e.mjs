@@ -387,7 +387,7 @@ check("html comment shows source", comment.join() === "<!-- note -->", JSON.stri
 check("inline html pairs render", (await inline.locator("#write p mark").textContent()) === "marked" &&
   (await inline.locator("#write p kbd").textContent()) === "K");
 check("inline html tags hidden", (await inline.locator("#write p .md-html-tag:visible").count()) === 0);
-check("inline br renders", (await inline.locator("#write p .md-html-inline > br").count()) === 1);
+check("inline br shows its source", (await inline.locator("#write p .md-br[md-inline=br] > .md-br-content").textContent()) === "<br>");
 check("inline handlers dropped", (await inline.locator("#write p span[onclick]").count()) === 0 &&
   (await inline.locator("#write p span:not([class])").textContent()) === "s");
 await inline.locator("#write p mark").click();
@@ -487,6 +487,44 @@ check("context menu in a code block", /"block":"code"/.test(cx), cx);
 await inline.mouse.click(3, 3, { button: "right" });
 cx = await inline.evaluate(() => JSON.stringify(window.marpora.backend.contextMenu));
 check("context menu outside the editor", cx === JSON.stringify({ editor: false }), cx);
+
+// Edit › Line Endings converts the text; Whitespace and Line Breaks restyles it.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "one\ntwo <br/> three\n\npara\n");
+  await m.sync.resync();
+});
+const rawText = () => inline.evaluate(async () => (await window.marpora.backend.documentText(1)).text);
+await inline.evaluate(() => window.marpora.handleMenu("line-endings-crlf"));
+await inline.waitForTimeout(100);
+check("windows line endings", (await rawText()) === "one\r\ntwo <br/> three\r\n\r\npara\r\n", JSON.stringify(await rawText()));
+await inline.evaluate(() => window.marpora.handleMenu("line-endings-lf"));
+await inline.waitForTimeout(100);
+check("unix line endings", (await rawText()) === "one\ntwo <br/> three\n\npara\n", JSON.stringify(await rawText()));
+const brSource = inline.locator("#write .md-br-content");
+check("br source visible by default", (await brSource.evaluate((e) => getComputedStyle(e).opacity)) !== "0");
+await inline.evaluate(() => window.marpora.backend.updateSettings({ hideBr: true, ignoreLineBreak: true, indentFirstLine: true }));
+await inline.waitForTimeout(100);
+check("visible br off hides its source", (await brSource.evaluate((e) => getComputedStyle(e).opacity)) === "0");
+check("preserve single line break shows a space", (await inline.locator("#write br.md-soft-break").first().isVisible()) === false &&
+  (await inline.locator("#write .md-softbreak-space").count()) === 1);
+check("indent first line", await inline.evaluate(() => {
+  const p = document.querySelector("#write").lastElementChild;
+  return document.querySelector("#write").classList.contains("first-line-indent") && getComputedStyle(p).textIndent !== "0px";
+}));
+const brExport = await inline.evaluate(async () => {
+  const m = window.marpora;
+  m.backend.exports.clear();
+  m.handleMenu("export-html-plain");
+  for (let i = 0; i < 200 && !m.backend.exports.size; i++) await new Promise((r) => setTimeout(r, 50));
+  return [...m.backend.exports.values()][0] ?? "";
+});
+check("br exports as html with soft breaks as newlines", /two <br\/?> three/.test(brExport) && /one\ntwo/.test(brExport) && !brExport.includes("md-softbreak-space"),
+  brExport.slice(brExport.indexOf("<p"), brExport.indexOf("<p") + 200));
+await inline.evaluate(() => window.marpora.backend.updateSettings({ hideBr: false, ignoreLineBreak: false, indentFirstLine: false }));
+await inline.waitForTimeout(100);
+check("whitespace options off again", (await inline.locator("#write .md-softbreak-space").count()) === 0 &&
+  !(await inline.evaluate(() => document.querySelector("#write").classList.contains("first-line-indent"))));
 
 // Format menu: underline, inline math and comments; links open with ⌘-click.
 await inline.evaluate(async () => {

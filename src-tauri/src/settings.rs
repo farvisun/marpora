@@ -47,6 +47,14 @@ pub struct Settings {
     pub image_storage: String,
     /// Refer to images inside the document's folder by relative paths.
     pub use_relative_image_path: bool,
+    /// Edit › Line Endings › Insert Final New Line On Save.
+    pub insert_final_newline: bool,
+    /// Edit › Whitespace and Line Breaks: Typora's `indentFirstLine`,
+    /// `hideBrAndLineBreak` (Visible <br/> off) and `ignoreLineBreak` (Preserve single
+    /// line break: soft breaks show as spaces, as they render, and stay in the file).
+    pub indent_first_line: bool,
+    pub hide_br: bool,
+    pub ignore_line_break: bool,
 }
 
 impl Default for Settings {
@@ -70,6 +78,10 @@ impl Default for Settings {
             show_status_bar: true,
             image_storage: String::new(),
             use_relative_image_path: true,
+            insert_final_newline: false,
+            indent_first_line: false,
+            hide_br: false,
+            ignore_line_break: false,
         }
     }
 }

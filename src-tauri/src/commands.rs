@@ -920,7 +920,7 @@ fn reveal(dir: &Path) -> CmdResult<()> {
 }
 
 /// Open `target`, a path or an address, with the system's handler for it.
-fn system_open(target: &std::ffi::OsStr) -> CmdResult<()> {
+pub(crate) fn system_open(target: &std::ffi::OsStr) -> CmdResult<()> {
     let opener = if cfg!(target_os = "macos") {
         "open"
     } else if cfg!(windows) {

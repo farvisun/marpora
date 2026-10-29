@@ -198,6 +198,11 @@ impl Document {
         Some(patch)
     }
 
+    /// Whether the text uses Windows line endings.
+    pub fn crlf(&self) -> bool {
+        self.crlf
+    }
+
     fn line_endings(&self, s: &str) -> String {
         if self.crlf {
             s.replace("\r\n", "\n").replace('\n', "\r\n")

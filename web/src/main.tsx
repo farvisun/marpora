@@ -8,12 +8,13 @@ import { basename } from "./chrome/library";
 import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { dropFiles, imageExtension, insertImages } from "./editor/clipboard";
 import { insertTable } from "./editor/commands";
-import { createEditor, runCommand } from "./editor/editor";
+import { createEditor, redraw, runCommand } from "./editor/editor";
+import { setWhitespace } from "./editor/whitespace";
 import { trackContextMenu } from "./editor/contextmenu";
 import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
 import { DocSync } from "./editor/sync";
-import { connect, inTauri, report } from "./ipc";
+import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
 import { blockOfLine, SourceMode } from "./chrome/source";
 import { fileSearchOptionsOf, onFileSearchHidden, restoreFileSearch, toggleFileSearch } from "./chrome/librarySearch";
@@ -22,7 +23,7 @@ import { setSearch } from "./editor/search";
 import { applyTheme } from "./chrome/theme";
 import { exportHtml } from "./export";
 import { refreshDiagrams } from "./editor/diagramview";
-import { setMathOptions } from "./math";
+import { clearMathCache, setMathOptions } from "./math";
 import { initMarkdown, parseMarkdown, setFlavor } from "./md";
 
 async function main() {
@@ -54,6 +55,7 @@ async function main() {
     setUi("librarySort", librarySortOf(s));
     setUi("fileSearch", "options", fileSearchOptionsOf(s));
     settings = s;
+    if (view) showWhitespace(s);
     if (s.theme !== ui.theme) void showTheme(s.theme);
   });
   const { doc } = parseMarkdown(opened.text);
@@ -85,6 +87,12 @@ async function main() {
     () => !source.active,
     (cx) => void backend.setContextMenu(cx).catch(report),
   );
+  // Edit › Whitespace and Line Breaks.
+  const showWhitespace = (s: Settings) => {
+    document.body.classList.toggle("hide-br-and-line-break", s.hideBr);
+    document.body.classList.toggle("ignore-line-break", s.ignoreLineBreak);
+    setWhitespace(view, { indentFirstLine: s.indentFirstLine, ignoreLineBreak: s.ignoreLineBreak });
+  };
   const mountEditor = (el: HTMLElement) => {
     view = createEditor(el, {
       doc,
@@ -100,6 +108,20 @@ async function main() {
         search.refresh();
       },
     });
+    showWhitespace(settings);
+  };
+
+  /** Edit › Line Endings: convert the document's line endings. */
+  const setLineEndings = async (crlf: boolean) => {
+    await source.flush();
+    await sync.flush();
+    const { text } = await backend.documentText(opened.id);
+    const lf = text.replace(/\r\n/g, "\n");
+    const next = crlf ? lf.replace(/\n/g, "\r\n") : lf;
+    if (next === text) return;
+    await backend.setText(opened.id, next);
+    await sync.resync();
+    await source.reload();
   };
 
   /** Open a file from the sidebar or Quick Open, with this window's edits sent first. */
@@ -327,6 +349,12 @@ async function main() {
       case "jump-line-start":
       case "jump-line-end":
         return window.getSelection()?.modify("move", id.endsWith("start") ? "backward" : "forward", "lineboundary");
+      case "line-endings-crlf":
+      case "line-endings-lf":
+        return void setLineEndings(id === "line-endings-crlf").catch(report);
+      case "refresh-math":
+        clearMathCache();
+        return redraw(view);
       case "open-link": {
         const href = linkAt(view.state)?.attrs.href;
         return void (href && openLink(view, { openLink: (h) => backend.openLink(h) }, href));

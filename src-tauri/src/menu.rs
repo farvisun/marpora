@@ -261,6 +261,73 @@ const ALERT: &[Item] = &[
 /// Paragraph › Code Tools.
 const CODE_TOOLS: &[Item] = &[("copy-code", "Copy Code Content", None)];
 
+const MATH_TOOLS: &[Item] = &[("refresh-math", "Refresh All Math Expressions", None)];
+
+/// Edit › Line Endings and Whitespace and Line Breaks: (id, title) of check items, with
+/// a separator for "-", and the setting each shows (line endings show the document's).
+const LINE_ENDINGS: &[(&str, &str)] = &[
+    ("line-endings-crlf", "Windows Line Endings (CRLF)"),
+    ("line-endings-lf", "Unix Line Endings (LF)"),
+    ("-", ""),
+    ("final-newline", "Insert Final New Line On Save"),
+];
+
+const WHITESPACE: &[(&str, &str)] = &[
+    ("indent-first-line", "Indent first line of paragraphs"),
+    ("-", ""),
+    ("visible-br", "Visible <br/>"),
+    ("preserve-line-break", "Preserve single line break"),
+];
+
+/// The settings these check items show.
+fn setting_check(s: &crate::settings::Settings, id: &str) -> Option<bool> {
+    Some(match id {
+        "final-newline" => s.insert_final_newline,
+        "indent-first-line" => s.indent_first_line,
+        "visible-br" => !s.hide_br,
+        "preserve-line-break" => s.ignore_line_break,
+        _ => return None,
+    })
+}
+
+const SETTING_CHECKS: [&str; 4] = [
+    "final-newline",
+    "indent-first-line",
+    "visible-br",
+    "preserve-line-break",
+];
+
+/// The check item `id` anywhere in `items`.
+fn find_check(items: Vec<MenuItemKind<Wry>>, id: &str) -> Option<CheckMenuItem<Wry>> {
+    items.into_iter().find_map(|item| match item {
+        MenuItemKind::Check(check) if check.id().as_ref() == id => Some(check),
+        MenuItemKind::Submenu(sub) => sub.items().ok().and_then(|items| find_check(items, id)),
+        _ => None,
+    })
+}
+
+fn set_check(app: &AppHandle, id: &str, on: bool) {
+    if let Some(check) = app
+        .menu()
+        .and_then(|m| m.items().ok())
+        .and_then(|items| find_check(items, id))
+    {
+        let _ = check.set_checked(on);
+    }
+}
+
+/// Edit › Line Endings' checkmarks for `label`'s document.
+fn sync_line_endings(app: &AppHandle, label: &str) {
+    let docs = app.state::<crate::docs::Docs>();
+    let crlf = docs
+        .for_window(label)
+        .and_then(|id| docs.with(id, |open| open.doc.crlf()));
+    if let Some(crlf) = crlf {
+        set_check(app, "line-endings-crlf", crlf);
+        set_check(app, "line-endings-lf", !crlf);
+    }
+}
+
 const PARAGRAPH_LISTS: &[Item] = &[
     ("-", "", None),
     ("quote", "Quote", Some("CmdOrCtrl+Alt+Q")),
@@ -401,6 +468,7 @@ pub fn sync_window_checks(app: &AppHandle, label: &str) {
             let _ = check.set_checked(set.lock().unwrap().contains(label));
         }
     }
+    sync_line_endings(app, label);
 }
 
 /// Flip `label` in `set`; returns whether it is now in it.
@@ -531,8 +599,57 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         items(app, DELETE_RANGE)?,
     )?));
     edit.push(Box::new(PredefinedMenuItem::separator(app)?));
+    edit.push(Box::new(submenu(
+        app,
+        "Math Tools",
+        items(app, MATH_TOOLS)?,
+    )?));
+    edit.push(Box::new(PredefinedMenuItem::separator(app)?));
+    let settings = app.state::<Store>().get();
+    let checks =
+        |list: &[(&str, &str)]| -> tauri::Result<Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>>> {
+            list.iter()
+                .map(
+                    |&(id, title)| -> tauri::Result<Box<dyn tauri::menu::IsMenuItem<Wry>>> {
+                        Ok(if id == "-" {
+                            Box::new(PredefinedMenuItem::separator(app)?)
+                        } else {
+                            let on =
+                                setting_check(&settings, id).unwrap_or(id == "line-endings-lf");
+                            Box::new(CheckMenuItem::with_id(
+                                app,
+                                id,
+                                title,
+                                true,
+                                on,
+                                None::<&str>,
+                            )?)
+                        })
+                    },
+                )
+                .collect()
+        };
+    edit.push(Box::new(submenu(
+        app,
+        "Line Endings",
+        checks(LINE_ENDINGS)?,
+    )?));
+    let mut whitespace = checks(WHITESPACE)?;
+    whitespace.push(Box::new(PredefinedMenuItem::separator(app)?));
+    whitespace.push(Box::new(MenuItem::with_id(
+        app,
+        "whitespace-help",
+        "Learn More…",
+        true,
+        None::<&str>,
+    )?));
+    edit.push(Box::new(submenu(
+        app,
+        "Whitespace and Line Breaks",
+        whitespace,
+    )?));
     // Filled with macOS's own items by native_menu.rs.
-    for title in ["Spelling and Grammar", "Substitutions"] {
+    for title in ["Substitutions", "Spelling and Grammar"] {
         edit.push(Box::new(submenu(app, title, Vec::new())?));
     }
     edit.push(Box::new(submenu(
@@ -786,6 +903,22 @@ pub fn handle(app: &AppHandle, id: &str) {
                 });
         }
         _ if id.starts_with("theme:") => set_theme(app, &id["theme:".len()..]),
+        _ if SETTING_CHECKS.contains(&id) => {
+            let s = app.state::<Store>().update(app, |s| match id {
+                "final-newline" => s.insert_final_newline ^= true,
+                "indent-first-line" => s.indent_first_line ^= true,
+                "visible-br" => s.hide_br ^= true,
+                _ => s.ignore_line_break ^= true,
+            });
+            for id in SETTING_CHECKS {
+                set_check(app, id, setting_check(&s, id).unwrap_or(false));
+            }
+        }
+        "whitespace-help" => {
+            let _ = crate::commands::system_open(
+                "https://spec.commonmark.org/0.31.2/#soft-line-breaks".as_ref(),
+            );
+        }
         "status-bar" => {
             let shown = app
                 .state::<Store>()
@@ -806,6 +939,12 @@ pub fn handle(app: &AppHandle, id: &str) {
             match id {
                 "readonly" | "always-on-top" | "zoom-in" | "zoom-out" | "zoom-actual" => {
                     handle_window_view(app, &w, id)
+                }
+                "line-endings-crlf" | "line-endings-lf" => {
+                    // The page converts the text; the checks show the result now.
+                    set_check(app, "line-endings-crlf", id == "line-endings-crlf");
+                    set_check(app, "line-endings-lf", id == "line-endings-lf");
+                    let _ = w.emit_to(w.label(), "menu", id);
                 }
                 _ => {
                     let _ = w.emit_to(w.label(), "menu", id);

@@ -952,7 +952,8 @@ pre.md-rawblock-input {
 
 .md-linebreak-mark,
 .md-raw-html-src-content,
-.md-raw-inline {
+.md-raw-inline,
+.md-tag {
   font-family: var(--monospace);
   opacity: 0.6;
   color: inherit;
@@ -968,6 +969,22 @@ pre.md-rawblock-input {
 .md-html-tag-hidden,
 .md-html-inline > .md-html-src { display: none; }
 .md-html-inline.md-expand > .md-html-src { display: inline; }
+h1 .md-tag, h2 .md-tag, h3 .md-tag, h4 .md-tag, h5 .md-tag, h6 .md-tag { font-weight: initial; opacity: 0.35; }
+
+/* <br/> shows its source, then breaks (editor/html.ts); Edit › Whitespace and Line
+   Breaks hides the source away from the cursor, shows soft breaks as spaces and
+   indents first lines (editor/whitespace.ts). */
+.md-br-content::after { content: " "; display: block; height: 0; }
+.hide-br-and-line-break .md-br-content { opacity: 0; font-size: 0.1px; }
+.hide-br-and-line-break .md-expand .md-br-content,
+.hide-br-and-line-break .md-expand.md-br-content { opacity: 0.8; font-size: inherit; }
+.ignore-line-break #write br.md-soft-break { display: none; }
+#write.first-line-indent p { text-indent: 2em; }
+#write.first-line-indent li p,
+#write.first-line-indent p *,
+#write.first-line-indent svg * { text-indent: 0; }
+#write.first-line-indent li { margin-left: 2em; }
+#write.first-line-indent p > .md-image:only-child:not(.md-img-error) img { left: -2em; position: relative; }
 
 /* ---- Diagrams (src/editor/diagramview.ts), with Typora's rules ------------------ */
 

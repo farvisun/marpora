@@ -60,6 +60,10 @@ export class MemoryPrefs implements PrefsApi {
     showStatusBar: true,
     imageStorage: "",
     useRelativeImagePath: true,
+    insertFinalNewline: false,
+    indentFirstLine: false,
+    hideBr: false,
+    ignoreLineBreak: false,
   };
   /** Actions taken, for tests. */
   log: string[] = [];

@@ -267,15 +267,23 @@ function voidName(html: string): string | null {
   return name && RENDERED_VOID.has(name) ? name : null;
 }
 
-/** An inline HTML tag: a `<br>` or `<img>` rendered, anything else as its source. */
+/** An inline HTML tag: an `<img>` rendered, a `<br>` as Typora shows it (its source,
+ * then the break), anything else as its source. */
 export class HtmlInlineView implements NodeView {
   dom: HTMLElement;
 
   constructor(node: PMNode, assetUrl: (src: string) => string) {
     const html: string = node.attrs.html;
+    const name = voidName(html);
+    if (name === "br") {
+      this.dom = el("span", "md-br md-tag");
+      this.dom.setAttribute("md-inline", "br");
+      this.dom.spellcheck = false;
+      this.dom.append(el("span", "md-br-content md-raw-inline", html));
+      return;
+    }
     this.dom = el("span", "md-html-inline md-raw-inline");
     this.dom.setAttribute("md-inline", "html_inline");
-    const name = voidName(html);
     const fragment = name ? sanitize(html) : null;
     const element = fragment?.firstElementChild;
     if (element && element.localName === name) {

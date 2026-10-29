@@ -22,6 +22,7 @@ import { revealPlugin } from "./reveal";
 import { searchPlugin } from "./search";
 import { tablePlugin } from "./table";
 import { tasksPlugin } from "./tasks";
+import { whitespacePlugin } from "./whitespace";
 
 export interface EditorOptions extends ViewContext, ClipboardOptions, LinkOptions {
   doc: PMNode;
@@ -50,6 +51,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       searchPlugin,
       tablePlugin,
       alertPlugin,
+      whitespacePlugin,
       clipboardPlugin(opts),
       linksPlugin(opts),
       ...(opts.plugins ?? []),
@@ -68,6 +70,14 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
     },
   );
   return view;
+}
+
+/** Draw every node again, through fresh node views (Refresh All Math Expressions). */
+export function redraw(view: EditorView) {
+  const views = Object.fromEntries(
+    Object.entries(view.props.nodeViews ?? {}).map(([name, make]) => [name, (...args: Parameters<typeof make>) => make(...args)]),
+  );
+  view.setProps({ nodeViews: views });
 }
 
 /** Run a command by menu id. Returns false when it does not apply here. */
