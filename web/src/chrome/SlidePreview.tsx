@@ -98,7 +98,10 @@ export function SlidePreview(props: SlidePreviewProps) {
 
 const PREVIEW_CSS = `
 :host { display: block; }
-div.marpit { display: flex; flex-direction: column; gap: 14px; padding: 4px 14px 20px; }
+/* Blocks, not a flex column: WebKit makes a flex item's slide SVG taller than the
+   slide, which shows as bands above and below it on a dark theme. */
+div.marpit { padding: 4px 14px 20px; }
+div.marpit > svg[data-marpit-svg] + svg[data-marpit-svg] { margin-top: 14px; }
 div.marpit > svg[data-marpit-svg] {
   display: block;
   width: 100%;
