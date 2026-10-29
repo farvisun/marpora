@@ -62,6 +62,22 @@ export function toggleFileSearch(selected: string) {
   else showFileSearch(selected);
 }
 
+/** The Outline tab's search button: filter the headings. */
+export function showOutlineFilter() {
+  if (!ui.outlineFilter.shown) setUi("outlineFilter", { shown: true, text: "" });
+  setUi("fileSearch", "focus", (n) => n + 1);
+}
+
+export function hideOutlineFilter() {
+  setUi("outlineFilter", { shown: false, text: "" });
+}
+
+/** The filter's text as Typora matches it: a case-insensitive substring. */
+export function outlineFilterPattern(): RegExp | null {
+  const text = ui.outlineFilter.shown ? ui.outlineFilter.text : "";
+  return text.trim() ? new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
+}
+
 let latest = 0;
 
 /** Search for `text`; an empty text clears the results. */

@@ -328,6 +328,18 @@ check("sidebar shows", await lib.locator("body.pin-outline #typora-sidebar.activ
 check("outline nests headings",
   (await lib.locator("#outline-content > .outline-h1").count()) === 2 &&
   (await lib.locator(".outline-h1 > .outline-children > .outline-h2 .outline-label").textContent()) === "Two");
+await lib.click("#sidebar-search-btn");
+check("outline filter box", await lib.locator("#typora-sidebar.ty-show-outline-filter #file-library-search-input[placeholder='Filter']").isVisible());
+await lib.keyboard.type("tw");
+const shownHeadings = () => lib.locator("#outline-content .outline-item:visible .outline-label").allTextContents();
+check("outline filter hides other headings", (await shownHeadings()).join() === "Two" &&
+  (await lib.locator(".ty-outline-hit").textContent()) === "Tw", (await shownHeadings()).join());
+await lib.keyboard.press("ArrowDown");
+await lib.keyboard.press("Enter");
+check("filter enter goes to the heading", await lib.evaluate(() => window.marpora.view.state.selection.$head.parent.textContent === "Two"));
+await lib.click("#file-library-search-input");
+await lib.keyboard.press("Escape");
+check("escape closes the filter", (await shownHeadings()).join() === "One,Two,Three" && await lib.locator(".sidebar-tabs").isVisible());
 await lib.evaluate(() => window.marpora.handleMenu("articles"));
 await lib.waitForSelector("#file-library-list[data-state=complete] .file-library-node");
 check("articles tab", (await lib.locator("#sidepanel-segmented-input-files").textContent()) === "Articles" &&

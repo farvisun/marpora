@@ -84,6 +84,8 @@ export const [ui, setUi] = createStore({
     /** Bumped to focus the search box. */
     focus: 0,
   },
+  /** The Outline tab's filter, which uses the sidebar's search box. */
+  outlineFilter: { shown: false, text: "" },
   /** The find and replace panel (chrome/search.ts). */
   search: {
     open: false,

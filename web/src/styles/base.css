@@ -528,8 +528,16 @@ content { transition-duration: 0.4s; }
    the results the files'. */
 #sidebar-search-btn { font-size: 18px; margin-top: -2px; }
 #ty-sidebar-search-tabs,
+.ty-show-outline-filter .sidebar-tabs,
 .ty-show-search .sidebar-tabs { display: none; }
+.ty-show-outline-filter #ty-sidebar-search-tabs,
 .ty-show-search #ty-sidebar-search-tabs { display: flex; position: relative; }
+#typora-sidebar.ty-show-outline-filter .searchpanel-search-option-btn { display: none !important; }
+.ty-on-outline-filter .outline-expander { display: none; }
+.ty-on-outline-filter .outline-children { display: block; }
+.ty-on-outline-filter .ty-outline-miss { display: none; }
+.ty-on-outline-filter .outline-active { font-weight: 400; }
+.ty-on-outline-filter .ty-outline-hit { font-weight: 700; }
 #ty-sidebar-search-back-btn { text-align: center; font-size: 16px; opacity: 1; animation: none; }
 #file-library-search-input {
   border: 0;

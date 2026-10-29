@@ -5,7 +5,7 @@
 
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import type { Backend, FileHit } from "../ipc";
-import { hideFileSearch, runFileSearch } from "./librarySearch";
+import { hideFileSearch, hideOutlineFilter, runFileSearch } from "./librarySearch";
 import { splitName } from "./library";
 import { buildPattern } from "./search";
 import { CaseIcon, RegexpIcon, WordIcon } from "./SearchPanel";
@@ -87,7 +87,23 @@ export function FileSearchTabs(props: { backend: Backend }) {
     setUi("fileSearch", "options", key, on);
     void props.backend.updateSettings({ [setting]: on });
   };
+  const filtering = () => ui.sidebarTab === "outline" && ui.outlineFilter.shown;
+  /** The outline filter's keys: Escape closes, Enter opens the selected heading and
+   * arrows select among the headings shown. */
+  const filterKeydown = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      hideOutlineFilter();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      document.querySelector<HTMLElement>("#outline-content .outline-item.select")?.click();
+    } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault();
+      moveOutlineSelection(e.key === "ArrowUp" ? -1 : 1);
+    }
+  };
   const keydown = (e: KeyboardEvent) => {
+    if (filtering()) return filterKeydown(e);
     if (e.key === "Escape") {
       e.stopPropagation();
       hideFileSearch();
@@ -105,7 +121,7 @@ export function FileSearchTabs(props: { backend: Backend }) {
   };
   return (
     <div class="ty-sidebar-search-panel" id="ty-sidebar-search-tabs">
-      <div class="sidebar-tab-btn" id="ty-sidebar-search-back-btn" onClick={hideFileSearch}>
+      <div class="sidebar-tab-btn" id="ty-sidebar-search-back-btn" onClick={() => (filtering() ? hideOutlineFilter() : hideFileSearch())}>
         <span class="ty-icon ty-left-arrow" ty-hint="Close Search">
           <BackIcon />
         </span>
@@ -114,11 +130,13 @@ export function FileSearchTabs(props: { backend: Backend }) {
         ref={input}
         type="search"
         id="file-library-search-input"
-        placeholder="Search"
-        aria-label="Search files"
+        placeholder={filtering() ? "Filter" : "Search"}
+        aria-label={filtering() ? "Filter outline" : "Search files"}
         autocomplete="off"
-        value={ui.fileSearch.input}
-        onInput={(e) => setUi("fileSearch", "input", e.currentTarget.value)}
+        value={filtering() ? ui.outlineFilter.text : ui.fileSearch.input}
+        onInput={(e) =>
+          filtering() ? setUi("outlineFilter", "text", e.currentTarget.value) : setUi("fileSearch", "input", e.currentTarget.value)
+        }
         onKeyDown={keydown}
         onFocus={() => document.querySelector("#file-library-search-result .select")?.classList.remove("select")}
       />
@@ -154,6 +172,17 @@ export function FileSearchTabs(props: { backend: Backend }) {
       </span>
     </div>
   );
+}
+
+/** Up or down through the headings the filter shows. */
+function moveOutlineSelection(dir: 1 | -1) {
+  const items = [...document.querySelectorAll<HTMLElement>("#outline-content .outline-item:not(.ty-outline-miss)")];
+  const current = document.querySelector<HTMLElement>("#outline-content .outline-item.select");
+  const next = current ? items[items.indexOf(current) + dir] : items[0];
+  if (!next) return;
+  current?.classList.remove("select");
+  next.classList.add("select");
+  next.scrollIntoView({ block: "nearest" });
 }
 
 /** Up or down through the results (files and their visible lines), as Typora's keys do. */

@@ -17,7 +17,14 @@ import {
   summaryOf,
 } from "./library";
 import { FileSearchResults, FileSearchTabs, SearchIcon } from "./FileSearch";
-import { hideFileSearch, saveFileSearch, showFileSearch } from "./librarySearch";
+import {
+  hideFileSearch,
+  hideOutlineFilter,
+  outlineFilterPattern,
+  saveFileSearch,
+  showFileSearch,
+  showOutlineFilter,
+} from "./librarySearch";
 import { librarySortOf, type OutlineItem, saveSidebar, setUi, ui } from "./store";
 
 export interface SidebarProps {
@@ -61,7 +68,13 @@ export function Sidebar(props: SidebarProps) {
   createEffect(() => saveSidebar());
   createEffect(() => saveFileSearch());
   // Typora closes the search when the Outline tab shows.
-  createEffect(on(() => ui.sidebarTab, (tab) => tab === "outline" && hideFileSearch(), { defer: true }));
+  createEffect(
+    on(
+      () => ui.sidebarTab,
+      (tab) => (tab === "outline" ? hideFileSearch() : hideOutlineFilter()),
+      { defer: true },
+    ),
+  );
 
   // The folder follows the document (Save As can move it); load it when first shown.
   createEffect(
@@ -111,6 +124,8 @@ export function Sidebar(props: SidebarProps) {
         "ty-no-mount-folder": info() !== null && !folder(),
         "ty-show-search": ui.fileSearch.shown,
         "ty-on-search": ui.fileSearch.query !== null,
+        "ty-show-outline-filter": ui.outlineFilter.shown,
+        "ty-on-outline-filter": outlineFilterPattern() !== null,
       }}
       aria-hidden={!ui.sidebar}
     >
@@ -137,7 +152,8 @@ export function Sidebar(props: SidebarProps) {
           >
             Outline
           </div>
-          <div class="sidebar-tab-btn" id="sidebar-search-btn" ty-hint="Search" onClick={() => showFileSearch(props.selectedText())}>
+          <div class="sidebar-tab-btn" id="sidebar-search-btn" ty-hint="Search" onClick={() => (ui.sidebarTab === "outline" ? showOutlineFilter() : showFileSearch(props.selectedText()))}
+          >
             <span class="ion-ios7-search-strong" aria-label="Search">
               <SearchIcon />
             </span>
@@ -476,15 +492,32 @@ function FolderItem(props: { dir: string; selected?: boolean; title(path: string
 
 function OutlineEntry(props: { node: OutlineNode; onClick(pos: number): void }) {
   const active = () => props.node.index === ui.activeHeading;
+  /** The filter's match in the heading: null when it is filtered out, [] when no filter. */
+  const hit = () => {
+    const pattern = outlineFilterPattern();
+    if (!pattern) return [];
+    const m = pattern.exec(props.node.item.text);
+    return m ? [m.index, m.index + m[0].length] : null;
+  };
+  const label = () => {
+    const text = props.node.item.text || " ";
+    const h = hit();
+    if (!h?.length || h[0] === h[1]) return text;
+    return [text.slice(0, h[0]), <span class="ty-outline-hit">{text.slice(h[0], h[1])}</span>, text.slice(h[1])];
+  };
   return (
     <li
       class={`outline-item-wrapper outline-h${props.node.item.level}`}
       classList={{ "outline-item-single": !props.node.children.length }}
     >
-      <div class="outline-item" classList={{ "outline-item-active": active() }} onClick={() => props.onClick(props.node.item.pos)}>
+      <div
+        class="outline-item"
+        classList={{ "outline-item-active": active(), "ty-outline-miss": hit() === null }}
+        onClick={() => props.onClick(props.node.item.pos)}
+      >
         <span class="outline-expander" />
         <span class="outline-label" classList={{ "outline-active": active() }}>
-          {props.node.item.text || " "}
+          {label()}
         </span>
       </div>
       <ul class="outline-children">
