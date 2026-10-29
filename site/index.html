@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marpora: the Markdown editor that shows the page as you write</title>
+  <meta name="description" content="Marpora is a free, open-source Markdown editor for macOS. Tables, math, diagrams and slides render in place while you write, with AI and MCP agents built in.">
+  <meta name="theme-color" content="#08080a">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://farvisun.github.io/marpora/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Marpora">
+  <meta property="og:title" content="Marpora: Markdown, as it will look, while you write">
+  <meta property="og:description" content="A fast, native Markdown editor for macOS. Live preview, Typora themes, AI, MCP agents and Marp slides. Free and MIT licensed.">
+  <meta property="og:url" content="https://farvisun.github.io/marpora/">
+  <meta property="og:image" content="https://farvisun.github.io/marpora/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Marpora editor showing a document with a table, math and a diagram, with the outline in the sidebar.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Marpora: Markdown, as it will look, while you write">
+  <meta name="twitter:description" content="A fast, native Markdown editor for macOS. Free and open source.">
+  <meta name="twitter:image" content="https://farvisun.github.io/marpora/assets/og.jpg">
+
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preload" as="image" href="assets/hero.webp" imagesrcset="assets/hero-1x.webp 1280w, assets/hero.webp 2560w" imagesizes="(min-width: 1240px) 1160px, 94vw" media="(min-width: 641px)">
+  <link rel="preload" as="image" href="assets/hero-m.webp" media="(max-width: 640px)">
+  <script>document.documentElement.classList.add("js");</script>
+  <script src="main.js" defer></script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol></svg>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav" id="top">
+    <div class="nav__inner">
+      <a class="brand" href="#top" aria-label="Marpora, back to top">
+        <img src="assets/icon.png" alt="" width="28" height="28">
+        <span>Marpora</span>
+      </a>
+      <nav class="nav__links" aria-label="Sections">
+        <a href="#preview">Preview</a>
+        <a href="#ai">AI</a>
+        <a href="#agents">Agents</a>
+        <a href="#slides">Slides</a>
+        <a href="#install">Install</a>
+      </nav>
+      <div class="nav__actions">
+        <a class="icon-link" href="https://github.com/farvisun/marpora" aria-label="Marpora on GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg>
+        </a>
+        <a class="btn btn--sm btn--primary" href="https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero__glow" aria-hidden="true"></div>
+      <div class="wrap hero__copy">
+        <p class="eyebrow" data-reveal>
+          <span class="pill">Free &amp; open source</span>
+          <span>A Markdown editor for macOS</span>
+        </p>
+        <h1 id="hero-title" class="display hero__title" data-split>
+          Markdown, <em>as it will look,</em> while you write.
+        </h1>
+        <p class="lede hero__lede" data-reveal style="--d: 240ms">
+          Marpora renders tables, math, diagrams and slides in place, and shows the syntax
+          only where your cursor is. A small native app built with Rust and Tauri.
+        </p>
+        <div class="hero__cta" data-reveal style="--d: 340ms">
+          <a class="btn btn--primary btn--lg" href="https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M10 3v10m0 0-4-4m4 4 4-4M4 16.5h12"/></svg>
+            Download for macOS
+          </a>
+          <a class="btn btn--ghost btn--lg" href="https://github.com/farvisun/marpora">
+            <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><use href="#i-github"/></svg>
+            View on GitHub
+          </a>
+        </div>
+        <p class="fineprint" data-reveal style="--d: 420ms">macOS 12+, Apple Silicon &amp; Intel · MIT licensed</p>
+      </div>
+
+      <div class="wrap wrap--wide hero__stage">
+        <figure class="window window--light hero__window" data-tilt>
+          <div class="window__bar" aria-hidden="true">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <span class="window__title">Orbits.md</span>
+          </div>
+          <picture>
+          <source media="(max-width: 640px)" srcset="assets/hero-m.webp" width="600" height="760">
+          <img class="window__shot"
+               src="assets/hero.webp"
+               srcset="assets/hero-1x.webp 1280w, assets/hero.webp 2560w"
+               sizes="(min-width: 1240px) 1160px, 94vw"
+               width="1280" height="1060"
+               alt="Marpora with a document called A field guide to orbits: a paragraph with inline math, a numbered display equation, a table of planets, a Mermaid flowchart and a task list, with the outline in the sidebar."
+               fetchpriority="high">
+          </picture>
+          <figcaption class="sr-only">The editor in its default light theme, with the outline open.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Marquee -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Tables</span><span>MathJax</span><span>Mermaid</span><span>Flowcharts</span><span>Sequence diagrams</span><span>Code fences</span><span>Footnotes</span><span>Task lists</span><span>Front matter</span><span>Raw HTML</span><span>Typora themes</span><span>Marp slides</span>
+        <span>Tables</span><span>MathJax</span><span>Mermaid</span><span>Flowcharts</span><span>Sequence diagrams</span><span>Code fences</span><span>Footnotes</span><span>Task lists</span><span>Front matter</span><span>Raw HTML</span><span>Typora themes</span><span>Marp slides</span>
+      </div>
+    </div>
+
+    <!-- 01 Live preview -->
+    <section class="section" id="preview" aria-labelledby="preview-title">
+      <div class="wrap">
+        <header class="section__head">
+          <p class="kicker" data-reveal><span class="num">01</span> Live preview</p>
+          <h2 id="preview-title" class="display display--md" data-reveal style="--d: 80ms">The syntax steps aside. <em>The page stays.</em></h2>
+          <p class="lede" data-reveal style="--d: 160ms">Markdown shows only around the cursor. Move on, and it becomes the finished page again. No split pane, no preview tab.</p>
+        </header>
+
+        <div class="bento">
+          <article class="card card--demo" data-reveal>
+            <div class="demo" aria-hidden="true">
+              <div class="demo__line demo__h"><span class="tok" data-t="h"># </span><span class="w" data-w="h">Orbits</span></div>
+              <p class="demo__line">Every planet traces an <span class="tok" data-t="em">*</span><em class="w" data-w="em">ellipse</em><span class="tok" data-t="em">*</span> around the Sun. <span class="tok" data-t="b">**</span><strong class="w" data-w="b">Newton</strong><span class="tok" data-t="b">**</span> explained why.</p>
+              <p class="demo__line demo__task"><span class="demo__check"></span>Plot Mars against the fixed stars</p>
+            </div>
+            <div class="card__text">
+              <h3>Syntax on demand</h3>
+              <p>Step into a word and its <code>**</code> appear. Step out and they fold away.</p>
+            </div>
+          </article>
+
+          <article class="card card--shot" data-reveal style="--d: 80ms">
+            <div class="card__media card__media--paper">
+              <img src="assets/crop-math.webp" srcset="assets/crop-math-1x.webp 820w, assets/crop-math.webp 1640w" sizes="(min-width: 900px) 560px, 90vw" width="820" height="390" loading="lazy" alt="A paragraph with inline math, the equation F equals G m1 m2 over r squared numbered (1), and a table of the inner planets.">
+            </div>
+            <div class="card__text">
+              <h3>Renders in place</h3>
+              <p>Tables, inline and display math (MathJax), code fences, footnotes, task lists, front matter and raw HTML.</p>
+            </div>
+          </article>
+
+          <article class="card card--shot card--wide" data-reveal>
+            <div class="card__media card__media--paper">
+              <img src="assets/crop-diagram.webp" srcset="assets/crop-diagram-1x.webp 820w, assets/crop-diagram.webp 1640w" sizes="(min-width: 900px) 720px, 90vw" width="820" height="210" loading="lazy" alt="A Mermaid flowchart: Observe, Measure, a decision Fits the law?, then Publish if yes or back to Observe if no.">
+            </div>
+            <div class="card__text">
+              <h3>Diagrams from text</h3>
+              <p>Mermaid, flowchart and sequence diagrams draw right under their fence.</p>
+            </div>
+          </article>
+
+          <article class="card card--keys" data-reveal style="--d: 80ms">
+            <ul class="keys">
+              <li><span class="keys__label">Source mode</span><span class="kbd-group"><kbd>⌘</kbd><kbd>/</kbd></span></li>
+              <li><span class="keys__label">Focus mode</span><span class="kbd-group"><kbd>F8</kbd></span></li>
+              <li><span class="keys__label">Typewriter mode</span><span class="kbd-group"><kbd>F9</kbd></span></li>
+            </ul>
+            <div class="card__text">
+              <h3>One key away</h3>
+              <p>Drop to raw Markdown, dim everything but the paragraph you are in, or keep your line centred.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 Themes -->
+    <section class="section section--themes" id="themes" aria-labelledby="themes-title">
+      <div class="wrap">
+        <header class="section__head themes-head">
+          <div>
+          <p class="kicker" data-reveal><span class="num">02</span> Themes</p>
+          <h2 id="themes-title" class="display display--md" data-reveal style="--d: 80ms">Your Typora themes, <em>unchanged.</em></h2>
+          </div>
+          <div>
+          <p class="lede" data-reveal style="--d: 160ms">Marpora uses Typora's markup and class names, so Typora themes load as they are. Drop the CSS in the themes folder, or pick a bundled theme such as Marpora and Marpora Night.</p>
+          <p class="hint" data-reveal style="--d: 220ms">Drag across the window to switch themes.</p>
+          </div>
+        </header>
+
+        <div data-reveal style="--d: 120ms">
+          <figure class="window window--dark compare" data-compare style="--pos: 50%">
+            <div class="window__bar" aria-hidden="true">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="window__title">Sourdough.md</span>
+            </div>
+            <div class="compare__stage">
+              <img class="compare__img" src="assets/day.webp" srcset="assets/day-1x.webp 1280w, assets/day.webp 2560w" sizes="(min-width: 1240px) 1160px, 94vw" width="1280" height="800" loading="lazy" alt="A document about sourdough in the light Marpora theme, with a table, an equation and a sequence diagram.">
+              <div class="compare__top">
+                <img class="compare__img" src="assets/night.webp" srcset="assets/night-1x.webp 1280w, assets/night.webp 2560w" sizes="(min-width: 1240px) 1160px, 94vw" width="1280" height="800" loading="lazy" alt="The same document in the dark Marpora Night theme.">
+              </div>
+              <div class="compare__handle" aria-hidden="true"><span></span></div>
+              <input class="compare__range" type="range" min="0" max="100" value="50" aria-label="Reveal the Marpora Night theme over the light theme">
+            </div>
+            <figcaption class="compare__labels" aria-hidden="true"><span>Marpora Night</span><span>Marpora</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 AI -->
+    <section class="section" id="ai" aria-labelledby="ai-title">
+      <div class="wrap">
+        <header class="section__head section__head--center">
+          <p class="kicker" data-reveal><span class="num">03</span> AI, built in</p>
+          <h2 id="ai-title" class="display display--md" data-reveal style="--d: 80ms">Ask about the page. <em>Or the whole folder.</em></h2>
+          <p class="lede" data-reveal style="--d: 160ms">Bring the model you already use. Keys stay in the macOS Keychain.</p>
+        </header>
+
+        <div class="ai-grid">
+          <article class="panel" data-reveal>
+            <div class="panel__head">
+              <h3>Ask AI</h3>
+              <span class="kbd-group"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>J</kbd></span>
+            </div>
+            <p>Rewrites the selection or writes at the cursor. The answer streams in as a preview: <kbd>↵</kbd> accepts, <kbd>Esc</kbd> discards, and one <kbd>⌘Z</kbd> undoes it.</p>
+            <div class="shot shot--light">
+              <img src="assets/ask.webp" srcset="assets/ask-1x.webp 860w, assets/ask.webp 1720w" sizes="(min-width: 1100px) 560px, 90vw" width="860" height="470" loading="lazy" alt="Ask AI over a selected paragraph: the prompt Make this clearer, the rewritten text previewed below it, and buttons Replace, Insert Below, Try Again and Discard.">
+            </div>
+          </article>
+
+          <article class="panel" data-reveal style="--d: 100ms">
+            <div class="panel__head">
+              <h3>AI Chat</h3>
+              <span class="kbd-group"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>J</kbd></span>
+            </div>
+            <p>A side panel that talks about the open document, or about every file in its folder. Answers go into the page with one click.</p>
+            <div class="shot shot--light">
+              <img src="assets/chat.webp" srcset="assets/chat-1x.webp 960w, assets/chat.webp 1920w" sizes="(min-width: 1100px) 560px, 90vw" width="960" height="640" loading="lazy" alt="The AI Chat panel beside a planning document, answering the question What's the biggest risk in this plan? with a short list, and Insert, Replace Selection and Copy buttons.">
+            </div>
+          </article>
+        </div>
+
+        <div class="ai-foot">
+          <div class="providers" data-reveal>
+            <p class="providers__label">Works with</p>
+            <ul>
+              <li>Anthropic API</li>
+              <li>Any OpenAI-compatible API</li>
+              <li>Claude Code CLI</li>
+              <li>Codex CLI</li>
+            </ul>
+            <p class="providers__note">Use the Claude Code or Codex CLI you are already signed in to, with no key at all.</p>
+            <p class="providers__key"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>API keys live in the macOS Keychain.</p>
+          </div>
+          <div class="prompt-file" data-reveal style="--d: 100ms">
+            <div class="prompt-file__name"><span class="dot" aria-hidden="true"></span>prompts/<strong>Make it friendlier.md</strong></div>
+            <p class="prompt-file__body">Rewrite the passage in a warmer tone. Keep it short and keep every fact.</p>
+            <p class="prompt-file__caption">Custom prompts are plain Markdown files: the name is the prompt, the text is the instruction.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 Agents -->
+    <section class="section section--agents" id="agents" aria-labelledby="agents-title">
+      <div class="wrap split split--reverse">
+        <header class="section__head split__text">
+          <p class="kicker" data-reveal><span class="num">04</span> Agents via MCP</p>
+          <h2 id="agents-title" class="display display--md" data-reveal style="--d: 80ms">Let your agent <em>edit the open document.</em></h2>
+          <p class="lede" data-reveal style="--d: 160ms">Claude Code, Codex and other MCP clients read and edit the documents open in Marpora, live. Every edit undoes with <kbd>⌘Z</kbd>. Prefer to look first? Turn on <strong>Ask me first</strong> and accept or reject each change.</p>
+        </header>
+
+        <div class="split__media agents-media">
+          <div class="terminal" data-reveal>
+            <div class="terminal__bar" aria-hidden="true"><span class="lights"><i></i><i></i><i></i></span><span>Terminal</span></div>
+            <div class="terminal__body">
+              <div class="cmd">
+                <p class="cmd__label">Claude Code</p>
+                <div class="cmd__row">
+                  <code id="cmd-claude"><span class="prompt" aria-hidden="true">$</span> claude mcp add marpora -- /Applications/Marpora.app/Contents/MacOS/marpora mcp</code>
+                  <button class="copy" type="button" data-copy="claude mcp add marpora -- /Applications/Marpora.app/Contents/MacOS/marpora mcp" aria-label="Copy the Claude Code command">Copy</button>
+                </div>
+              </div>
+              <div class="cmd">
+                <p class="cmd__label">Codex</p>
+                <div class="cmd__row">
+                  <code id="cmd-codex"><span class="prompt" aria-hidden="true">$</span> codex mcp add marpora -- /Applications/Marpora.app/Contents/MacOS/marpora mcp</code>
+                  <button class="copy" type="button" data-copy="codex mcp add marpora -- /Applications/Marpora.app/Contents/MacOS/marpora mcp" aria-label="Copy the Codex command">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figure class="shot shot--light shot--float" data-reveal style="--d: 120ms">
+            <img src="assets/agent.webp" srcset="assets/agent-1x.webp 575w, assets/agent.webp 1150w" sizes="(min-width: 1100px) 560px, 90vw" width="575" height="210" loading="lazy" alt="An edit suggested by claude-code at line 13 of a planning document, shown as removed and added lines, with Always Allow claude-code, Reject and Accept buttons.">
+            <figcaption>Ask me first: each agent edit waits for your review.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 Slides -->
+    <section class="section" id="slides" aria-labelledby="slides-title">
+      <div class="wrap">
+        <header class="section__head slides-head">
+          <div>
+            <p class="kicker" data-reveal><span class="num">05</span> Slides</p>
+            <h2 id="slides-title" class="display display--md" data-reveal style="--d: 80ms"><code class="inline-code">marp: true</code> <em>and it's a deck.</em></h2>
+          </div>
+          <p class="lede" data-reveal style="--d: 160ms">Add one line of front matter and the document becomes a Marp deck. Write on the left, watch the slides on the right.</p>
+        </header>
+
+        <figure class="window window--light slides-window" data-reveal>
+          <div class="window__bar" aria-hidden="true">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <span class="window__title">Talk.md</span>
+          </div>
+          <img class="window__shot" src="assets/slides.webp" srcset="assets/slides-1x.webp 1280w, assets/slides.webp 2560w" sizes="(min-width: 1240px) 1160px, 94vw" width="1280" height="800" loading="lazy" alt="A Marp deck being written: front matter with marp: true and theme: gaia on the left, and the live slide preview on the right showing the slides Shipping calm software, Three rules and Why small batches.">
+        </figure>
+
+        <ul class="facts" role="list">
+          <li data-reveal><span class="facts__k"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>M</kbd></span><span>Live slide preview</span></li>
+          <li data-reveal style="--d: 60ms"><span class="facts__k swatches" aria-hidden="true"><i></i><i></i><i></i></span><span>Theme picker</span></li>
+          <li data-reveal style="--d: 120ms"><span class="facts__k"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>↩</kbd></span><span>Presenter view with notes, next slide and timer</span></li>
+          <li data-reveal style="--d: 180ms"><span class="facts__k">PDF · HTML · PPTX</span><span>Export to PDF, HTML and PowerPoint</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 06 Files & export -->
+    <section class="section" id="files" aria-labelledby="files-title">
+      <div class="wrap">
+        <header class="section__head">
+          <p class="kicker" data-reveal><span class="num">06</span> Files &amp; export</p>
+          <h2 id="files-title" class="display display--md" data-reveal style="--d: 80ms">Plain files in, <em>any format out.</em></h2>
+        </header>
+        <div class="tiles">
+          <article class="tile" data-reveal>
+            <svg class="tile__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16M5.5 8h1.5M5.5 11h1.5"/></svg>
+            <h3>A sidebar for the folder</h3>
+            <p>Files, the outline, and search across every file in the folder.</p>
+          </article>
+          <article class="tile" data-reveal style="--d: 60ms">
+            <svg class="tile__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>
+            <h3>Autosave and drafts</h3>
+            <p>Your work saves itself, and unsaved drafts come back after a crash.</p>
+          </article>
+          <article class="tile" data-reveal style="--d: 120ms">
+            <svg class="tile__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>
+            <h3>Outside edits, merged</h3>
+            <p>Change the file in another app and the edits flow into the open document.</p>
+          </article>
+          <article class="tile tile--export" data-reveal style="--d: 180ms">
+            <svg class="tile__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+            <h3>Export anywhere</h3>
+            <ul class="formats" role="list">
+              <li>PDF</li><li>HTML</li><li>Image</li><li>Word</li><li>OpenOffice</li><li>EPUB</li><li>LaTeX</li><li>and more</li>
+            </ul>
+            <p class="tile__note">Word, OpenOffice, EPUB, LaTeX and more go through Pandoc.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 Performance -->
+    <section class="section section--perf" id="speed" aria-labelledby="speed-title">
+      <div class="wrap">
+        <header class="section__head section__head--center">
+          <p class="kicker" data-reveal><span class="num">07</span> Performance</p>
+          <h2 id="speed-title" class="display display--md" data-reveal style="--d: 80ms">Rust underneath. <em>No waiting on top.</em></h2>
+        </header>
+        <dl class="stats">
+          <div class="stat" data-reveal>
+            <dt>Rust parses a 20,000-line document</dt>
+            <dd><span class="stat__n" data-count="9">9</span><span class="stat__u">ms</span></dd>
+          </div>
+          <div class="stat" data-reveal style="--d: 100ms">
+            <dt>Editor ready after the page loads</dt>
+            <dd><span class="stat__n" data-count="60">60</span><span class="stat__u">ms</span></dd>
+          </div>
+          <div class="stat" data-reveal style="--d: 200ms">
+            <dt>Editor opens 20,000 lines</dt>
+            <dd><span class="stat__approx" aria-label="about">~</span><span class="stat__n" data-count="0.5" data-decimals="1">0.5</span><span class="stat__u">s</span></dd>
+          </div>
+        </dl>
+        <p class="footnote" data-reveal>Measured on an Apple Silicon Mac; editor timings in headless WebKit. Method and full results in <a href="https://github.com/farvisun/marpora/blob/HEAD/docs/benchmarks.md">docs/benchmarks.md</a>.</p>
+      </div>
+    </section>
+
+    <!-- 08 Install -->
+    <section class="section" id="install" aria-labelledby="install-title">
+      <div class="wrap split split--install">
+        <header class="section__head split__text">
+          <p class="kicker" data-reveal><span class="num">08</span> Install</p>
+          <h2 id="install-title" class="display display--md" data-reveal style="--d: 80ms">Three steps. <em>Then it updates in place.</em></h2>
+          <p class="lede" data-reveal style="--d: 160ms">Marpora is ad-hoc signed, not notarized, so macOS asks once before the first launch.</p>
+        </header>
+        <ol class="steps">
+          <li class="step" data-reveal>
+            <span class="step__n" aria-hidden="true">1</span>
+            <div>
+              <h3>Download and drag</h3>
+              <p>Open <a href="https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg">Marpora.dmg</a> and drag Marpora to Applications.</p>
+            </div>
+          </li>
+          <li class="step" data-reveal style="--d: 80ms">
+            <span class="step__n" aria-hidden="true">2</span>
+            <div>
+              <h3>Allow the first launch</h3>
+              <p>Gatekeeper blocks the first launch. Open <strong>System Settings › Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>. Or run:</p>
+              <div class="cmd__row cmd__row--block">
+                <code>xattr -dr com.apple.quarantine /Applications/Marpora.app</code>
+                <button class="copy" type="button" data-copy="xattr -dr com.apple.quarantine /Applications/Marpora.app" aria-label="Copy the xattr command">Copy</button>
+              </div>
+            </div>
+          </li>
+          <li class="step" data-reveal style="--d: 160ms">
+            <span class="step__n" aria-hidden="true">3</span>
+            <div>
+              <h3>Updates come to you</h3>
+              <p>From then on, updates install from inside the app: <strong>Marpora › Check for Updates…</strong></p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="cta" aria-labelledby="cta-title">
+      <div class="cta__glow" aria-hidden="true"></div>
+      <div class="wrap cta__inner">
+        <img class="cta__icon" src="assets/icon.png" alt="" width="96" height="96" data-reveal>
+        <h2 id="cta-title" class="display cta__title" data-reveal style="--d: 80ms">Start <em>writing.</em></h2>
+        <p class="lede" data-reveal style="--d: 160ms">Free, open source and native to your Mac.</p>
+        <div class="hero__cta" data-reveal style="--d: 240ms">
+          <a class="btn btn--primary btn--lg" href="https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M10 3v10m0 0-4-4m4 4 4-4M4 16.5h12"/></svg>
+            Download for macOS
+          </a>
+          <a class="btn btn--ghost btn--lg" href="https://github.com/farvisun/marpora">View on GitHub</a>
+        </div>
+        <p class="fineprint" data-reveal style="--d: 300ms">macOS 12+, Apple Silicon &amp; Intel</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <a class="brand" href="#top" aria-label="Marpora, back to top">
+        <img src="assets/icon.png" alt="" width="24" height="24">
+        <span>Marpora</span>
+      </a>
+      <p class="footer__made">Made with Rust, Tauri and ProseMirror.</p>
+      <ul class="footer__links" role="list">
+        <li><a href="https://github.com/farvisun/marpora/blob/HEAD/LICENSE">MIT License</a></li>
+        <li><a href="https://github.com/farvisun/marpora">GitHub</a></li>
+        <li><a href="https://github.com/farvisun/marpora/releases">Releases</a></li>
+      </ul>
+    </div>
+  </footer>
+</body>
+</html>
