@@ -33,6 +33,7 @@ async function main() {
   };
   await showTheme(settings.theme);
   backend.onSettings((s) => {
+    if (s.showHiddenFiles !== settings.showHiddenFiles) setUi("libraryVersion", (v) => v + 1);
     settings = s;
     if (s.theme !== ui.theme) void showTheme(s.theme);
   });

@@ -42,7 +42,7 @@ pub struct ThemeCss {
     pub user: Vec<(String, String)>,
 }
 
-fn user_dir(app: &AppHandle) -> Option<PathBuf> {
+pub fn user_dir(app: &AppHandle) -> Option<PathBuf> {
     app.path().app_config_dir().ok().map(|d| d.join("themes"))
 }
 

@@ -23,6 +23,12 @@ pub struct Settings {
     pub auto_save: bool,
     /// Keep copies of unsaved edits in `draftsRecover` (on by default, as in Typora).
     pub backup_unsaved_drafts: bool,
+    /// Keep File › Open Recent and Quick Open's recent files.
+    pub record_recent: bool,
+    /// List dot files and folders in the sidebar.
+    pub show_hidden_files: bool,
+    /// Quit when the last window closes, instead of staying in the Dock as Mac apps do.
+    pub quit_on_last_window_closed: bool,
 }
 
 impl Default for Settings {
@@ -33,6 +39,9 @@ impl Default for Settings {
             auto_number_math: true,
             auto_save: false,
             backup_unsaved_drafts: true,
+            record_recent: true,
+            show_hidden_files: false,
+            quit_on_last_window_closed: false,
         }
     }
 }
@@ -58,6 +67,24 @@ impl Store {
 
     pub fn get(&self) -> Settings {
         self.settings.lock().unwrap().clone()
+    }
+
+    /// Merge `patch`, a JSON object of camelCase fields, into the settings. Unknown or
+    /// mistyped fields are refused as a whole.
+    pub fn merge(&self, app: &AppHandle, patch: serde_json::Value) -> Result<Settings, String> {
+        let mut value = serde_json::to_value(self.get()).map_err(|e| e.to_string())?;
+        let (Some(fields), serde_json::Value::Object(patch)) = (value.as_object_mut(), patch)
+        else {
+            return Err("settings must be an object".into());
+        };
+        for (key, v) in patch {
+            if !fields.contains_key(&key) {
+                return Err(format!("unknown setting {key}"));
+            }
+            fields.insert(key, v);
+        }
+        let next: Settings = serde_json::from_value(value).map_err(|e| e.to_string())?;
+        Ok(self.update(app, |s| *s = next))
     }
 
     /// Change, save and broadcast the settings.

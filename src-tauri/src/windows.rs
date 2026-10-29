@@ -36,6 +36,27 @@ pub fn open_folder(app: &AppHandle, dir: PathBuf) -> tauri::Result<()> {
     build(app, &label, "Untitled".to_owned())
 }
 
+/// Show the Preferences window, opening it the first time.
+pub fn open_preferences(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(w) = app.get_webview_window("preferences") {
+        return w.set_focus();
+    }
+    let builder = WebviewWindowBuilder::new(
+        app,
+        "preferences",
+        WebviewUrl::App("preferences.html".into()),
+    )
+    .title("Preferences")
+    .inner_size(800.0, 600.0)
+    .min_inner_size(600.0, 400.0);
+    #[cfg(debug_assertions)]
+    let builder = match env_pair("MARPORA_WINDOW_POS", ',') {
+        Some((x, y)) => builder.position(x, y),
+        None => builder,
+    };
+    builder.build()?.set_focus()
+}
+
 fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<()> {
 
     let (width, height) = window_size();

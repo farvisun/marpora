@@ -3,7 +3,7 @@
 // folder as an article list (the default) or a file tree. Themes style these ids and
 // classes, so they follow Typora's.
 
-import { createEffect, createSignal, For, type JSX, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, type JSX, on, Show } from "solid-js";
 import type { Backend, LibraryDoc, LibraryEntry, LibraryInfo } from "../ipc";
 import {
   abbreviate,
@@ -70,8 +70,16 @@ export function Sidebar(props: SidebarProps) {
         .catch(() => setList({ state: "complete", files: [] }));
     }),
   );
-  // A different folder lists again.
-  createEffect(on(folder, () => setList({ state: "", files: [] }), { defer: true }));
+  // A different folder, or different settings, list again.
+  createEffect(on([folder, () => ui.libraryVersion], () => setList({ state: "", files: [] }), { defer: true }));
+  const treeRoot = createMemo(
+    () => {
+      const dir = folder();
+      return ui.fileTree && filesShown() && dir ? { dir, version: ui.libraryVersion } : null;
+    },
+    null,
+    { equals: (a, b) => a?.dir === b?.dir && a?.version === b?.version },
+  );
 
   const groups = () => groupByFolder(list().files);
   const showFolderNames = () => list().files.some((f) => f.folder !== folder());
@@ -139,10 +147,10 @@ export function Sidebar(props: SidebarProps) {
             data-state={ui.fileTree && filesShown() && info() === null ? "rendering" : "complete"}
             tabindex="0"
           >
-            <Show when={ui.fileTree && filesShown() && folder()}>
-              {(dir) => (
+            <Show when={treeRoot()} keyed>
+              {({ dir }) => (
                 <TreeNode
-                  entry={{ name: basename(dir()), path: dir(), isDirectory: true, hasChildren: true, modified: 0, created: 0 }}
+                  entry={{ name: basename(dir), path: dir, isDirectory: true, hasChildren: true, modified: 0, created: 0 }}
                   root
                   list={listChildren}
                   title={shortPath}

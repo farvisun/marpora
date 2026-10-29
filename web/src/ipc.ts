@@ -35,6 +35,12 @@ export interface Settings {
   autoSave: boolean;
   /** Keep copies of unsaved edits in the drafts folder. */
   backupUnsavedDrafts: boolean;
+  /** Keep File › Open Recent and Quick Open's recent files. */
+  recordRecent: boolean;
+  /** List dot files and folders in the sidebar. */
+  showHiddenFiles: boolean;
+  /** Quit when the last window closes instead of staying in the Dock. */
+  quitOnLastWindowClosed: boolean;
 }
 
 /** A theme's CSS (src-tauri themes.rs). `css` is null for themes bundled with the app. */
@@ -156,6 +162,9 @@ export class MemoryBackend implements Backend {
     autoNumberMath: true,
     autoSave: false,
     backupUnsavedDrafts: true,
+    recordRecent: true,
+    showHiddenFiles: false,
+    quitOnLastWindowClosed: false,
   };
 
   constructor(private text = DEMO) {}

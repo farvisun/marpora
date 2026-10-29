@@ -52,6 +52,10 @@ pub fn run() {
             commands::list_folder,
             commands::list_documents,
             commands::recent_files,
+            commands::clear_recent,
+            commands::update_settings,
+            commands::open_drafts_folder,
+            commands::open_theme_folder,
             commands::frontend_log,
             commands::get_settings,
             commands::list_themes,
@@ -98,9 +102,22 @@ pub fn run() {
             if app.state::<docs::Docs>().is_empty() {
                 let _ = windows::open(app, None);
             }
+            // Debug builds: open Preferences too (parity captures; menus can't be scripted).
+            #[cfg(debug_assertions)]
+            if std::env::var_os("MARPORA_OPEN_PREFS").is_some() {
+                let _ = windows::open_preferences(app);
+            }
         }
         RunEvent::Reopen { has_visible_windows: false, .. } => {
             let _ = windows::open(app, None);
+        }
+        // The last window closed: stay in the Dock, as Mac apps do, unless asked not to.
+        // File › Quit exits with a code, so it is never held back.
+        RunEvent::ExitRequested { code: None, api, .. }
+            if !app.state::<settings::Store>().get().quit_on_last_window_closed
+                && !app.state::<menu::Quitting>().0.load(std::sync::atomic::Ordering::SeqCst) =>
+        {
+            api.prevent_exit();
         }
         // Quitting without closing the windows (from the Dock, or logging out).
         RunEvent::Exit => save::settle_all(app),

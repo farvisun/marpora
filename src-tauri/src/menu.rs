@@ -149,6 +149,14 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         vec![
             Box::new(PredefinedMenuItem::about(app, Some("About Marpora"), None)?),
             Box::new(PredefinedMenuItem::separator(app)?),
+            Box::new(MenuItem::with_id(
+                app,
+                "preferences",
+                "Preferences…",
+                true,
+                Some("CmdOrCtrl+,"),
+            )?),
+            Box::new(PredefinedMenuItem::separator(app)?),
             Box::new(PredefinedMenuItem::services(app, None)?),
             Box::new(PredefinedMenuItem::separator(app)?),
             Box::new(PredefinedMenuItem::hide(app, None)?),
@@ -156,7 +164,13 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             Box::new(PredefinedMenuItem::show_all(app, None)?),
             Box::new(PredefinedMenuItem::separator(app)?),
             // Not the predefined item: windows with unsaved edits ask first.
-            Box::new(MenuItem::with_id(app, "quit", "Quit Marpora", true, Some("CmdOrCtrl+Q"))?),
+            Box::new(MenuItem::with_id(
+                app,
+                "quit",
+                "Quit Marpora",
+                true,
+                Some("CmdOrCtrl+Q"),
+            )?),
         ],
     )?;
 
@@ -281,6 +295,9 @@ pub fn handle(app: &AppHandle, id: &str) {
             let _ = windows::open(app, None);
         }
         "quit" => quit(app),
+        "preferences" => {
+            let _ = windows::open_preferences(app);
+        }
         "open-folder" => {
             let handle = app.clone();
             app.dialog().file().pick_folder(move |dir| {

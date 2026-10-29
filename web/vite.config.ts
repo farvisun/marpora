@@ -67,6 +67,7 @@ export default defineConfig({
   build: {
     target: "safari16",
     sourcemap: true,
+    rollupOptions: { input: { main: "index.html", preferences: "preferences.html" } },
     // CodeMirror modes load on demand (src/cm.ts); inlining them would bloat the bundle.
     assetsInlineLimit: (file) => (file.includes("/codemirror/") ? false : undefined),
   },

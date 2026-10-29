@@ -57,6 +57,8 @@ export const [ui, setUi] = createStore({
   dirty: false,
   /** Quick Open (⇧⌘O) is showing. */
   quickOpen: false,
+  /** Bumped when the sidebar should list its folder again (Show hidden files changed). */
+  libraryVersion: 0,
   /** The find and replace panel (chrome/search.ts). */
   search: {
     open: false,

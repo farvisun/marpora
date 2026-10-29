@@ -1,0 +1,534 @@
+/* The Preferences window, with the rule values of Typora's macOS Preferences page
+   (photon framework plus its cocoa.css). */
+
+:root {
+  --border-color: #ddd;
+  --bg-color: #f5f5f5;
+  --hint-color: #656795;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --border-color: #484848;
+    --bg-color: #333;
+    --hint-color: #b3b4cc;
+  }
+}
+
+* {
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-color);
+  font-size: 13px;
+  tab-size: 4;
+}
+
+body {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  font-family: system, -apple-system, ".SFNSDisplay-Regular", "Helvetica Neue", Helvetica, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #333;
+  background-color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #eee;
+  }
+}
+
+button,
+input,
+select {
+  color: inherit;
+  font: inherit;
+  margin: 0;
+}
+
+table {
+  width: 100%;
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 2px 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+h5 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+a {
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+svg,
+svg * {
+  cursor: inherit;
+}
+
+/* Layout */
+
+.window {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.window-content {
+  position: relative;
+  overflow-y: auto;
+  display: flex;
+  flex: 1 1 0%;
+}
+
+.pane-group {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.pane {
+  position: relative;
+  overflow-y: auto;
+  flex: 1 1 0%;
+  border-left: 1px solid #ddd;
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .pane {
+    border-left: none;
+  }
+}
+
+.pane-sm {
+  width: 190px;
+  max-width: 220px;
+  min-width: 150px;
+}
+
+.sidebar {
+  background: #f5f5f4;
+  padding-top: 18px;
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    background: #262626;
+    color: #eee;
+  }
+}
+
+/* Category list */
+
+.list-group {
+  width: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list-group * {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-group-header {
+  padding: 18px;
+}
+
+.list-group-header > div {
+  position: relative;
+  overflow: visible;
+}
+
+.search-input {
+  width: 100%;
+  min-height: 18px;
+  padding: 5px 10px;
+  line-height: 1.2;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  outline: 0;
+  font-size: 12px;
+  appearance: textfield;
+}
+
+.search-input::-webkit-search-cancel-button,
+.search-input::-webkit-search-decoration {
+  appearance: none;
+}
+
+.clear-btn-icon {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  cursor: pointer;
+  display: none;
+  opacity: 0.4;
+}
+
+.clear-btn-icon svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  fill: currentColor;
+}
+
+.show-clear-icon .clear-btn-icon {
+  display: block;
+}
+
+.nav-group-item {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 6px;
+  margin: 4px 12px;
+  padding: 6px 8px;
+}
+
+.nav-group-item:active,
+.nav-group-item.active {
+  background-color: #dcdfe1;
+}
+
+.nav-group-item .icon {
+  width: 19px;
+  height: 18px;
+  float: left;
+  fill: currentColor;
+  margin-right: 7px;
+  font-size: 18px;
+  text-align: center;
+  opacity: 0.65;
+}
+
+.nav-group-item.active .icon {
+  opacity: 0.9;
+}
+
+.nav-group-item .icon svg {
+  width: 19px;
+  height: 18px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .nav-group-item.active {
+    background: #4b4b4b;
+  }
+  .nav-group-item:active {
+    background-color: #333;
+  }
+}
+
+/* Panels */
+
+.content {
+  padding: 16px 16px 16px 24px;
+  min-height: 100vh;
+}
+
+.display-none {
+  display: none !important;
+}
+
+.input-group {
+  max-width: 500px;
+  margin-top: 18px;
+}
+
+.input-group-header {
+  font-weight: bold;
+  font-size: 1em;
+  margin-top: 12px;
+  margin-bottom: 8px;
+  line-height: 1.1;
+}
+
+.input-group-header-hint {
+  font-weight: normal;
+  display: inline;
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--hint-color);
+  white-space: normal;
+}
+
+.panel-content-hint {
+  font-weight: normal;
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--hint-color);
+  white-space: normal;
+  margin-top: 8px;
+}
+
+.inline-hint {
+  display: inline-block;
+  margin-left: 24px;
+  font-size: 12px;
+  vertical-align: top;
+  color: var(--hint-color);
+}
+
+/* Before .row, which zeroes these margins in Typora's cascade too. */
+.checkbox {
+  position: relative;
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.row {
+  margin-top: 0;
+  margin-bottom: 0;
+  min-height: 26px;
+}
+
+.row::before {
+  content: "\200b";
+  display: inline-block;
+  vertical-align: middle;
+  height: 100%;
+  margin-top: 3px;
+}
+
+.input-group-content > .row {
+  padding-left: 16px;
+}
+
+label {
+  display: inline-block;
+  font-size: 1rem;
+  margin-bottom: 5px;
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row > label {
+  vertical-align: middle;
+}
+
+.checkbox label {
+  padding-left: 20px;
+  margin-bottom: 0;
+  font-weight: normal;
+}
+
+.checkbox input[type="checkbox"] {
+  position: absolute;
+  margin: 4px 0 0 -20px;
+  line-height: normal;
+  width: auto;
+}
+
+.disabled label,
+select[disabled] {
+  opacity: 0.5;
+}
+
+select {
+  min-width: 80%;
+  vertical-align: middle;
+}
+
+select:focus {
+  outline: none;
+}
+
+.row select {
+  width: 95%;
+}
+
+.label-input-group tbody,
+.label-input-group tr {
+  background: none;
+  color: inherit;
+}
+
+.label-input-group td {
+  line-height: 24px;
+  padding: 0;
+  border: none;
+}
+
+.label-input-group td:first-child {
+  padding-left: 16px;
+}
+
+.label-input-group td:nth-child(2) {
+  min-width: 160px;
+}
+
+.label-input-group select {
+  margin-bottom: 0;
+}
+
+.label-input-group .row {
+  min-height: 0;
+}
+
+/* Buttons */
+
+.btn {
+  display: inline-block;
+  padding: 3px 8px;
+  margin-bottom: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+.btn:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.btn-default {
+  color: #333;
+  border-color: #c2c0c2 #c2c0c2 #a19fa1;
+  background-color: #fcfcfc;
+  background-image: linear-gradient(#fcfcfc 0%, #f1f1f1 100%);
+}
+
+.btn-default:active {
+  background-color: #ddd;
+  background-image: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn-default {
+    background: #585858;
+    border: none;
+    color: #eee;
+  }
+  .btn-default:hover {
+    background: #6a6a6a;
+    color: white;
+  }
+}
+
+/* Inputs */
+
+input:not([type="range"]):not([type="color"]) {
+  outline: none;
+  border: 1px solid rgba(136, 136, 136, 0.7);
+}
+
+input[type="search"],
+input[type="text"] {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+input[type="search"]:focus,
+input[type="text"]:focus {
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(116, 180, 255, 0.7);
+  animation: 0.3s showFocus;
+  border-color: #7aa7dd !important;
+}
+
+@keyframes showFocus {
+  0% {
+    border-color: #dbdbdb;
+    box-shadow: 0 0 0 14px rgba(145, 191, 245, 0);
+  }
+  100% {
+    border-radius: 1px;
+    box-shadow: 0 0 0 1px #91bff5;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  input[type="search"],
+  input[type="text"] {
+    border: none;
+    background: #555;
+  }
+  input:not([type="range"]):not([type="color"]) {
+    border: none;
+  }
+}
+
+/* Search */
+
+.search-hit {
+  background: rgba(255, 235, 59, 0.48) !important;
+}
+
+.search-hit .search-hit {
+  background-color: transparent !important;
+}
+
+.on-performance-search .no-search-hit {
+  opacity: 0.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .search-hit {
+    background: rgba(111, 99, 0, 0.48) !important;
+  }
+}
+
+.no-results {
+  display: flex;
+  align-items: center;
+  margin-top: 40%;
+}
+
+.no-results > div {
+  text-align: center;
+  margin: auto;
+}

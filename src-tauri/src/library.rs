@@ -32,8 +32,9 @@ pub fn is_markdown(path: &Path) -> bool {
         .is_some_and(|e| EXTENSIONS.iter().any(|x| x.eq_ignore_ascii_case(e)))
 }
 
-fn is_ignored(name: &str) -> bool {
-    name == "node_modules" || (name.starts_with('.') && name.len() > 1)
+/// `node_modules` is never listed; dot files only when `hidden` is set.
+fn is_ignored(name: &str, hidden: bool) -> bool {
+    name == "node_modules" || (!hidden && name.starts_with('.') && name.len() > 1)
 }
 
 /// A file or folder in the tree.
@@ -78,14 +79,14 @@ fn millis(time: std::io::Result<std::time::SystemTime>) -> f64 {
 }
 
 /// What the tree shows in `dir`: folders and Markdown files, unsorted.
-fn shown(dir: &Path) -> impl Iterator<Item = (PathBuf, String, Metadata)> {
+fn shown(dir: &Path, hidden: bool) -> impl Iterator<Item = (PathBuf, String, Metadata)> {
     std::fs::read_dir(dir)
         .into_iter()
         .flatten()
         .flatten()
-        .filter_map(|e| {
+        .filter_map(move |e| {
             let name = e.file_name().to_string_lossy().into_owned();
-            if is_ignored(&name) {
+            if is_ignored(&name, hidden) {
                 return None;
             }
             let path = e.path();
@@ -95,11 +96,11 @@ fn shown(dir: &Path) -> impl Iterator<Item = (PathBuf, String, Metadata)> {
         })
 }
 
-/// One level of the tree.
-pub fn list_dir(dir: &Path) -> Vec<Entry> {
-    shown(dir)
+/// One level of the tree. With `hidden`, dot files are listed too.
+pub fn list_dir(dir: &Path, hidden: bool) -> Vec<Entry> {
+    shown(dir, hidden)
         .map(|(path, name, meta)| Entry {
-            has_children: meta.is_dir() && shown(&path).next().is_some(),
+            has_children: meta.is_dir() && shown(&path, hidden).next().is_some(),
             is_directory: meta.is_dir(),
             modified: millis(meta.modified()),
             created: millis(meta.created()),
@@ -110,12 +111,12 @@ pub fn list_dir(dir: &Path) -> Vec<Entry> {
 }
 
 /// Markdown files under `root`, breadth first, at most `limit`. With `summaries`, each
-/// carries the start of its text.
-pub fn walk(root: &Path, limit: usize, summaries: bool) -> Docs {
+/// carries the start of its text; with `hidden`, dot files are included.
+pub fn walk(root: &Path, limit: usize, summaries: bool, hidden: bool) -> Docs {
     let mut files = Vec::new();
     let mut queue = VecDeque::from([root.to_path_buf()]);
     while let Some(dir) = queue.pop_front() {
-        let mut entries: Vec<_> = shown(&dir).collect();
+        let mut entries: Vec<_> = shown(&dir, hidden).collect();
         entries.sort_by(|a, b| a.1.cmp(&b.1));
         for (path, name, meta) in entries {
             if meta.is_dir() {
@@ -233,6 +234,9 @@ impl Recent {
 
 /// Add `file` to the recent files and to File › Open Recent.
 pub fn remember(app: &AppHandle, file: &Path) {
+    if !app.state::<crate::settings::Store>().get().record_recent {
+        return;
+    }
     app.state::<Recent>().add(file);
     crate::menu::refresh_recent(app);
 }
@@ -269,7 +273,7 @@ mod tests {
         touch(&dir.join("node_modules/d.md"), "");
         touch(&dir.join("notes/e.markdown"), "");
         std::fs::create_dir_all(dir.join("empty")).unwrap();
-        let mut entries = list_dir(&dir);
+        let mut entries = list_dir(&dir, false);
         entries.sort_by(|a, b| a.name.cmp(&b.name));
         let names: Vec<_> = entries
             .iter()
@@ -283,6 +287,11 @@ mod tests {
                 ("notes", true, true)
             ]
         );
+        // Preferences › Show hidden folders / files; node_modules stays out.
+        let hidden: Vec<_> = list_dir(&dir, true).into_iter().map(|e| e.name).collect();
+        assert!(hidden.contains(&".hidden".to_owned()));
+        assert!(!hidden.contains(&"node_modules".to_owned()));
+        assert_eq!(walk(&dir, 10, false, true).files.len(), 3);
     }
 
     #[test]
@@ -291,7 +300,7 @@ mod tests {
         touch(&dir.join("z.md"), "zed");
         touch(&dir.join("sub/a.md"), "deep");
         touch(&dir.join("b.md"), &format!("a{}", "é".repeat(400)));
-        let docs = walk(&dir, 10, true);
+        let docs = walk(&dir, 10, true, false);
         let names: Vec<_> = docs.files.iter().map(|d| d.name.as_str()).collect();
         assert_eq!(names, ["b.md", "z.md", "a.md"]);
         assert!(!docs.oversize);
@@ -299,7 +308,7 @@ mod tests {
         assert_eq!(docs.files[0].summary.chars().count(), 300);
         assert_eq!(docs.files[2].folder, dir.join("sub").to_string_lossy());
 
-        let docs = walk(&dir, 2, false);
+        let docs = walk(&dir, 2, false, false);
         assert_eq!(docs.files.len(), 2);
         assert!(docs.oversize);
         assert_eq!(docs.files[0].summary, "");

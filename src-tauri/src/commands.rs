@@ -403,13 +403,15 @@ pub async fn list_folder(
     window: WebviewWindow,
     path: String,
     docs: State<'_, Docs>,
+    store: State<'_, Store>,
 ) -> CmdResult<Vec<library::Entry>> {
     let root = library_root(&window, &docs).ok_or("no folder is open")?;
+    let hidden = store.get().show_hidden_files;
     let dir = PathBuf::from(path);
     if !library::contains(&root, &dir) {
         return Err(format!("{} is outside {}", dir.display(), root.display()));
     }
-    tauri::async_runtime::spawn_blocking(move || library::list_dir(&dir))
+    tauri::async_runtime::spawn_blocking(move || library::list_dir(&dir, hidden))
         .await
         .map_err(|e| e.to_string())
 }
@@ -421,7 +423,9 @@ pub async fn list_documents(
     window: WebviewWindow,
     summaries: bool,
     docs: State<'_, Docs>,
+    store: State<'_, Store>,
 ) -> CmdResult<library::Docs> {
+    let hidden = store.get().show_hidden_files;
     let Some(root) = library_root(&window, &docs) else {
         return Ok(library::Docs {
             files: Vec::new(),
@@ -433,7 +437,7 @@ pub async fn list_documents(
     } else {
         library::MAX_QUICK_OPEN
     };
-    tauri::async_runtime::spawn_blocking(move || library::walk(&root, limit, summaries))
+    tauri::async_runtime::spawn_blocking(move || library::walk(&root, limit, summaries, hidden))
         .await
         .map_err(|e| e.to_string())
 }
@@ -443,13 +447,58 @@ pub fn recent_files(recent: State<Recent>) -> Vec<String> {
     recent.files()
 }
 
-/// Frontend errors, printed where `tauri dev` shows them.
+#[tauri::command]
+pub fn clear_recent(app: AppHandle, recent: State<Recent>) {
+    recent.clear();
+    menu::refresh_recent(&app);
+}
+
+/// Change some settings (Preferences); `patch` holds camelCase fields.
+#[tauri::command]
+pub fn update_settings(
+    app: AppHandle,
+    patch: serde_json::Value,
+    store: State<Store>,
+) -> CmdResult<Settings> {
+    store.merge(&app, patch)
+}
+
+/// Show the drafts folder in Finder (Preferences › Recover Unsaved Drafts).
+#[tauri::command]
+pub fn open_drafts_folder(app: AppHandle) -> CmdResult<()> {
+    reveal(&save::drafts_dir(&app).ok_or("no drafts folder")?)
+}
+
+/// Show the user themes folder in Finder (Preferences › Open Theme Folder).
+#[tauri::command]
+pub fn open_theme_folder(app: AppHandle) -> CmdResult<()> {
+    reveal(&themes::user_dir(&app).ok_or("no themes folder")?)
+}
+
+/// Open folder `dir` in the file manager, creating it first.
+fn reveal(dir: &Path) -> CmdResult<()> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else if cfg!(windows) {
+        "explorer"
+    } else {
+        "xdg-open"
+    };
+    std::process::Command::new(opener)
+        .arg(dir)
+        .spawn()
+        .map(drop)
+        .map_err(|e| format!("could not open {}: {e}", dir.display()))
+}
+
 /// The user cancelled closing a window, so File › Quit stops.
 #[tauri::command]
 pub fn cancel_quit(quitting: State<menu::Quitting>) {
     quitting.0.store(false, std::sync::atomic::Ordering::SeqCst);
 }
 
+/// Frontend errors, printed where `tauri dev` shows them.
 #[tauri::command]
 pub fn frontend_log(window: WebviewWindow, message: String) {
     eprintln!("[{}] {message}", window.label());

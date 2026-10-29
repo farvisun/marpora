@@ -406,6 +406,38 @@ await disk.evaluate(() => window.marpora.backend.changeOnDisk("# From disk\n\nTh
 await disk.waitForTimeout(300);
 check("source mode shows the change", (await disk.evaluate(() => window.marpora.source.codeMirror.getValue())) === "# From disk\n\nThree\n");
 
+// Preferences: Typora's markup; changes go to the app, and search marks matches.
+const prefs = await browser.newPage({ viewport: { width: 800, height: 600 } });
+prefs.on("pageerror", (e) => errors.push(e.message));
+await prefs.goto((process.env.URL ?? "http://localhost:1420/") + "preferences.html");
+await prefs.waitForSelector(".nav-group-item");
+const prefsLog = () => prefs.evaluate(() => window.marporaPrefs.log);
+check("prefs: categories", (await prefs.locator(".nav-group-item").allTextContents()).join(",") === "Files,Markdown,Appearance,General");
+check("prefs: Files shown first", await prefs.locator(".content[data-index='0'] .input-group-header-title").first().textContent() === "Save & Recover" &&
+  (await prefs.locator(".content:not(.display-none)").count()) === 1);
+await prefs.getByLabel("Auto Save").check();
+check("prefs: Auto Save saved", (await prefs.evaluate(() => window.marporaPrefs.current.autoSave)) === true);
+await prefs.click("button[aria-label='Recover Unsaved Drafts']");
+await prefs.click("button[aria-label='Clear Recent Folders and Files']");
+check("prefs: buttons act", (await prefsLog()).includes("openDraftsFolder") && (await prefsLog()).includes("clearRecent"), (await prefsLog()).join());
+await prefs.click(".nav-group-item:text('Markdown')");
+await prefs.getByLabel(/Highlight/).check();
+check("prefs: flavor change keeps the others", JSON.stringify(await prefs.evaluate(() => window.marporaPrefs.current.flavor)) ===
+  JSON.stringify({ inlineMath: false, highlight: true, subscript: false, superscript: false }));
+await prefs.selectOption(".content[data-index='1'] select", "false");
+check("prefs: math numbering", (await prefs.evaluate(() => window.marporaPrefs.current.autoNumberMath)) === false);
+await prefs.click(".nav-group-item:text('Appearance')");
+await prefs.selectOption(".content[data-index='2'] select", "marpora-night");
+check("prefs: theme", (await prefs.evaluate(() => window.marporaPrefs.current.theme)) === "marpora-night");
+await prefs.fill(".search-input", "recent");
+check("prefs: search marks matches", (await prefs.locator(".input-group.search-hit .input-group-header-title").allTextContents()).join() === "Recent Locations" &&
+  (await prefs.locator(".nav-group-item.no-search-hit").allTextContents()).join() === "Markdown,Appearance,General");
+await prefs.fill(".search-input", "zzz");
+check("prefs: no results", (await prefs.locator(".no-results:not(.display-none)").textContent()) === 'No results found for "zzz"');
+await prefs.click(".clear-btn-icon");
+check("prefs: search cleared", (await prefs.locator(".search-hit, .no-search-hit").count()) === 0 &&
+  (await prefs.locator(".no-results.display-none").count()) === 1);
+
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();
 process.exit(failures ? 1 : 0);
