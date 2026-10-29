@@ -1,3 +1,5 @@
+<p align="center"><img src="site/assets/icon.png" alt="" width="128" height="128"></p>
+
 # Marpora
 
 A Markdown editor for macOS that shows the document as it will look while you write it,
