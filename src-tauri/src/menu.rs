@@ -19,17 +19,30 @@ type Item<'a> = (&'a str, &'a str, Option<&'a str>);
 
 const FILE_TOP: &[Item] = &[
     ("new", "New", Some("CmdOrCtrl+N")),
+    ("new-tab", "New Tab", Some("CmdOrCtrl+T")),
+    ("new-window", "New Window", Some("CmdOrCtrl+Shift+N")),
+    ("-", "", None),
     ("open", "Open…", Some("CmdOrCtrl+O")),
     ("open-folder", "Open Folder…", None),
-    ("quick-open", "Open Quickly…", Some("CmdOrCtrl+Shift+O")),
 ];
 
-/// Saving, after File › Open Recent.
+/// After File › Open Recent, in Typora's order.
 const FILE_SAVE: &[Item] = &[
+    ("quick-open", "Open Quickly…", Some("CmdOrCtrl+Shift+O")),
+    ("-", "", None),
+    ("reveal-sidebar", "Reveal in File Tree", None),
+    ("open-location", "Open File Location", None),
+    ("-", "", None),
+    ("delete-file", "Delete…", None),
+    ("-", "", None),
+    ("close", "Close", Some("CmdOrCtrl+W")),
     ("-", "", None),
     ("save", "Save", Some("CmdOrCtrl+S")),
     ("save-as", "Save As…", Some("CmdOrCtrl+Shift+S")),
+    ("-", "", None),
+    ("revert", "Revert to Saved", None),
     ("reload", "Reload from Disk", None),
+    ("save-all", "Save All", Some("CmdOrCtrl+Alt+S")),
     ("-", "", None),
 ];
 
@@ -51,11 +64,31 @@ const EXPORT: &[Item] = &[
     ("export-opml", "OPML", None),
 ];
 
-const FILE_BOTTOM: &[Item] = &[
-    ("print", "Print…", Some("CmdOrCtrl+P")),
-    ("-", "", None),
-    ("close", "Close", Some("CmdOrCtrl+W")),
-];
+const FILE_BOTTOM: &[Item] = &[("-", "", None), ("print", "Print…", Some("CmdOrCtrl+P"))];
+
+/// Documents closed in this session, the last one last (File › Reopen Closed File).
+#[derive(Default)]
+pub struct ClosedFiles(Mutex<Vec<PathBuf>>);
+
+impl ClosedFiles {
+    pub fn push(&self, path: PathBuf) {
+        let mut closed = self.0.lock().unwrap();
+        closed.retain(|p| p != &path);
+        closed.push(path);
+    }
+
+    /// The last closed document still on disk and not open again.
+    fn pop(&self, app: &AppHandle) -> Option<PathBuf> {
+        let docs = app.state::<crate::docs::Docs>();
+        let mut closed = self.0.lock().unwrap();
+        while let Some(path) = closed.pop() {
+            if path.exists() && docs.window_for_path(&path).is_none() {
+                return Some(path);
+            }
+        }
+        None
+    }
+}
 
 const EDIT_TOP: &[Item] = &[
     ("undo", "Undo", Some("CmdOrCtrl+Z")),
@@ -632,7 +665,16 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
 /// File › Open Recent: recent files by name, then Clear Items.
 fn recent_items(app: &AppHandle) -> tauri::Result<Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>>> {
     let files = app.state::<Recent>().files();
-    let mut out: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
+    let mut out: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = vec![
+        Box::new(MenuItem::with_id(
+            app,
+            "reopen-closed",
+            "Reopen Closed File",
+            true,
+            Some("CmdOrCtrl+Shift+T"),
+        )?),
+        Box::new(PredefinedMenuItem::separator(app)?),
+    ];
     for path in &files {
         let name = windows::title_for(Some(Path::new(path)));
         out.push(Box::new(MenuItem::with_id(
@@ -674,8 +716,35 @@ pub fn refresh_recent(app: &AppHandle) {
 
 pub fn handle(app: &AppHandle, id: &str) {
     match id {
-        "new" => {
+        "new" | "new-window" => {
             let _ = windows::open(app, None);
+        }
+        "new-tab" => {
+            let focused = app
+                .webview_windows()
+                .into_values()
+                .find(|w| w.is_focused().unwrap_or(false) && w.label() != "preferences");
+            let _ = match focused {
+                Some(parent) => windows::open_tab(app, &parent),
+                None => windows::open(app, None),
+            };
+        }
+        "reopen-closed" => {
+            if let Some(path) = app.state::<ClosedFiles>().pop(app) {
+                let _ = windows::open(app, Some(path));
+            }
+        }
+        "save-all" => {
+            let docs = app.state::<crate::docs::Docs>();
+            for w in app.webview_windows().into_values() {
+                let dirty = docs
+                    .for_window(w.label())
+                    .and_then(|id| docs.with(id, |open| open.doc.is_dirty()))
+                    .unwrap_or(false);
+                if dirty {
+                    let _ = w.emit_to(w.label(), "menu", "save");
+                }
+            }
         }
         "quit" => quit(app),
         "preferences" => {

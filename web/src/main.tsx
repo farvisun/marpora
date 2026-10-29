@@ -248,6 +248,20 @@ async function main() {
         return void save(false);
       case "save-as":
         return void save(true);
+      case "open-location":
+        return void backend.revealDocument().catch(report);
+      case "reveal-sidebar":
+        setUi({ sidebarTab: "files", fileTree: true });
+        return setUi("sidebar", true);
+      case "delete-file": {
+        const path = ui.path;
+        if (!path) return;
+        const name = path.slice(path.lastIndexOf("/") + 1);
+        return void confirmDialog(`Move “${name}” to the Trash?`, "Move to Trash")
+          .then((yes) => (yes ? backend.trashDocument().then(closeWindow) : undefined))
+          .catch(report);
+      }
+      case "revert":
       case "reload":
         if (!ui.path) return;
         return void reloadFromDisk("Reload from disk? Unsaved changes will be discarded.").catch(report);

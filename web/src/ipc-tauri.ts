@@ -91,6 +91,14 @@ export class TauriBackend implements Backend {
     return invoke<string>("rename_library_file", { path, name });
   }
 
+  revealDocument() {
+    return invoke<void>("reveal_document");
+  }
+
+  trashDocument() {
+    return invoke<void>("trash_document");
+  }
+
   writeClipboard(text: string, html?: string) {
     return invoke<void>("write_clipboard", { text, html: html ?? null });
   }

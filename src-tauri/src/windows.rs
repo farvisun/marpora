@@ -35,6 +35,25 @@ fn open_untitled(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     build(app, &label, title_for(None))
 }
 
+/// File › New Tab: an untitled document in a new tab of `parent`'s window.
+pub fn open_tab(app: &AppHandle, parent: &WebviewWindow) -> tauri::Result<()> {
+    let window = open_untitled(app)?;
+    #[cfg(target_os = "macos")]
+    if let (Ok(parent), Ok(child)) = (parent.ns_window(), window.ns_window()) {
+        // SAFETY: both are live NSWindows of these windows; menu events arrive on the
+        // main thread.
+        unsafe {
+            tab_button::attach(
+                &*(parent as *const objc2_app_kit::NSWindow),
+                &*(child as *const objc2_app_kit::NSWindow),
+            );
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (parent, window);
+    Ok(())
+}
+
 /// Open `dir` in a new window's sidebar, as Typora opens a folder, with no document.
 pub fn open_folder(app: &AppHandle, dir: PathBuf) -> tauri::Result<()> {
     let dir = std::fs::canonicalize(&dir).unwrap_or(dir);
@@ -143,9 +162,13 @@ mod tab_button {
         let Ok(ns) = window.ns_window() else { return };
         // SAFETY: `ns_window` is the new window's NSWindow, alive while `window` is,
         // and AppKit calls this on the main thread.
-        let ns = unsafe { &*(ns as *const NSWindow) };
-        this.addTabbedWindow_ordered(ns, NSWindowOrderingMode::Above);
-        ns.makeKeyAndOrderFront(None);
+        attach(this, unsafe { &*(ns as *const NSWindow) });
+    }
+
+    /// Show `tab` as a tab of `window`'s, in front.
+    pub fn attach(window: &NSWindow, tab: &NSWindow) {
+        window.addTabbedWindow_ordered(tab, NSWindowOrderingMode::Above);
+        tab.makeKeyAndOrderFront(None);
     }
 }
 

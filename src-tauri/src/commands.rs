@@ -621,16 +621,39 @@ pub fn reveal_library_file(
     path: String,
     docs: State<Docs>,
 ) -> CmdResult<()> {
-    let path = in_library(&window, &docs, &path, true)?;
+    show_in_finder(&in_library(&window, &docs, &path, true)?)
+}
+
+fn show_in_finder(path: &Path) -> CmdResult<()> {
     #[cfg(target_os = "macos")]
     return std::process::Command::new("open")
         .arg("-R")
-        .arg(&path)
+        .arg(path)
         .spawn()
         .map(drop)
         .map_err(|e| format!("could not show {}: {e}", path.display()));
     #[cfg(not(target_os = "macos"))]
-    reveal(path.parent().unwrap_or(&path))
+    reveal(path.parent().unwrap_or(path))
+}
+
+/// The file of the window's document, if it has one.
+fn document_path(window: &WebviewWindow, docs: &Docs) -> CmdResult<PathBuf> {
+    docs.for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.path.clone()))
+        .flatten()
+        .ok_or_else(|| "the document is not saved yet".into())
+}
+
+/// File › Open File Location: the document selected in Finder.
+#[tauri::command]
+pub fn reveal_document(window: WebviewWindow, docs: State<Docs>) -> CmdResult<()> {
+    show_in_finder(&document_path(&window, &docs)?)
+}
+
+/// File › Delete…: move the document's file to the Trash (the window then closes).
+#[tauri::command]
+pub fn trash_document(window: WebviewWindow, docs: State<Docs>) -> CmdResult<()> {
+    trash(&document_path(&window, &docs)?)
 }
 
 /// Open `path`, a file or a folder from the sidebar, in a new window.

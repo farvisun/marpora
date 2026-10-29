@@ -159,6 +159,10 @@ export interface Backend {
   renameLibraryFile(path: string, name: string): Promise<string>;
   /** The window's document moved (renamed in a sidebar); `path` is where it is now. */
   onPathChanged(handler: (path: string) => void): void;
+  /** Show the window's document in Finder. */
+  revealDocument(): Promise<void>;
+  /** Move the window's document to the Trash. */
+  trashDocument(): Promise<void>;
   /** Put text (and HTML) on the system clipboard. */
   writeClipboard(text: string, html?: string): Promise<void>;
   /** The system clipboard's text. */
@@ -354,6 +358,15 @@ export class MemoryBackend implements Backend {
   }
 
   onPathChanged(_handler: (path: string) => void) {}
+
+  async revealDocument() {}
+
+  /** Test hook: whether the document went to the Trash. */
+  trashed = false;
+
+  async trashDocument() {
+    this.trashed = true;
+  }
 
   /** Test hook: the clipboard. */
   clipboard: { text: string; html?: string } = { text: "" };

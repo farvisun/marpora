@@ -29,6 +29,7 @@ pub fn run() {
         .manage(watch::Watcher::default())
         .manage(menu::Quitting::default())
         .manage(menu::WindowFlags::default())
+        .manage(menu::ClosedFiles::default())
         .manage(search::Searches::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
@@ -42,6 +43,9 @@ pub fn run() {
                 // with Auto Save on).
                 if let Some(id) = docs.for_window(window.label()) {
                     save::settle(window.app_handle(), id);
+                    if let Some(path) = docs.with(id, |open| open.path.clone()).flatten() {
+                        window.state::<menu::ClosedFiles>().push(path);
+                    }
                 }
                 docs.close_window(window.label());
                 menu::close_next(window.app_handle(), Some(window.label()));
@@ -51,6 +55,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::initial_document,
             commands::open_link,
+            commands::reveal_document,
+            commands::trash_document,
             commands::read_clipboard,
             commands::write_clipboard,
             commands::apply_patch,
