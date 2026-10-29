@@ -21,6 +21,21 @@ in the manner of Typora, with AI built in and Marp slide decks.
 - **Slides.** A document with `marp: true` is a Marp deck: a live slide preview, theme
   picker, a presenter view with notes and timer, and export to PDF, HTML and PowerPoint.
 
+## Install
+
+Download [Marpora.dmg](https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg)
+(macOS 12 or later, Apple Silicon and Intel), open it and drag Marpora to Applications.
+
+Marpora is ad-hoc signed, not notarized, so macOS blocks its first launch. Open
+**System Settings › Privacy & Security** and click **Open Anyway**, or run:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Marpora.app
+```
+
+Updates install from inside the app: it checks at launch, and on
+**Marpora › Check for Updates…**.
+
 Help › Quick Start in the app covers each feature
 ([src-tauri/help/Quick Start.md](src-tauri/help/Quick%20Start.md)).
 
@@ -67,6 +82,19 @@ pnpm exec vite & pnpm test:e2e    # the editor in Playwright WebKit, with an in-
 ```
 
 [docs/benchmarks.md](docs/benchmarks.md) covers the speed measurements.
+
+## Releasing
+
+Bump `version` in `Cargo.toml` and `web/package.json`, commit, then push a tag:
+
+```sh
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+[.github/workflows/release.yml](.github/workflows/release.yml) builds a universal app,
+signs the update archive with the `TAURI_SIGNING_PRIVATE_KEY` secret, and publishes the
+release with `latest.json`, the feed the app's updater reads. The landing page in
+`site/` deploys to GitHub Pages on every push that changes it.
 
 ## License
 
