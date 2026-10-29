@@ -984,7 +984,20 @@ await lib.keyboard.press("Meta+Shift+o");
 await lib.keyboard.press("Escape");
 check("escape closes quick open", !(await lib.locator("#typora-quick-open").isVisible()));
 await lib.hover("#file-library-tree");
+// Pin and remove buttons on recent folders, which leave the menu open.
+await lib.evaluate(() => window.marpora.backend.library.folders.push("/home/me/old"));
 await lib.click("#sidebar-menu-btn .sidebar-footer-item");
+await lib.locator(".folder-menu-item[data-path='/home/me/old'] .sidebar-folder-pin").dispatchEvent("mousedown", { button: 0 });
+await lib.waitForSelector(".folder-menu-item[data-path='/home/me/old'][data-pinned='true']");
+const recentNames = () => lib.locator(".folder-menu-item").allTextContents().then((t) => t.map((s) => s.trim()).join());
+check("pinned folder comes first", (await recentNames()) === "old,other,notes" &&
+  (await lib.locator(".folder-menu-item[data-path='/home/me/old'] .sidebar-folder-pin").getAttribute("ty-hint")) === "Unpin", await recentNames());
+await lib.locator(".folder-menu-item[data-path='/home/me/old'] .sidebar-folder-pin").dispatchEvent("mousedown", { button: 0 });
+await lib.waitForSelector(".folder-menu-item[data-path='/home/me/old'][data-pinned='false']");
+await lib.locator(".folder-menu-item[data-path='/home/me/old'] .sidebar-folder-remove").dispatchEvent("mousedown", { button: 0 });
+await lib.waitForFunction(() => !document.querySelector(".folder-menu-item[data-path='/home/me/old']"));
+check("removed folder leaves the list", (await recentNames()) === "other,notes" &&
+  !(await lib.evaluate(() => window.marpora.backend.library.folders.includes("/home/me/old"))), await recentNames());
 await lib.click(".folder-menu-item[data-path='/home/me/other'] a");
 await lib.waitForFunction(() => document.querySelector("#sidebar-footer-main-item-label").textContent.trim() === "other");
 check("recent location switches the folder", (await lib.evaluate(() => window.marpora.backend.libraryLog.at(-1))) === "switch /home/me/other");

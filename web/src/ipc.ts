@@ -4,6 +4,12 @@
 import type { MenuContext } from "./editor/contextmenu";
 import { type Flavor, parseMarkdown } from "./md";
 
+/** A folder in the sidebar menu's Recent Locations. */
+export interface RecentFolder {
+  path: string;
+  pinned: boolean;
+}
+
 export interface Patch {
   baseVersion: number;
   start: number;
@@ -152,8 +158,12 @@ export interface Backend {
   listDocuments(summaries: boolean): Promise<LibraryDocs>;
   /** Recently opened files, newest first. */
   recentFiles(): Promise<string[]>;
-  /** Recently opened folders, newest first (the sidebar menu's Recent Locations). */
-  recentFolders(): Promise<string[]>;
+  /** Recently opened folders, pinned ones first, then newest first (the sidebar menu's Recent Locations). */
+  recentFolders(): Promise<RecentFolder[]>;
+  /** Pin a recent folder to the top of Recent Locations, or unpin it. */
+  pinRecentFolder(path: string, pinned: boolean): Promise<void>;
+  /** Take a folder out of Recent Locations. */
+  removeRecentFolder(path: string): Promise<void>;
   /** Create an untitled file, or folder, in `dir` (the library folder by default); returns its path. */
   newLibraryFile(dir?: string, folder?: boolean): Promise<string>;
   /** Copy a library file next to it as `name (copy).md`; returns the copy. */
@@ -339,8 +349,21 @@ export class MemoryBackend implements Backend {
     return this.library.recent;
   }
 
+  pinned: string[] = [];
   async recentFolders() {
-    return this.library.folders;
+    const pinned = this.pinned.filter((p) => this.library.folders.includes(p));
+    return [
+      ...pinned.map((path) => ({ path, pinned: true })),
+      ...this.library.folders.filter((p) => !pinned.includes(p)).map((path) => ({ path, pinned: false })),
+    ];
+  }
+  async pinRecentFolder(path: string, pinned: boolean) {
+    this.pinned = this.pinned.filter((p) => p !== path);
+    if (pinned) this.pinned.unshift(path);
+  }
+  async removeRecentFolder(path: string) {
+    this.library.folders = this.library.folders.filter((p) => p !== path);
+    this.pinned = this.pinned.filter((p) => p !== path);
   }
 
   async newLibraryFile(dir = this.library.root, folder = false) {

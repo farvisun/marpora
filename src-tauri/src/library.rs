@@ -178,6 +178,15 @@ pub fn contains(root: &Path, path: &Path) -> bool {
 pub struct Recent {
     files: RecentList,
     folders: RecentList,
+    /// Folders pinned to the top of Recent Locations; they never age out.
+    pinned: RecentList,
+}
+
+/// A folder in the sidebar menu's Recent Locations.
+#[derive(serde::Serialize)]
+pub struct RecentFolder {
+    pub path: String,
+    pub pinned: bool,
 }
 
 struct RecentList {
@@ -213,6 +222,12 @@ impl RecentList {
         self.save(&items);
     }
 
+    fn remove(&self, item: &str) {
+        let mut items = self.items.lock().unwrap();
+        items.retain(|i| i != item);
+        self.save(&items);
+    }
+
     fn clear(&self) {
         let mut items = self.items.lock().unwrap();
         items.clear();
@@ -237,6 +252,7 @@ impl Recent {
         Recent {
             files: RecentList::load(dir.as_ref().map(|d| d.join("recent.json"))),
             folders: RecentList::load(dir.as_ref().map(|d| d.join("recent-folders.json"))),
+            pinned: RecentList::load(dir.as_ref().map(|d| d.join("pinned-folders.json"))),
         }
     }
 
@@ -245,9 +261,36 @@ impl Recent {
         self.files.existing(Path::is_file)
     }
 
-    /// The recent folders that still exist (the sidebar menu's Recent Locations).
-    pub fn folders(&self) -> Vec<String> {
-        self.folders.existing(Path::is_dir)
+    /// The recent folders that still exist (the sidebar menu's Recent Locations):
+    /// the pinned ones first, as Typora lists them.
+    pub fn folders(&self) -> Vec<RecentFolder> {
+        let pinned = self.pinned.existing(Path::is_dir);
+        let recent = self
+            .folders
+            .existing(|p| p.is_dir() && !pinned.iter().any(|q| Path::new(q) == p));
+        let entry = |pinned| move |path| RecentFolder { path, pinned };
+        pinned
+            .into_iter()
+            .map(entry(true))
+            .chain(recent.into_iter().map(entry(false)))
+            .collect()
+    }
+
+    /// Pin `dir` to the top of Recent Locations, or unpin it (it stays recent).
+    pub fn pin_folder(&self, dir: &Path, pinned: bool) {
+        if pinned {
+            self.pinned.add(dir);
+        } else {
+            self.pinned.remove(&dir.to_string_lossy());
+            self.folders.add(dir);
+        }
+    }
+
+    /// Remove `dir` from Recent Locations.
+    pub fn remove_folder(&self, dir: &Path) {
+        let dir = dir.to_string_lossy();
+        self.pinned.remove(&dir);
+        self.folders.remove(&dir);
     }
 
     pub fn add(&self, file: &Path) {
@@ -258,6 +301,7 @@ impl Recent {
     pub fn clear(&self) {
         self.files.clear();
         self.folders.clear();
+        self.pinned.clear();
     }
 }
 
@@ -366,6 +410,45 @@ fn push_recent(files: &mut Vec<String>, file: String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn basename(p: &str) -> &str {
+        p.rsplit('/').next().unwrap_or(p)
+    }
+
+    #[test]
+    fn pinned_folders_come_first_and_stay() {
+        let root = temp_dir("pinned");
+        let [a, b, c] = ["a", "b", "c"].map(|n| {
+            let d = root.join(n);
+            std::fs::create_dir_all(&d).unwrap();
+            d
+        });
+        let recent = Recent {
+            files: RecentList::load(None),
+            folders: RecentList::load(None),
+            pinned: RecentList::load(None),
+        };
+        for d in [&a, &b, &c] {
+            recent.folders.add(d);
+        }
+        let list = |r: &Recent| {
+            r.folders()
+                .into_iter()
+                .map(|f| format!("{}{}", basename(&f.path), if f.pinned { "*" } else { "" }))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        assert_eq!(list(&recent), "c,b,a");
+        recent.pin_folder(&a, true);
+        assert_eq!(list(&recent), "a*,c,b");
+        recent.pin_folder(&a, false);
+        assert_eq!(list(&recent), "a,c,b");
+        recent.pin_folder(&b, true);
+        recent.remove_folder(&b);
+        recent.remove_folder(&c);
+        assert_eq!(list(&recent), "a");
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     fn temp_dir(name: &str) -> PathBuf {
         let dir =

@@ -544,6 +544,12 @@ content { transition-duration: 0.4s; }
 .clearfix::after { content: " "; display: table; }
 .clearfix::after { clear: both; }
 .folder-menu-item .fa-folder-o { margin-right: 4px; }
+.sidebar-folder-right-icon { display: inline-block; flex: 0 16px; text-align: center; cursor: default; opacity: 0; }
+#sidebar-files-menu a:hover .sidebar-folder-right-icon { opacity: 0.7; }
+[data-pinned="true"] .sidebar-folder-remove { visibility: hidden; }
+[data-pinned="true"] .sidebar-folder-pin { transform: rotate(30deg); }
+.sidebar-folder-right-icon:hover { opacity: 1; color: var(--primary-color); background: var(--active-file-bg-color); }
+.selected-folder-menu-item .sidebar-folder-remove { visibility: hidden; }
 .selected-folder-menu-item a::after {
   content: "";
   position: absolute;

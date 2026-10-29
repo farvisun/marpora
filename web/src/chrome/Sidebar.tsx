@@ -4,7 +4,7 @@
 // classes, so they follow Typora's.
 
 import { createEffect, createMemo, createSignal, For, type JSX, on, onMount, Show } from "solid-js";
-import { type Backend, type LibraryDoc, type LibraryEntry, type LibraryInfo, report } from "../ipc";
+import { type Backend, type LibraryDoc, type LibraryEntry, type LibraryInfo, type RecentFolder, report } from "../ipc";
 import {
   abbreviate,
   basename,
@@ -301,7 +301,8 @@ function SidebarFooter(props: {
   onFolderChanged(): void;
 }) {
   const [menuShown, setMenuShown] = createSignal(false);
-  const [recent, setRecent] = createSignal<string[]>([]);
+  const [recent, setRecent] = createSignal<RecentFolder[]>([]);
+  const [currentPinned, setCurrentPinned] = createSignal(false);
   // A button's last direction, kept while another button is active, as Typora does.
   const [descending, setDescending] = createSignal<Record<string, boolean>>({});
   let menu!: HTMLUListElement;
@@ -316,9 +317,25 @@ function SidebarFooter(props: {
     const limit = Math.max(0, Math.min(MAX_RECENT_FOLDERS, Math.floor((content - menu.clientHeight - 20) / item)));
     void props.backend
       .recentFolders()
-      .then((dirs) => setRecent(dirs.filter((d) => d !== props.folder).slice(0, limit)))
+      .then((dirs) => {
+        setCurrentPinned(dirs.some((d) => d.path === props.folder && d.pinned));
+        setRecent(dirs.filter((d) => d.path !== props.folder).slice(0, limit));
+      })
       .catch(report);
   };
+  /** The pin and remove buttons on a recent folder, which leave the menu open. */
+  const folderButton = (run: () => Promise<unknown>) => (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (e.button === 0) void run().catch(report);
+  };
+  const pinFolder = (dir: string, pinned: boolean) =>
+    folderButton(() => props.backend.pinRecentFolder(dir, pinned).then(showMenu));
+  const removeFolder = (dir: string) =>
+    folderButton(async () => {
+      await props.backend.removeRecentFolder(dir);
+      setRecent((r) => r.filter((d) => d.path !== dir));
+    });
   const hideMenu = () => setMenuShown(false);
   /** Menu items act on a left mousedown, as in Typora. */
   const act = (run: () => Promise<unknown>) => (e: MouseEvent) => {
@@ -462,10 +479,29 @@ function SidebarFooter(props: {
                 <span>Recent Locations</span>
               </li>
               <For each={recent()}>
-                {(dir) => <FolderItem dir={dir} title={props.title} onMouseDown={act(() => switchFolder(dir))} />}
+                {(dir) => (
+                  <FolderItem
+                    dir={dir.path}
+                    pinned={dir.pinned}
+                    title={props.title}
+                    onMouseDown={act(() => switchFolder(dir.path))}
+                    onPin={pinFolder(dir.path, !dir.pinned)}
+                    onRemove={removeFolder(dir.path)}
+                  />
+                )}
               </For>
               <Show when={props.folder}>
-                {(dir) => <FolderItem dir={dir()} title={props.title} selected onMouseDown={hideMenu} />}
+                {(dir) => (
+                  <FolderItem
+                    dir={dir()}
+                    pinned={currentPinned()}
+                    title={props.title}
+                    selected
+                    onMouseDown={hideMenu}
+                    onPin={pinFolder(dir(), !currentPinned())}
+                    onRemove={removeFolder(dir())}
+                  />
+                )}
               </Show>
             </Show>
             <Show when={!mounted()}>
@@ -514,13 +550,22 @@ function MenuItem(props: { id: string; label: string; onMouseDown(e: MouseEvent)
   );
 }
 
-function FolderItem(props: { dir: string; selected?: boolean; title(path: string): string; onMouseDown(e: MouseEvent): void }) {
+function FolderItem(props: {
+  dir: string;
+  pinned: boolean;
+  selected?: boolean;
+  title(path: string): string;
+  onMouseDown(e: MouseEvent): void;
+  onPin(e: MouseEvent): void;
+  onRemove(e: MouseEvent): void;
+}) {
   return (
     <li
       role="presentation"
       class="folder-menu-item file-action-item folder-menu-groupm show"
       classList={{ "selected-folder-menu-item": !!props.selected }}
       data-path={props.dir}
+      data-pinned={String(props.pinned)}
       ty-hint={props.title(props.dir)}
     >
       <a role="menuitem" tabindex="-1" onMouseDown={(e) => props.onMouseDown(e)}>
@@ -528,8 +573,38 @@ function FolderItem(props: { dir: string; selected?: boolean; title(path: string
           <FolderOutlineIcon />
         </i>
         <span style={{ flex: "1", overflow: "hidden", "text-overflow": "ellipsis" }}>{basename(props.dir)}</span>
+        <i
+          class="fa fa-thumb-tack sidebar-folder-right-icon sidebar-folder-pin"
+          ty-hint={props.pinned ? "Unpin" : "Pin"}
+          onMouseDown={(e) => props.onPin(e)}
+        >
+          <PinIcon />
+        </i>
+        <i
+          class="fa fa-trash-o sidebar-folder-right-icon sidebar-folder-remove"
+          ty-hint="Remove from List"
+          onMouseDown={(e) => props.onRemove(e)}
+        >
+          <TrashIcon />
+        </i>
       </a>
     </li>
+  );
+}
+
+function PinIcon() {
+  return (
+    <Svg width={12} height={12}>
+      <path d="M4 1.2h4M4.8 1.2v3.6L3 7h6L7.2 4.8V1.2M6 7v4.2" {...stroke} />
+    </Svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <Svg width={12} height={12}>
+      <path d="M1.6 2.8h8.8M4.4 2.8V1.4h3.2v1.4M2.8 2.8l.6 8h5.2l.6-8M5 4.8v4M7 4.8v4" {...stroke} />
+    </Svg>
   );
 }
 

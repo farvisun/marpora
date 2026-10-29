@@ -80,6 +80,8 @@ pub fn run() {
             commands::recent_files,
             commands::clear_recent,
             commands::recent_folders,
+            commands::pin_recent_folder,
+            commands::remove_recent_folder,
             commands::search_library,
             commands::new_library_file,
             commands::rename_library_file,

@@ -513,8 +513,33 @@ pub fn recent_files(recent: State<Recent>) -> Vec<String> {
 }
 
 #[tauri::command]
-pub fn recent_folders(recent: State<Recent>) -> Vec<String> {
+pub fn recent_folders(recent: State<Recent>) -> Vec<library::RecentFolder> {
     recent.folders()
+}
+
+/// The sidebar menu's pin on a recent folder, or on the open one.
+#[tauri::command]
+pub fn pin_recent_folder(
+    window: WebviewWindow,
+    path: PathBuf,
+    pinned: bool,
+    docs: State<Docs>,
+    recent: State<Recent>,
+) -> CmdResult<()> {
+    // Only listed folders: a pinned folder is one `switch_library_folder` accepts.
+    let listed = recent.folders().iter().any(|f| Path::new(&f.path) == path)
+        || library_root(&window, &docs).is_some_and(|root| root == path);
+    if !listed {
+        return Err(format!("{} is not a recent folder", path.display()));
+    }
+    recent.pin_folder(&path, pinned);
+    Ok(())
+}
+
+/// The sidebar menu's Remove from List on a recent folder.
+#[tauri::command]
+pub fn remove_recent_folder(path: PathBuf, recent: State<Recent>) {
+    recent.remove_folder(&path);
 }
 
 /// Find in the sidebar's folder (its Search). A newer search stops this one.
@@ -938,7 +963,7 @@ pub async fn switch_library_folder(
     let dir = match dir {
         // Only folders the user opened before, so a page cannot point the sidebar
         // (and `list_folder`) anywhere it likes.
-        Some(d) if recent.folders().contains(&d) => PathBuf::from(d),
+        Some(d) if recent.folders().iter().any(|f| f.path == d) => PathBuf::from(d),
         Some(d) => return Err(format!("{d} is not a recent folder")),
         None => match app
             .dialog()

@@ -3,6 +3,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { MenuContext } from "./editor/contextmenu";
 import type {
+  RecentFolder,
   Backend,
   FileSearchQuery,
   FileSearchResults,
@@ -65,7 +66,15 @@ export class TauriBackend implements Backend {
   }
 
   recentFolders() {
-    return invoke<string[]>("recent_folders");
+    return invoke<RecentFolder[]>("recent_folders");
+  }
+
+  pinRecentFolder(path: string, pinned: boolean) {
+    return invoke<void>("pin_recent_folder", { path, pinned });
+  }
+
+  removeRecentFolder(path: string) {
+    return invoke<void>("remove_recent_folder", { path });
   }
 
   newLibraryFile(dir?: string, folder?: boolean) {
