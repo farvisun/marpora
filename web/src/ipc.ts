@@ -283,6 +283,8 @@ export interface Backend {
   writeExport(path: string, contents: string): Promise<void>;
   /** Print the export page `html` to a PDF at a path `exportPath` returned. */
   exportPdf(path: string, html: string): Promise<void>;
+  /** A slide deck's page as a PDF, one `width` × `height` (CSS pixels) slide a page. */
+  exportSlidesPdf(path: string, html: string, width: number, height: number): Promise<void>;
   /** Save the export page `html`, all of it, as a PNG image at a path `exportPath` returned. */
   exportImage(path: string, html: string): Promise<void>;
   /** Print the export page `html` through the print panel. */
@@ -704,6 +706,10 @@ export class MemoryBackend implements Backend {
 
   async writeExport(path: string, contents: string) {
     this.exports.set(path, contents);
+  }
+
+  async exportSlidesPdf(path: string, html: string, width: number, height: number) {
+    this.exports.set(path, `slides ${width}x${height}\n${html}`);
   }
 
   async exportPdf(path: string, html: string) {

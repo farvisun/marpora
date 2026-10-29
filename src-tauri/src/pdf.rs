@@ -29,7 +29,7 @@ const MM: f64 = 72.0 / 25.4;
 
 /// Typora's defaults: A4, with 16mm margins.
 const PAPER: (f64, f64) = (210.0 * MM, 297.0 * MM);
-const MARGIN: f64 = 16.0 * MM;
+pub const MARGIN: f64 = 16.0 * MM;
 
 /// File › Page Setup's paper for printing, in points, once the user has chosen one.
 static PRINT_PAPER: std::sync::Mutex<Option<(f64, f64)>> = std::sync::Mutex::new(None);
@@ -59,7 +59,7 @@ pub fn page_setup() {
 
 /// WebKit takes the page box from CSS, not from the print info, so the paper and
 /// margins go into the page as Typora's Mac build puts them.
-pub fn page_css(paper: (f64, f64)) -> String {
+pub fn page_css(paper: (f64, f64), margin: f64) -> String {
     format!(
         "@media print {{ * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }} \
          @page {{ size: {w:.2}pt {h:.2}pt; margin-top: {m:.2}pt !important; margin-right: {m:.2}pt !important; \
@@ -68,13 +68,13 @@ pub fn page_css(paper: (f64, f64)) -> String {
          print-color-adjust: exact !important; }} }}",
         w = paper.0,
         h = paper.1,
-        m = MARGIN,
+        m = margin,
     )
 }
 
 pub enum Output {
-    /// Save as a PDF file.
-    Pdf(PathBuf),
+    /// Save as a PDF file; on this paper (in points), without margins, for slides.
+    Pdf(PathBuf, Option<(f64, f64)>),
     /// Show the print panel.
     Printer,
     /// Save the whole page, laid out this wide (Preferences › Export), as a PNG file.
@@ -141,7 +141,10 @@ impl PrintJob {
         // SAFETY: plain property setters on objects created here, on the main thread.
         unsafe {
             let info = NSPrintInfo::sharedPrintInfo().copy();
-            let paper = paper_for(matches!(ivars.output, Output::Printer));
+            let paper = match ivars.output {
+                Output::Pdf(_, Some(slide)) => slide,
+                ref o => paper_for(matches!(o, Output::Printer)),
+            };
             info.setPaperSize(NSSize::new(paper.0, paper.1));
             // The page's `@page` rule sets the margins (see `page_css`).
             info.setTopMargin(0.0);
@@ -152,7 +155,7 @@ impl PrintJob {
             info.setVerticalPagination(NSPrintingPaginationMode::Automatic);
             info.setHorizontallyCentered(false);
             info.setVerticallyCentered(false);
-            if let Output::Pdf(path) = &ivars.output {
+            if let Output::Pdf(path, _) = &ivars.output {
                 info.setJobDisposition(NSPrintSaveJob);
                 let url = NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()));
                 info.dictionary()

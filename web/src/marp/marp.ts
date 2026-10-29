@@ -59,10 +59,13 @@ async function loadMarp(): Promise<MarpModule> {
 }
 
 /** Marp Core's renderer: HTML limited to Marp's safe list, math with MathJax. */
-export async function renderDeck(markdown: string): Promise<Rendered> {
+/** `script`: put Marp's browser helper inline in the HTML, for a page shown on its own
+ * (Safari scales inline SVG slides wrongly without it). `plain`: slides as bare
+ * sections at their own size rather than scalable inline SVG, for printing. */
+export async function renderDeck(markdown: string, { script = false, plain = false } = {}): Promise<Rendered> {
   marpModule ??= loadMarp();
   const { Marp } = await marpModule;
-  const marp = new Marp({ inlineSVG: true, math: "mathjax", script: false });
+  const marp = new Marp({ inlineSVG: !plain, math: "mathjax", script: script ? { source: "inline" } : false });
   const { html, css, comments } = marp.render(markdown);
   const slides = marp.render(markdown, { htmlAsArray: true }).html;
   return { html, css, slides, notes: comments.map((c) => c.join("\n\n")) };

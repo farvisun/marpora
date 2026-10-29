@@ -243,7 +243,7 @@ function pageTitle(write: HTMLElement, docPath: string | null): string {
 }
 
 /** An image path as the page at `target` reaches it. */
-function imagePath(src: string, { docPath, target, print }: ExportOptions): string {
+export function imagePath(src: string, { docPath, target, print }: ExportOptions): string {
   if (!src || URL_SCHEME.test(src) || src.startsWith("#") || src.startsWith("//")) return src;
   if (!docPath && !src.startsWith("/")) return src;
   const absolute = src.startsWith("/") ? decodeURI(src) : normalize(`${dirname(docPath!)}/${decodeURI(src)}`);

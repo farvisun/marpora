@@ -1226,6 +1226,19 @@ await deck.evaluate(async () => {
 });
 await deck.waitForFunction(() => document.querySelector(".marp-preview-slides")?.shadowRoot?.querySelectorAll("svg[data-marpit-svg]").length === 4, null, { timeout: 3000 }).catch(() => {});
 check("slides: edits show", (await deckSlides()) === 4, String(await deckSlides()));
+const deckExport = (id) => deck.evaluate(async (id) => {
+  const m = window.marpora;
+  m.backend.exports.clear();
+  m.handleMenu(id);
+  for (let i = 0; i < 200 && !m.backend.exports.size; i++) await new Promise((r) => setTimeout(r, 50));
+  return [...m.backend.exports.values()][0] ?? "";
+}, id);
+const deckHtml = await deckExport("export-html");
+check("slides: html export is the deck", (deckHtml.match(/<svg[^>]*data-marpit-svg/g) ?? []).length === 4 &&
+  deckHtml.includes("<title>untitled</title>") === false && deckHtml.includes("<script>") && !deckHtml.includes('id="write"'), deckHtml.slice(0, 300));
+const deckPdf = await deckExport("export-pdf");
+check("slides: pdf export at the slide size", deckPdf.startsWith("slides 1280x720\n") && !/<svg[^>]*data-marpit-svg/.test(deckPdf) && (deckPdf.match(/<section/g) ?? []).length === 4 && deckPdf.includes("alignContent"),
+  deckPdf.slice(0, 120));
 await deck.evaluate(() => window.marpora.handleMenu("ai-chat"));
 check("slides: chat takes the place of the preview", (await deck.locator("#marp-preview").count()) === 0 && (await deck.locator("#md-ai-chat").count()) === 1);
 await deck.close();

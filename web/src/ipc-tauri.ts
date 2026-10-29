@@ -264,6 +264,10 @@ export class TauriBackend implements Backend {
     return invoke<void>("write_export", { path, contents });
   }
 
+  exportSlidesPdf(path: string, html: string, width: number, height: number) {
+    return invoke<void>("export_slides_pdf", { path, html, width, height });
+  }
+
   exportPdf(path: string, html: string) {
     return invoke<void>("export_pdf", { path, html });
   }

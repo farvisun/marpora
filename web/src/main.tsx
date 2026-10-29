@@ -19,6 +19,7 @@ import { DocSync } from "./editor/sync";
 import { remoteHighlight } from "./editor/remotehighlight";
 import { aiTarget, PRESETS } from "./editor/ai";
 import { isDeck, slideAt, slideStart } from "./marp/marp";
+import { deckPage } from "./marp/export";
 import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
 import { blockOfLine, SourceMode } from "./chrome/source";
@@ -413,6 +414,17 @@ async function main() {
     const [name, extension] = format === "pdf" ? ["PDF", "pdf"] : format === "image" ? ["PNG", "png"] : ["HTML", "html"];
     const target = await backend.exportPath(opened.id, name, extension);
     if (!target) return;
+    // A Marp deck exports its slides.
+    if (ui.deck && format !== "image") {
+      await sync.flush();
+      const { text } = await backend.documentText(opened.id);
+      const title = ui.path ? basename(ui.path).replace(/\.[^.]*$/, "") : "Slides";
+      const print = format === "pdf";
+      const deck = await deckPage(text, { title, docPath: ui.path, target, print });
+      if (print) await backend.exportSlidesPdf(target, deck.html, deck.width, deck.height);
+      else await backend.writeExport(target, deck.html);
+      return;
+    }
     if (format === "pdf") await backend.exportPdf(target, await page({ target, print: true, exported: true }));
     else if (format === "image") await backend.exportImage(target, await page({ target }));
     else await backend.writeExport(target, await page({ target, plain: format === "html-plain", exported: true }));
