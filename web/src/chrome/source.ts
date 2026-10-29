@@ -37,6 +37,15 @@ function byteOfLine(text: string, line: number): number {
   return utf8.encode(text.slice(0, index)).length;
 }
 
+/** Index of the top-level block holding zero-based `line` of `text`. */
+export function blockOfLine(text: string, line: number): number {
+  const byte = byteOfLine(text, line);
+  const starts = blockStarts(text);
+  let block = 0;
+  while (block + 1 < starts.length && starts[block + 1] <= byte) block++;
+  return block;
+}
+
 export class SourceMode {
   private editor: CodeMirrorEditor | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -87,10 +96,7 @@ export class SourceMode {
     if (!this.active || !this.editor) return;
     await this.flush();
     const text = this.editor.getValue();
-    const byte = byteOfLine(text, this.editor.getCursor().line);
-    const starts = blockStarts(text);
-    let block = 0;
-    while (block + 1 < starts.length && starts[block + 1] <= byte) block++;
+    const block = blockOfLine(text, this.editor.getCursor().line);
 
     this.active = false;
     document.body.classList.remove("typora-sourceview-on");

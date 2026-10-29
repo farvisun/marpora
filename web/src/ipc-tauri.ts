@@ -2,6 +2,8 @@ import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type {
   Backend,
+  FileSearchQuery,
+  FileSearchResults,
   LibraryDocs,
   LibraryEntry,
   LibraryInfo,
@@ -70,6 +72,10 @@ export class TauriBackend implements Backend {
 
   revealLibrary() {
     return invoke<void>("reveal_library");
+  }
+
+  searchLibrary(query: FileSearchQuery) {
+    return invoke<FileSearchResults>("search_library", { query });
   }
 
   switchLibraryFolder(dir?: string) {

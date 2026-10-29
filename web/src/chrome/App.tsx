@@ -14,6 +14,10 @@ export interface ChromeProps {
   onOutlineClick(pos: number): void;
   /** Open a file picked in the sidebar or Quick Open. */
   onOpenFile(path: string): void;
+  /** Open a sidebar search result's file at zero-based source line `line`. */
+  onOpenMatch(path: string, line: number): void;
+  /** The editor's selection. */
+  selectedText(): string;
   onToggleSource(): void;
   mountEditor(el: HTMLElement): void;
   mountSource(el: HTMLElement): void;
@@ -29,7 +33,13 @@ export function App(props: ChromeProps) {
   return (
     <>
       <SearchPanel search={props.search} />
-      <Sidebar backend={props.backend} onOutlineClick={props.onOutlineClick} onOpenFile={props.onOpenFile} />
+      <Sidebar
+        backend={props.backend}
+        onOutlineClick={props.onOutlineClick}
+        onOpenFile={props.onOpenFile}
+        onOpenMatch={props.onOpenMatch}
+        selectedText={props.selectedText}
+      />
       <QuickOpen backend={props.backend} onOpenFile={props.onOpenFile} />
       <content>
         <div ref={(el) => props.mountEditor(el)} />

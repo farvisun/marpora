@@ -16,12 +16,18 @@ import {
   summaryLines,
   summaryOf,
 } from "./library";
+import { FileSearchResults, FileSearchTabs, SearchIcon } from "./FileSearch";
+import { hideFileSearch, saveFileSearch, showFileSearch } from "./librarySearch";
 import { librarySortOf, type OutlineItem, saveSidebar, setUi, ui } from "./store";
 
 export interface SidebarProps {
   backend: Backend;
   onOutlineClick(pos: number): void;
   onOpenFile(path: string): void;
+  /** Open a search result's file at zero-based source line `line`. */
+  onOpenMatch(path: string, line: number): void;
+  /** The editor's selection, to search for. */
+  selectedText(): string;
 }
 
 /** A heading with the headings under it, as Typora nests the outline. */
@@ -53,6 +59,9 @@ export function Sidebar(props: SidebarProps) {
   const shortPath = (path: string) => abbreviate(path, info()?.home ?? null);
 
   createEffect(() => saveSidebar());
+  createEffect(() => saveFileSearch());
+  // Typora closes the search when the Outline tab shows.
+  createEffect(on(() => ui.sidebarTab, (tab) => tab === "outline" && hideFileSearch(), { defer: true }));
 
   // The folder follows the document (Save As can move it); load it when first shown.
   createEffect(
@@ -100,6 +109,8 @@ export function Sidebar(props: SidebarProps) {
         "use-file-tree-style": ui.fileTree,
         "use-file-list-style": !ui.fileTree,
         "ty-no-mount-folder": info() !== null && !folder(),
+        "ty-show-search": ui.fileSearch.shown,
+        "ty-on-search": ui.fileSearch.query !== null,
       }}
       aria-hidden={!ui.sidebar}
     >
@@ -126,10 +137,16 @@ export function Sidebar(props: SidebarProps) {
           >
             Outline
           </div>
-          <div class="sidebar-tab-btn" />
+          <div class="sidebar-tab-btn" id="sidebar-search-btn" ty-hint="Search" onClick={() => showFileSearch(props.selectedText())}>
+            <span class="ion-ios7-search-strong" aria-label="Search">
+              <SearchIcon />
+            </span>
+          </div>
         </div>
+        <FileSearchTabs backend={props.backend} />
       </div>
       <div class="sidebar-content" id="sidebar-content">
+        <FileSearchResults folder={folder()} onOpenFile={props.onOpenFile} onOpenMatch={props.onOpenMatch} />
         <div id="outline-content" class="outline-content sidebar-content-content" data-after-content="Outline is Empty.">
           <For each={outlineTree(ui.outline)}>
             {(node) => <OutlineEntry node={node} onClick={props.onOutlineClick} />}

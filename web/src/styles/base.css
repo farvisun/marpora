@@ -524,6 +524,113 @@ content { transition-duration: 0.4s; }
   background: var(--primary-color);
 }
 
+/* The sidebar's Search (chrome/FileSearch.tsx): the box takes the tab bar's place and
+   the results the files'. */
+#sidebar-search-btn { font-size: 18px; margin-top: -2px; }
+#ty-sidebar-search-tabs,
+.ty-show-search .sidebar-tabs { display: none; }
+.ty-show-search #ty-sidebar-search-tabs { display: flex; position: relative; }
+#ty-sidebar-search-back-btn { text-align: center; font-size: 16px; opacity: 1; animation: none; }
+#file-library-search-input {
+  border: 0;
+  border-bottom: 1px solid #ccc;
+  border-radius: 0;
+  outline: 0;
+  appearance: none;
+  height: 22px;
+  padding: 1px 64px 1px 4px;
+  line-height: 16px;
+  margin: 8px 16px 10px 0;
+  width: 0;
+  flex: 1;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
+}
+#file-library-search-input:focus { border-color: var(--primary-color); }
+#file-library-search-input::-webkit-search-cancel-button { appearance: none; }
+.ty-show-search #file-library-search-input { animation: expandFromRight 0.3s; padding-right: 72px; }
+@keyframes expandFromRight { 0% { transform: scaleX(0.1); transform-origin: right; } 60% { transform: none; } }
+.ty-sidebar-search-panel svg.icon { width: 20px; height: 14px; stroke: none; fill: currentColor; }
+.ty-sidebar-search-panel .searchpanel-search-option-btn { top: 4px; opacity: 0.5; border: none; cursor: default; display: none; }
+#ty-sidebar-search-tabs .searchpanel-search-option-btn { top: 10px; }
+.ty-sidebar-search-panel .searchpanel-search-option-btn.select,
+.ty-sidebar-search-panel .searchpanel-search-option-btn:hover {
+  background: var(--active-file-bg-color);
+  color: var(--active-file-text-color);
+  opacity: 1;
+}
+#filesearch-case-option-btn { right: 64px; }
+#filesearch-word-option-btn { right: 42px; }
+#filesearch-regexp-option-btn { right: 20px; }
+#typora-sidebar.ty-on-search .searchpanel-search-option-btn,
+#typora-sidebar.ty-show-search:hover .searchpanel-search-option-btn { display: inline-block; }
+
+#file-library-search { height: 0; transition: height 0.25s; overflow: hidden; width: 100%; }
+#typora-sidebar.ty-on-search #file-library { display: none !important; }
+#typora-sidebar.ty-on-search #file-library-search { height: 100%; display: flex; flex-direction: column; }
+#file-library-search-result { overflow-y: auto; overflow-x: hidden; word-break: break-word; position: relative; display: none; }
+.ty-on-search #file-library-search-result { padding-bottom: 32px; display: block; }
+.ty-on-search #ty-sidebar-footer { display: none !important; }
+.ty-search-item { padding: 0; border-bottom: var(--window-border); transition: top 0.5s; }
+.ty-search-item-summary { line-height: 20px; padding-top: 6px; padding-bottom: 4px; position: relative; font-size: 13.5px; }
+.ty-search-item-summary .file-list-item-file-name { margin-bottom: 0; cursor: pointer; padding-left: 24px; flex: 1; }
+.ty-search-item-summary .file-list-item-parent-loc { display: block; padding-left: 24px; float: none; width: 90%; }
+.file-list-item-count {
+  padding-left: 0.5ch;
+  padding-right: 0.5ch;
+  margin-right: 6px;
+  border-radius: 2px;
+  display: inline-block;
+  background: var(--active-file-bg-color);
+  color: var(--active-file-text-color);
+  font-size: 13px;
+  margin-top: -4px;
+  margin-bottom: 0;
+  vertical-align: middle;
+}
+.ty-search-item-collapse-icon {
+  float: left;
+  cursor: pointer;
+  opacity: 0.5;
+  position: absolute;
+  padding-left: 1.5ch;
+  padding-right: 0.5ch;
+}
+.ty-search-item-collapse-icon:hover { opacity: 0.8; }
+.ty-search-item-collapse-icon svg { vertical-align: middle; margin-top: -3px; }
+.ty-search-item-collapse .fa-caret-down,
+.ty-search-item-collapse-icon .fa-caret-right { display: none; }
+.ty-search-item-collapse .ty-search-item-collapse-icon .fa-caret-right,
+.ty-search-item-expand .fa-caret-down { display: inline; }
+.ty-search-item-collapse .file-list-item-parent-loc,
+.ty-search-item-collapse .ty-search-item-matches { display: none; }
+.ty-search-item-matches { padding-bottom: 6px; }
+.ty-search-item-line {
+  padding: 0 0 0 24px;
+  white-space: pre;
+  font-size: 13px;
+  overflow: hidden;
+  font-family: Raleway, "Source Sans Pro", sans-serif;
+  word-break: normal;
+  cursor: pointer;
+}
+.ty-search-item-line.active,
+.ty-search-item-line:hover,
+.ty-search-item.active { background: var(--active-file-bg-color); color: var(--active-file-text-color); }
+.ty-search-item-line-more { display: none; }
+.ty-search-item-expand .ty-search-item-line-more { display: block; }
+.ty-search-item-expand .ty-search-item-line-expand { display: none; }
+.ty-search-item-line span,
+.ty-search-item-line-expand { opacity: 0.8; }
+.ty-search-item-line .ty-file-search-match-text { opacity: 1; }
+.ty-file-search-match-text { background-color: rgba(248, 192, 116, 0.3); }
+.ty-search-result-error-message { padding: 16px; }
+.outline-item.select,
+.ty-search-item-line.select,
+.ty-search-item.select { outline: 1px solid var(--primary-color); outline-offset: -3px; }
+
 /* Quick Open (chrome/QuickOpen.tsx) */
 #typora-quick-open {
   position: fixed;

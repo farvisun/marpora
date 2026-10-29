@@ -47,6 +47,33 @@ export interface Settings {
   /** "Group By Folder" turned off: one sorted list, folders mixed with files. */
   listNoGroup: boolean;
   treeNoGroup: boolean;
+  /** The sidebar Search's options. */
+  fileSearchCaseSensitive: boolean;
+  fileSearchWholeWord: boolean;
+  fileSearchUseRegexp: boolean;
+}
+
+/** A sidebar Search (src-tauri search.rs). */
+export interface FileSearchQuery {
+  text: string;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  regexp: boolean;
+}
+
+export interface FileSearchResults {
+  files: FileHit[];
+  /** The query is not a valid regular expression. */
+  error: string | null;
+  /** More files matched than were listed. */
+  more: boolean;
+}
+
+export interface FileHit {
+  path: string;
+  /** Matches in the lines found; 0 when only the file name matched. */
+  total: number;
+  lines: { line: number; text: string; ranges: [number, number][] }[];
 }
 
 /** A theme's CSS (src-tauri themes.rs). `css` is null for themes bundled with the app. */
@@ -118,6 +145,8 @@ export interface Backend {
   revealLibrary(): Promise<void>;
   /** Show recent folder `dir` in the sidebar, or one the user picks; false if cancelled. */
   switchLibraryFolder(dir?: string): Promise<boolean>;
+  /** Find in the library folder's Markdown files (the sidebar's Search). */
+  searchLibrary(query: FileSearchQuery): Promise<FileSearchResults>;
   /** Change some settings; every window hears about it through `onSettings`. */
   updateSettings(patch: Partial<Settings>): Promise<Settings>;
   applyPatch(docId: number, patch: Patch): Promise<PatchResult>;
@@ -185,6 +214,9 @@ export class MemoryBackend implements Backend {
     treeSort: 0,
     listNoGroup: false,
     treeNoGroup: false,
+    fileSearchCaseSensitive: false,
+    fileSearchWholeWord: false,
+    fileSearchUseRegexp: false,
   };
 
   constructor(private text = DEMO) {}
@@ -268,6 +300,31 @@ export class MemoryBackend implements Backend {
     this.library.root = dir;
     this.libraryLog.push("switch " + dir);
     return true;
+  }
+
+  async searchLibrary(q: FileSearchQuery): Promise<FileSearchResults> {
+    const escaped = q.regexp ? q.text : q.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let pattern: RegExp;
+    try {
+      pattern = new RegExp(q.wholeWord ? `\\b${escaped}\\b` : escaped, q.caseSensitive ? "g" : "gi");
+    } catch (e) {
+      return { files: [], error: String(e), more: false };
+    }
+    const files: FileHit[] = [];
+    for (const [path, text] of Object.entries(this.library.files).sort(([a], [b]) => (a < b ? -1 : 1))) {
+      const lines = text
+        .split("\n")
+        .map((line, i) => ({ line: i, text: line, ranges: [...line.matchAll(pattern)].map((m): [number, number] => [m.index, m.index + m[0].length]) }))
+        .filter((l) => l.ranges.length)
+        .slice(0, 21);
+      const total = lines.reduce((n, l) => n + l.ranges.length, 0);
+      pattern.lastIndex = 0;
+      if (lines.length) files.push({ path, total, lines });
+      else if (!q.regexp && pattern.test(path.slice(path.lastIndexOf("/") + 1)))
+        files.push({ path, total: 0, lines: [{ line: 0, text: text.split("\n")[0], ranges: [] }] });
+      pattern.lastIndex = 0;
+    }
+    return { files, error: null, more: false };
   }
 
   async updateSettings(patch: Partial<Settings>) {

@@ -2,7 +2,7 @@
 
 import type { Node as PMNode } from "prosemirror-model";
 import { createStore } from "solid-js/store";
-import type { Settings } from "../ipc";
+import type { FileSearchResults, Settings } from "../ipc";
 
 /** Sidebar state kept across reloads of the window (opening a file reloads it). */
 interface SidebarState {
@@ -69,6 +69,21 @@ export const [ui, setUi] = createStore({
   libraryVersion: 0,
   /** The sidebar's orders, from the settings (chrome/library.ts `SortType`). */
   librarySort: { listSort: 0, treeSort: 0, listNoGroup: false, treeNoGroup: false } as LibrarySort,
+  /** The sidebar's Search (chrome/librarySearch.ts). */
+  fileSearch: {
+    /** The search box is showing (`ty-show-search`). */
+    shown: false,
+    /** The search box's text. */
+    input: "",
+    /** The search that ran, if any (`ty-on-search`). */
+    query: null as string | null,
+    results: null as FileSearchResults | null,
+    options: { caseSensitive: false, wholeWord: false, regexp: false },
+    /** The result last opened: a file, or a line in it. */
+    active: null as { path: string; line: number | null } | null,
+    /** Bumped to focus the search box. */
+    focus: 0,
+  },
   /** The find and replace panel (chrome/search.ts). */
   search: {
     open: false,

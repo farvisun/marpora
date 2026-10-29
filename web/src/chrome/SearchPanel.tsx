@@ -217,6 +217,6 @@ function TextIcon(props: { text: string; underline?: boolean }) {
   );
 }
 
-const CaseIcon = () => <TextIcon text="Aa" />;
-const WordIcon = () => <TextIcon text="ab" underline />;
-const RegexpIcon = () => <TextIcon text="(.*)" />;
+export const CaseIcon = () => <TextIcon text="Aa" />;
+export const WordIcon = () => <TextIcon text="ab" underline />;
+export const RegexpIcon = () => <TextIcon text="(.*)" />;

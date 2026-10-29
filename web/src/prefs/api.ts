@@ -54,6 +54,9 @@ export class MemoryPrefs implements PrefsApi {
     treeSort: 0,
     listNoGroup: false,
     treeNoGroup: false,
+    fileSearchCaseSensitive: false,
+    fileSearchWholeWord: false,
+    fileSearchUseRegexp: false,
   };
   /** Actions taken, for tests. */
   log: string[] = [];

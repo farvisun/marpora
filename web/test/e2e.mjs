@@ -378,6 +378,42 @@ await lib.waitForTimeout(100);
 check("new file opens", (await opened()).at(-1) === "/home/me/notes/Untitled.md" && !(await lib.locator("#sidebar-files-menu").isVisible()),
   `${(await opened()).at(-1)} ${await lib.locator("#sidebar-files-menu").isVisible()}`);
 
+// The sidebar's Search (⇧⌘F): find in the folder's files.
+await lib.evaluate(() => window.marpora.handleMenu("search"));
+check("search box replaces the tabs", await lib.locator("#typora-sidebar.ty-show-search #file-library-search-input").isVisible() &&
+  !(await lib.locator(".sidebar-tabs").isVisible()) &&
+  (await lib.evaluate(() => document.activeElement.id)) === "file-library-search-input");
+const searchFor = async (text) => {
+  await lib.fill("#file-library-search-input", text);
+  await lib.press("#file-library-search-input", "Enter");
+  await lib.waitForSelector("#typora-sidebar.ty-on-search #file-library-search-result > *");
+};
+await searchFor("milk");
+const milk = lib.locator(".ty-search-item[data-path='/home/me/notes/todo.md']");
+check("search finds lines", (await lib.locator(".ty-search-item").count()) === 1 &&
+  (await milk.locator(".file-list-item-count").textContent()) === "1" &&
+  (await milk.locator(".ty-search-item-line").innerHTML()) === '<span>Buy </span><span class="ty-file-search-match-text">milk</span>' &&
+  !(await lib.locator("#file-library").isVisible()));
+await searchFor("welcome");
+check("search finds file names", (await lib.locator(".ty-search-item .file-list-item-file-name").innerHTML()).includes('<span class="ty-file-search-match-text">Welcome</span>') &&
+  (await lib.locator(".ty-search-item .file-list-item-count").textContent()) === "0" &&
+  (await lib.locator(".ty-search-item .ty-search-item-line").textContent()) === "---");
+await searchFor("zzz");
+check("no results", (await lib.locator(".ty-search-result-error-message").textContent()) === "No result found.");
+await lib.hover("#ty-sidebar-search-tabs");
+await lib.click("#filesearch-regexp-option-btn");
+await searchFor("(");
+check("bad regexp reported", (await lib.locator(".ty-search-result-error-message").count()) === 1 &&
+  (await lib.locator(".ty-search-result-error-message").textContent()) !== "No result found." &&
+  (await lib.evaluate(async () => (await window.marpora.backend.settings()).fileSearchUseRegexp)));
+await lib.click("#filesearch-regexp-option-btn");
+await searchFor("milk");
+await lib.click(".ty-search-item-line");
+check("result line opens its file", (await opened()).at(-1) === "/home/me/notes/todo.md" &&
+  (await lib.locator(".ty-search-item-line.active").count()) === 1);
+await lib.press("#file-library-search-input", "Escape");
+check("escape closes the search", !(await lib.locator("#typora-sidebar.ty-show-search").count()) && await lib.locator("#file-library").isVisible());
+
 await lib.click("#write");
 await lib.keyboard.press("Meta+Shift+o");
 await lib.waitForSelector("#typora-quick-open .typora-quick-open-item");

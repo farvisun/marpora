@@ -10,7 +10,10 @@ import { createEditor, runCommand } from "./editor/editor";
 import { DocSync } from "./editor/sync";
 import { connect, inTauri, report } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
-import { SourceMode } from "./chrome/source";
+import { blockOfLine, SourceMode } from "./chrome/source";
+import { fileSearchOptionsOf, onFileSearchHidden, restoreFileSearch, toggleFileSearch } from "./chrome/librarySearch";
+import { buildPattern } from "./chrome/search";
+import { setSearch } from "./editor/search";
 import { applyTheme } from "./chrome/theme";
 import { exportHtml } from "./export";
 import { refreshDiagrams } from "./editor/diagramview";
@@ -33,9 +36,11 @@ async function main() {
   };
   await showTheme(settings.theme);
   setUi("librarySort", librarySortOf(settings));
+  setUi("fileSearch", "options", fileSearchOptionsOf(settings));
   backend.onSettings((s) => {
     if (s.showHiddenFiles !== settings.showHiddenFiles) setUi("libraryVersion", (v) => v + 1);
     setUi("librarySort", librarySortOf(s));
+    setUi("fileSearch", "options", fileSearchOptionsOf(s));
     settings = s;
     if (s.theme !== ui.theme) void showTheme(s.theme);
   });
@@ -85,11 +90,48 @@ async function main() {
     await backend.openHere(path);
   };
 
+  /** Show the sidebar search's match at zero-based source `line`, as Typora does: the
+   * editor highlights the matches and selects the first one from that line's block. */
+  const gotoMatch = async (line: number) => {
+    const query = ui.fileSearch.query;
+    if (!query) return;
+    if (source.active && source.codeMirror) {
+      source.codeMirror.setCursor(line, 0);
+      source.codeMirror.scrollIntoView({ line, ch: 0 }, 100);
+      return;
+    }
+    await sync.flush();
+    const { text } = await backend.documentText(opened.id);
+    const block = blockOfLine(text, line);
+    let pos = 0;
+    for (let i = 0; i < block && i < view.state.doc.childCount; i++) pos += view.state.doc.child(i).nodeSize;
+    setSearch(view, buildPattern(query, ui.fileSearch.options), pos);
+  };
+  const GOTO_KEY = "marpora.searchGoto";
+  /** Open a sidebar search result; another file reloads the window, so the line waits
+   * in the session until it is back. */
+  const openMatch = async (path: string, line: number) => {
+    if (path === ui.path) return gotoMatch(line);
+    sessionStorage.setItem(GOTO_KEY, JSON.stringify({ path, line }));
+    await openFile(path);
+  };
+  onFileSearchHidden(() => {
+    if (!ui.search.open && !source.active) setSearch(view, null, view.state.selection.from, false);
+  });
+  const selectedText = () => {
+    const { from, to } = view.state.selection;
+    return view.state.doc.textBetween(from, to, "\n");
+  };
+
+  // Before the sidebar renders, which saves the search as it is.
+  restoreFileSearch(backend);
   render(
     () => (
       <App
         backend={backend}
         onOpenFile={(path) => void openFile(path).catch(report)}
+        onOpenMatch={(path, line) => void openMatch(path, line).catch(report)}
+        selectedText={selectedText}
         mountEditor={mountEditor}
         mountSource={(el) => (sourceHost = el)}
         onOutlineClick={(pos) => {
@@ -106,6 +148,13 @@ async function main() {
   );
   refresh();
   view.focus();
+  try {
+    const pending = JSON.parse(sessionStorage.getItem(GOTO_KEY) ?? "null");
+    sessionStorage.removeItem(GOTO_KEY);
+    if (pending && pending.path === ui.path) void gotoMatch(pending.line).catch(report);
+  } catch {
+    // No match to show.
+  }
   // A window opened on a folder starts with its files showing, as in Typora.
   if (!opened.path)
     void backend.libraryInfo().then((info) => {
@@ -187,6 +236,8 @@ async function main() {
       case "file-tree":
         setUi({ sidebarTab: "files", fileTree: id === "file-tree" });
         return setUi("sidebar", true);
+      case "search":
+        return toggleFileSearch(source.active ? "" : selectedText());
       case "quick-open":
         return setUi("quickOpen", !ui.quickOpen);
       case "focus-mode":
