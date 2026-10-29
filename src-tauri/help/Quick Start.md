@@ -52,6 +52,8 @@ Choose a model in **AI › AI Settings…**: the Anthropic API or any OpenAI-com
 
 - **AI › Ask AI…** (⇧⌘J) opens a prompt under the selection. Type what you want, or pick a preset such as *Improve Writing* or *Make Shorter*. With no selection it writes at the cursor. The answer streams into a preview: ↵ puts it in, ⌥↵ puts it below, Esc throws it away. One ⌘Z undoes it.
 - **AI › AI Chat** (⌥⌘J) opens a panel for questions about the document. Your selection goes with each question, and an answer can be inserted at the cursor or put in place of the selection.
+- Turn on **Folder** in the chat to ask about the other files in the sidebar's folder too. The model can then search, list and read the Markdown files in that folder (nothing outside it), and each step it takes shows in the chat.
+- **AI › Custom Prompts** runs prompts of your own. Each is a `.md` file in the prompts folder (**AI › Custom Prompts › Open Prompts Folder**): the file name is the prompt's name and its text is the instruction. They also show in Ask AI's list.
 
 ## Agents
 
@@ -63,6 +65,31 @@ codex mcp add marpora -- /Applications/Marpora.app/Contents/MacOS/marpora mcp
 ```
 
 The agent can then list, read and edit open documents, see what you have selected, open files and save them.
+
+To review agent edits before they land, set **Preferences › AI › Agent edits** to *Ask me first*. Each edit then shows the lines it changes, with **Accept**, **Reject** and **Always Allow** for that agent. **Forget Always-Allowed Agents** asks again.
+
+## Slides
+
+A document with `marp: true` in its front matter is a [Marp](https://marp.app) slide deck: `---` separates the slides, and comments such as `<!-- _class: lead -->` set directives. HTML comments that are not directives are the speaker notes.
+
+```markdown
+---
+marp: true
+theme: gaia
+---
+
+# First slide
+
+<!-- Notes for the first slide. -->
+
+---
+
+## Second slide
+```
+
+- **View › Slide Preview** (⌥⌘M) shows the slides beside the text and follows the cursor. Its theme menu sets the deck's `theme:`; to add themes, put Marp theme `.css` files in the folder its **Open Theme Folder** opens.
+- **View › Present Slides** (⌥⌘↩) opens the slides full screen with a presenter view: the current and next slide, the notes and a timer. → or Space goes on, ← goes back, B blacks the screen, Esc ends.
+- **File › Export › PDF** and **HTML** export a deck as its slides, one slide a page. **File › Export › PowerPoint (Slides)** makes a `.pptx` with one picture a slide and the notes as speaker notes.
 
 ## Themes
 
