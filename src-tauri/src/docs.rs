@@ -78,8 +78,65 @@ impl Docs {
         self.inner.lock().unwrap().docs.get_mut(&id).map(f)
     }
 
+    /// Follow a rename of `old` (a file or folder) to `new`: documents at or under it,
+    /// and sidebar folders under it, move with it. Returns the windows whose document
+    /// moved, with its new path.
+    pub fn renamed(&self, old: &Path, new: &Path) -> Vec<(String, PathBuf)> {
+        // Joining an empty rest would add a trailing slash.
+        let moved = |p: &Path| {
+            let rest = p.strip_prefix(old).ok()?;
+            Some(match rest.as_os_str().is_empty() {
+                true => new.to_path_buf(),
+                false => new.join(rest),
+            })
+        };
+        let mut inner = self.inner.lock().unwrap();
+        let Inner { docs, windows, .. } = &mut *inner;
+        let mut out = Vec::new();
+        for (label, id) in windows.iter() {
+            let Some(open) = docs.get_mut(id) else {
+                continue;
+            };
+            if let Some(dir) = open.folder.as_deref().and_then(moved) {
+                open.folder = Some(dir);
+            }
+            if let Some(path) = open.path.as_deref().and_then(moved) {
+                open.path = Some(path.clone());
+                out.push((label.clone(), path));
+            }
+        }
+        out
+    }
+
     /// True when no window shows a document yet (first launch).
     pub fn is_empty(&self) -> bool {
         self.inner.lock().unwrap().windows.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn open(path: &str) -> OpenDoc {
+        OpenDoc {
+            doc: Document::from_markdown(""),
+            path: Some(PathBuf::from(path)),
+            disk: String::new(),
+            folder: None,
+            draft: None,
+        }
+    }
+
+    #[test]
+    fn renames_follow_files_and_folders() {
+        let docs = Docs::default();
+        docs.insert("a", open("/n/Untitled.md"));
+        docs.insert("b", open("/n/sub/x.md"));
+        docs.insert("c", open("/n/Untitled.md.bak"));
+        let moved = docs.renamed(Path::new("/n/Untitled.md"), Path::new("/n/Plan.md"));
+        assert_eq!(moved, [("a".to_owned(), PathBuf::from("/n/Plan.md"))]);
+        let moved = docs.renamed(Path::new("/n/sub"), Path::new("/n/docs"));
+        assert_eq!(moved, [("b".to_owned(), PathBuf::from("/n/docs/x.md"))]);
     }
 }

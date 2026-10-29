@@ -70,6 +70,14 @@ export class TauriBackend implements Backend {
     return invoke<string>("new_library_file");
   }
 
+  renameLibraryFile(path: string, name: string) {
+    return invoke<string>("rename_library_file", { path, name });
+  }
+
+  onPathChanged(handler: (path: string) => void) {
+    void getCurrentWebviewWindow().listen<string>("path-changed", (e) => handler(e.payload));
+  }
+
   revealLibrary() {
     return invoke<void>("reveal_library");
   }

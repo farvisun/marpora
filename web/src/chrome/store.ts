@@ -67,6 +67,8 @@ export const [ui, setUi] = createStore({
   quickOpen: false,
   /** Bumped when the sidebar should list its folder again (Show hidden files changed). */
   libraryVersion: 0,
+  /** The sidebar file being renamed in place. */
+  renaming: null as string | null,
   /** The sidebar's orders, from the settings (chrome/library.ts `SortType`). */
   librarySort: { listSort: 0, treeSort: 0, listNoGroup: false, treeNoGroup: false } as LibrarySort,
   /** The sidebar's Search (chrome/librarySearch.ts). */

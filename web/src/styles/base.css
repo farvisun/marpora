@@ -373,6 +373,10 @@ content { transition-duration: 0.4s; }
   line-height: 22px;
 }
 .file-node-title { display: block; white-space: normal; overflow: hidden; }
+/* Inline rename (Typora's rules); the list swaps its name for the input instead. */
+.file-tree-rename-div { display: none; }
+.file-node-on-edit > .file-node-content > .file-node-title { display: none; }
+.file-node-on-edit > .file-node-content > .file-tree-rename-div { display: block; }
 .allow-file-tree-scroll .file-node-title { display: inline-block; white-space: nowrap; overflow-x: visible; overflow-y: hidden; }
 .file-node-content:hover { color: var(--control-text-hover-color); }
 .file-node-icon { margin-right: 4px; }

@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use marpora_core::{Patch, PatchError};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::docs::Docs;
@@ -536,6 +536,56 @@ pub fn new_library_file(window: WebviewWindow, docs: State<Docs>) -> CmdResult<S
         .open(&path)
         .map_err(|e| format!("could not create {}: {e}", path.display()))?;
     Ok(path_string(&path))
+}
+
+/// Rename `path`, a file or folder under the sidebar's folder, to `name` in the same
+/// folder (the sidebar's inline rename). Windows showing it, or a file in it, follow
+/// it. Returns the new path.
+#[tauri::command]
+pub fn rename_library_file(
+    app: AppHandle,
+    window: WebviewWindow,
+    path: String,
+    name: String,
+    docs: State<Docs>,
+) -> CmdResult<String> {
+    let root = library_root(&window, &docs).ok_or("no folder is open")?;
+    let old = std::fs::canonicalize(&path).map_err(|e| format!("could not find {path}: {e}"))?;
+    if old == root || !old.starts_with(&root) {
+        return Err(format!("{path} is not in the sidebar's folder"));
+    }
+    let name = library::clean_file_name(&name).ok_or("the name is empty")?;
+    let new = old.with_file_name(&name);
+    if new == old {
+        return Ok(path_string(&old));
+    }
+    // Another file; a change of case only names the same file on a case-insensitive disk.
+    if new.exists() && !same_file(&old, &new) {
+        return Err("File with same name already exists at target path.".into());
+    }
+    std::fs::rename(&old, &new).map_err(|e| format!("could not rename {path}: {e}"))?;
+    for (label, moved) in docs.renamed(&old, &new) {
+        if let Some(w) = app.get_webview_window(&label) {
+            windows::set_title(&w, Some(&moved));
+            let _ = w.emit_to(&label, "path-changed", path_string(&moved));
+        }
+    }
+    app.state::<watch::Watcher>().update(&app);
+    Ok(path_string(&new))
+}
+
+#[cfg(unix)]
+fn same_file(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (std::fs::metadata(a), std::fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn same_file(_a: &Path, _b: &Path) -> bool {
+    false
 }
 
 /// Show the sidebar's folder in Finder.

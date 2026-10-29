@@ -53,6 +53,7 @@ async function main() {
   });
   const { doc } = parseMarkdown(opened.text);
   setUi("path", opened.path);
+  backend.onPathChanged((path) => setUi("path", path));
 
   const sync = new DocSync(backend, opened.id, doc, opened.version);
   let view!: EditorView;

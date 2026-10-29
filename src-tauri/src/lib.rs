@@ -58,6 +58,7 @@ pub fn run() {
             commands::recent_folders,
             commands::search_library,
             commands::new_library_file,
+            commands::rename_library_file,
             commands::reveal_library,
             commands::switch_library_folder,
             commands::update_settings,

@@ -3,7 +3,7 @@
 // folder as an article list (the default) or a file tree. Themes style these ids and
 // classes, so they follow Typora's.
 
-import { createEffect, createMemo, createSignal, For, type JSX, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, type JSX, on, onMount, Show } from "solid-js";
 import { type Backend, type LibraryDoc, type LibraryEntry, type LibraryInfo, report } from "../ipc";
 import {
   abbreviate,
@@ -66,6 +66,20 @@ export function Sidebar(props: SidebarProps) {
   const shortPath = (path: string) => abbreviate(path, info()?.home ?? null);
 
   createEffect(() => saveSidebar());
+  // A new file reloads the window to open it; its rename starts once it is back.
+  const pending = sessionStorage.getItem(RENAME_KEY);
+  sessionStorage.removeItem(RENAME_KEY);
+  if (pending && pending === ui.path) setUi("renaming", pending);
+  /** Finish an inline rename; `name` is null when cancelled. */
+  const rename = async (path: string, name: string | null) => {
+    setUi("renaming", null);
+    if (name === null) return;
+    try {
+      if ((await props.backend.renameLibraryFile(path, name)) !== path) setUi("libraryVersion", (v) => v + 1);
+    } catch (e) {
+      report(e);
+    }
+  };
   createEffect(() => saveFileSearch());
   // Typora closes the search when the Outline tab shows.
   createEffect(
@@ -184,6 +198,7 @@ export function Sidebar(props: SidebarProps) {
                   list={listChildren}
                   title={shortPath}
                   onOpenFile={props.onOpenFile}
+                  onRename={rename}
                 />
               )}
             </Show>
@@ -214,7 +229,7 @@ export function Sidebar(props: SidebarProps) {
               <For each={groups()}>
                 {(group) => (
                   <For each={group.files}>
-                    {(file) => <ListItem file={file} title={shortPath} onOpenFile={props.onOpenFile} />}
+                    {(file) => <ListItem file={file} title={shortPath} onOpenFile={props.onOpenFile} onRename={rename} />}
                   </For>
                 )}
               </For>
@@ -281,9 +296,12 @@ function SidebarFooter(props: {
   const act = (run: () => Promise<unknown>) => (e: MouseEvent) => {
     if (e.button === 0) void run().catch(report);
   };
+  /** Typora opens a new file and lets its name be typed in place. */
   const newFile = async () => {
     const path = await props.backend.newLibraryFile();
     setUi("libraryVersion", (v) => v + 1);
+    sessionStorage.setItem(RENAME_KEY, path);
+    setUi("renaming", path);
     props.onOpenFile(path);
   };
   const switchFolder = async (dir?: string) => {
@@ -527,8 +545,56 @@ function OutlineEntry(props: { node: OutlineNode; onClick(pos: number): void }) 
   );
 }
 
-function ListItem(props: { file: LibraryDoc; title(path: string): string; onOpenFile(path: string): void }) {
+const RENAME_KEY = "marpora.rename";
+
+/** The box a file's name is typed into: Enter or leaving it renames, Esc cancels. The
+ * name without its extension starts selected, as in Finder. */
+function RenameInput(props: { name: string; class?: string; onDone(name: string | null): void }) {
+  let input!: HTMLInputElement;
+  let done = false;
+  const finish = (name: string | null) => {
+    if (done) return;
+    done = true;
+    props.onDone(name === props.name ? null : name);
+  };
+  onMount(() =>
+    requestAnimationFrame(() => {
+      // In the tree, Typora fits the box to the room left in the sidebar.
+      const div = input.parentElement;
+      const room = document.getElementById("sidebar-content")?.clientWidth;
+      if (div?.classList.contains("file-tree-rename-div") && room)
+        input.style.width = `${Math.max(140, Math.min(200, room - 48 - div.offsetLeft))}px`;
+      input.focus();
+      const dot = props.name.lastIndexOf(".");
+      input.setSelectionRange(0, dot > 0 ? dot : props.name.length);
+    }),
+  );
+  return (
+    <input
+      ref={input}
+      class={props.class}
+      type="text"
+      value={props.name}
+      spellcheck={false}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") finish(input.value);
+        else if (e.key === "Escape") finish(null);
+      }}
+      onBlur={() => finish(input.value)}
+    />
+  );
+}
+
+function ListItem(props: {
+  file: LibraryDoc;
+  title(path: string): string;
+  onOpenFile(path: string): void;
+  onRename(path: string, name: string | null): void;
+}) {
   const [name, ext] = splitName(props.file.name);
+  const renaming = () => ui.renaming === props.file.path;
   return (
     <div
       class="file-list-item file-library-node file-library-file-node"
@@ -536,14 +602,25 @@ function ListItem(props: { file: LibraryDoc; title(path: string): string; onOpen
       data-path={props.file.path}
       data-parent-path={props.file.folder}
       tabindex="-1"
-      onClick={() => props.onOpenFile(props.file.path)}
+      onClick={() => !renaming() && props.onOpenFile(props.file.path)}
     >
       <div class="file-list-item-parent-loc">{basename(props.file.folder)}</div>
       <div class="file-list-item-time">{naturalDate(new Date(props.file.modified))}</div>
-      <div class="file-list-item-file-name" title={props.title(props.file.path)}>
-        <span class="file-list-item-file-name-part">{name}</span>
-        <span class="file-list-item-file-ext-part">{ext}</span>
-      </div>
+      <Show
+        when={renaming()}
+        fallback={
+          <div class="file-list-item-file-name" title={props.title(props.file.path)}>
+            <span class="file-list-item-file-name-part">{name}</span>
+            <span class="file-list-item-file-ext-part">{ext}</span>
+          </div>
+        }
+      >
+        <RenameInput
+          class="file-list-item-file-name"
+          name={props.file.name}
+          onDone={(to) => props.onRename(props.file.path, to)}
+        />
+      </Show>
       <div class="file-list-item-summary">
         <For each={summaryLines(summaryOf(props.file.summary))}>
           {(line, i) => (
@@ -566,6 +643,7 @@ function TreeNode(props: {
   list(path: string): Promise<LibraryEntry[]>;
   title(path: string): string;
   onOpenFile(path: string): void;
+  onRename(path: string, name: string | null): void;
 }) {
   const e = props.entry;
   // Folders on the way to the open document start expanded, as in Typora.
@@ -576,7 +654,9 @@ function TreeNode(props: {
   });
   const [name, ext] = splitName(e.name, e.isDirectory);
   const expandable = () => e.isDirectory && !props.root && e.hasChildren;
+  const renaming = () => ui.renaming === e.path;
   const click = () => {
+    if (renaming()) return;
     if (!e.isDirectory) props.onOpenFile(e.path);
     else if (expandable()) setOpen(!open());
   };
@@ -588,6 +668,7 @@ function TreeNode(props: {
         "file-node-expanded": expandable() && open(),
         "file-node-collapsed": expandable() && !open(),
         "file-library-file-node": !e.isDirectory,
+        "file-node-on-edit": renaming(),
         active: e.path === ui.path,
       }}
       data-path={e.path}
@@ -608,11 +689,18 @@ function TreeNode(props: {
           <span class="file-node-title-name-part">{name}</span>
           <span class="file-node-title-ext-part">{ext}</span>
         </span>
+        <Show when={renaming()}>
+          <div class="file-tree-rename-div">
+            <RenameInput name={e.name} onDone={(to) => props.onRename(e.path, to)} />
+          </div>
+        </Show>
       </div>
       <div class="file-node-children">
         <Show when={open()}>
           <For each={sortEntries(children() ?? [], ui.librarySort.treeSort, ui.librarySort.treeNoGroup)}>
-            {(child) => <TreeNode entry={child} list={props.list} title={props.title} onOpenFile={props.onOpenFile} />}
+            {(child) => (
+              <TreeNode entry={child} list={props.list} title={props.title} onOpenFile={props.onOpenFile} onRename={props.onRename} />
+            )}
           </For>
         </Show>
       </div>

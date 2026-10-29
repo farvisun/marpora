@@ -277,6 +277,17 @@ pub fn remember_folder(app: &AppHandle, dir: &Path) {
     }
 }
 
+/// A file name typed into the sidebar, as Typora takes it on macOS: without slashes
+/// (and here control characters), trimmed. None when nothing usable is left.
+pub fn clean_file_name(name: &str) -> Option<String> {
+    let name: String = name
+        .chars()
+        .filter(|c| !matches!(c, '/' | '\\') && !c.is_control())
+        .collect();
+    let name = name.trim();
+    (!name.is_empty() && name != "." && name != "..").then(|| name.to_owned())
+}
+
 /// A free name for a new file in `dir`: `Untitled.md`, else one past the highest
 /// `Untitled N.md`, as Typora numbers them.
 pub fn untitled_name(dir: &Path) -> String {
@@ -377,6 +388,13 @@ mod tests {
         assert_eq!(docs.files.len(), 2);
         assert!(docs.oversize);
         assert_eq!(docs.files[0].summary, "");
+    }
+
+    #[test]
+    fn file_names_are_cleaned() {
+        assert_eq!(clean_file_name(" a/b\\c.md \n").as_deref(), Some("abc.md"));
+        assert_eq!(clean_file_name(" / "), None);
+        assert_eq!(clean_file_name(".."), None);
     }
 
     #[test]

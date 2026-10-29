@@ -143,6 +143,10 @@ export interface Backend {
   recentFolders(): Promise<string[]>;
   /** Create an untitled file in the library folder; returns its path. */
   newLibraryFile(): Promise<string>;
+  /** Rename `path`, in the library folder, to `name` in its folder; returns the new path. */
+  renameLibraryFile(path: string, name: string): Promise<string>;
+  /** The window's document moved (renamed in a sidebar); `path` is where it is now. */
+  onPathChanged(handler: (path: string) => void): void;
   /** Show the library folder in Finder. */
   revealLibrary(): Promise<void>;
   /** Show recent folder `dir` in the sidebar, or one the user picks; false if cancelled. */
@@ -295,6 +299,16 @@ export class MemoryBackend implements Backend {
     this.library.files[name()] = "";
     return name();
   }
+
+  async renameLibraryFile(path: string, name: string) {
+    const to = `${path.slice(0, path.lastIndexOf("/"))}/${name.replace(/[/\\]/g, "").trim()}`;
+    if (to !== path && to in this.library.files) throw new Error("File with same name already exists at target path.");
+    this.library.files = Object.fromEntries(Object.entries(this.library.files).map(([p, t]) => [p === path ? to : p, t]));
+    this.libraryLog.push(`rename ${path} ${to}`);
+    return to;
+  }
+
+  onPathChanged(_handler: (path: string) => void) {}
 
   async revealLibrary() {
     this.libraryLog.push("reveal");

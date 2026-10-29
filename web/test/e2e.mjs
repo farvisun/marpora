@@ -431,6 +431,16 @@ await lib.click("#new-file-from-sidebar-menu");
 await lib.waitForTimeout(100);
 check("new file opens", (await opened()).at(-1) === "/home/me/notes/Untitled.md" && !(await lib.locator("#sidebar-files-menu").isVisible()),
   `${(await opened()).at(-1)} ${await lib.locator("#sidebar-files-menu").isVisible()}`);
+const renameInput = lib.locator("#file-library-tree .file-node-on-edit > .file-node-content > .file-tree-rename-div > input");
+const renameReady = await renameInput.waitFor({ timeout: 3000 }).then(() => true, () => false);
+const renameState = renameReady && await renameInput.evaluate((i) => [document.activeElement === i, i.value, i.selectionStart, i.selectionEnd].join());
+check("new file starts a rename", renameState === "true,Untitled.md,0,8", String(renameState));
+await lib.keyboard.type("Plan");
+await lib.keyboard.press("Enter");
+await lib.waitForTimeout(100);
+check("rename renames", (await lib.evaluate(() => window.marpora.backend.libraryLog.at(-1))) === "rename /home/me/notes/Untitled.md /home/me/notes/Plan.md" &&
+  (await renameInput.count()) === 0 && (await lib.locator("#file-library-tree .file-tree-node[data-path='/home/me/notes/Plan.md']").count()) === 1,
+  await lib.evaluate(() => window.marpora.backend.libraryLog.join()));
 
 // The sidebar's Search (⇧⌘F): find in the folder's files.
 await lib.evaluate(() => window.marpora.handleMenu("search"));
@@ -487,7 +497,7 @@ await lib.hover("#file-library-tree");
 await lib.click("#sidebar-menu-btn .sidebar-footer-item");
 await lib.click(".folder-menu-item[data-path='/home/me/other'] a");
 await lib.waitForFunction(() => document.querySelector("#sidebar-footer-main-item-label").textContent.trim() === "other");
-check("recent location switches the folder", (await lib.evaluate(() => window.marpora.backend.libraryLog)).join() === "switch /home/me/other");
+check("recent location switches the folder", (await lib.evaluate(() => window.marpora.backend.libraryLog.at(-1))) === "switch /home/me/other");
 
 await lib.reload();
 await lib.waitForSelector("#write");
