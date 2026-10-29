@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type {
   Backend,
@@ -88,6 +89,19 @@ export class TauriBackend implements Backend {
 
   renameLibraryFile(path: string, name: string) {
     return invoke<string>("rename_library_file", { path, name });
+  }
+
+  saveImage(docId: number, data: Uint8Array, ext: string) {
+    return invoke<string>("save_image", data, { headers: { "x-doc-id": String(docId), "x-ext": ext } });
+  }
+
+  onFileDrop(handler: (paths: string[], x: number, y: number) => void) {
+    void getCurrentWebview().onDragDropEvent((e) => {
+      if (e.payload.type !== "drop") return;
+      // Physical pixels from the window's corner; the page measures in CSS pixels.
+      const scale = window.devicePixelRatio || 1;
+      handler(e.payload.paths, e.payload.position.x / scale, e.payload.position.y / scale);
+    });
   }
 
   onPathChanged(handler: (path: string) => void) {

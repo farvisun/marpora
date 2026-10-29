@@ -2,6 +2,7 @@
 
 mod commands;
 mod docs;
+mod images;
 mod library;
 mod menu;
 mod pandoc;
@@ -59,6 +60,7 @@ pub fn run() {
             commands::search_library,
             commands::new_library_file,
             commands::rename_library_file,
+            commands::save_image,
             commands::duplicate_library_file,
             commands::trash_library_file,
             commands::reveal_library_file,

@@ -94,6 +94,36 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
       ],
     },
     {
+      name: "Image",
+      icon: ImageIcon,
+      groups: [
+        {
+          title: "When Insert…",
+          items: [
+            {
+              kind: "select",
+              label: "When Insert…",
+              options: () => {
+                const options: [string, string][] = [
+                  ["", "No special action"],
+                  ["folder", "Copy image to current folder (./)"],
+                  ["assets", "Copy image to ./assets"],
+                  ["per-file-assets", "Copy image to ./${filename}.assets"],
+                ];
+                // A folder of the user's own, set in settings.json, stays listed.
+                const custom = settings().imageStorage;
+                if (!options.some(([v]) => v === custom)) options.push([custom, `Copy image to ${custom}`]);
+                return options;
+              },
+              value: (s) => s.imageStorage,
+              change: (v) => update({ imageStorage: v }),
+            },
+          ],
+        },
+        { title: "Preferred Image Syntax", items: [check("Use relative path if possible", "useRelativeImagePath")] },
+      ],
+    },
+    {
       name: "Markdown",
       icon: MarkdownIcon,
       note: "(Following preferences will be applied after restart.)",
@@ -311,6 +341,14 @@ function FilesIcon() {
   return (
     <svg viewBox="0 0 19 18">
       <path d="M5 1h6l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm5.5 1v3.5H14zM6.5 9v1.3h6V9zm0 3v1.3h6V12zm0-6v1.3H9V6z" fill-rule="evenodd" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 19 18">
+      <path d="M2.5 3h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-14a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm.5 1.5v7.7L6.6 8.6 9.4 11.4 12.4 8.4 16 12V4.5zM12 5.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" fill-rule="evenodd" />
     </svg>
   );
 }

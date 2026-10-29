@@ -8,6 +8,7 @@ import { EditorState, type Plugin } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { commands } from "./commands";
 import { focusPlugin } from "./focus";
+import { type ClipboardOptions, clipboardPlugin } from "./clipboard";
 import { highlightPlugin } from "./highlight";
 import { htmlPlugin } from "./html";
 import { markdownInputRules } from "./inputrules";
@@ -19,7 +20,7 @@ import { revealPlugin } from "./reveal";
 import { searchPlugin } from "./search";
 import { tasksPlugin } from "./tasks";
 
-export interface EditorOptions extends ViewContext {
+export interface EditorOptions extends ViewContext, ClipboardOptions {
   doc: PMNode;
   plugins?: Plugin[];
   onChange?: (view: EditorView) => void;
@@ -44,6 +45,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       mathPlugin,
       htmlPlugin,
       searchPlugin,
+      clipboardPlugin(opts),
       ...(opts.plugins ?? []),
     ],
   });

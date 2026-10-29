@@ -42,6 +42,11 @@ pub struct Settings {
     pub file_search_use_regexp: bool,
     /// View › Status Bar: the word count and the buttons at the bottom of each window.
     pub show_status_bar: bool,
+    /// Where pasted images go (images.rs `storage_dir`): "" for the app's folder,
+    /// "folder", "assets", "per-file-assets", or a path that may hold `${filename}`.
+    pub image_storage: String,
+    /// Refer to images inside the document's folder by relative paths.
+    pub use_relative_image_path: bool,
 }
 
 impl Default for Settings {
@@ -63,6 +68,8 @@ impl Default for Settings {
             file_search_whole_word: false,
             file_search_use_regexp: false,
             show_status_bar: true,
+            image_storage: String::new(),
+            use_relative_image_path: true,
         }
     }
 }

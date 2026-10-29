@@ -315,6 +315,61 @@ check("source mode find", (await searchStatus()) === "1 / 1" && sourceHits.join(
 await inline.keyboard.press("Escape");
 await inline.evaluate(() => window.marpora.handleMenu("source-mode"));
 
+// Copy and paste: Markdown as the plain text, Markdown read back, pasted images stored.
+const clip = await inline.evaluate(async () => {
+  const m = window.marpora;
+  const { view } = m;
+  await m.backend.setText(1, "# Head\n\nSome **bold** and $x^2$ text.\n\n- one\n- two\n");
+  await m.sync.resync();
+  const Sel = view.state.selection.constructor;
+  const at = (text) => {
+    let pos = -1;
+    view.state.doc.descendants((n, p) => { if (pos < 0 && n.isText && n.text.includes(text)) pos = p + n.text.indexOf(text); });
+    return pos;
+  };
+  const copy = (from, to) => {
+    view.dispatch(view.state.tr.setSelection(Sel.between(view.state.doc.resolve(from), view.state.doc.resolve(to))));
+    const dt = new DataTransfer();
+    view.dom.dispatchEvent(new ClipboardEvent("copy", { clipboardData: dt, bubbles: true, cancelable: true }));
+    return { text: dt.getData("text/plain"), html: dt.getData("text/html") };
+  };
+  const paste = (fill) => {
+    const dt = new DataTransfer();
+    fill(dt);
+    view.dom.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+  };
+  const inline = copy(at("Some"), at(" text.") + 6).text;
+  const list = copy(at("one"), at("two") + 3).text;
+  const both = copy(at("bold"), at("two") + 3);
+  let codeText = "";
+  { const save = view.state.doc;
+    view.dispatch(view.state.tr.insert(view.state.doc.content.size, m.view.state.schema.nodes.code_block.create({ info: "js" }, m.view.state.schema.text("let a = 1;"))));
+    codeText = copy(at("a = 1"), at("a = 1") + 5).text;
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, save.content)); }
+  // Paste the copied HTML at the end: it comes back from its Markdown, math included.
+  view.dispatch(view.state.tr.setSelection(Sel.atEnd(view.state.doc)));
+  paste((dt) => { dt.setData("text/html", both.html); dt.setData("text/plain", both.text); });
+  await m.sync.flush();
+  const afterHtml = (await m.backend.documentText(1)).text;
+  await m.backend.setText(1, "Start end\n");
+  await m.sync.resync();
+  view.dispatch(view.state.tr.setSelection(Sel.near(view.state.doc.resolve(at(" end")))));
+  paste((dt) => dt.setData("text/plain", " *mid* `c`"));
+  view.dispatch(view.state.tr.setSelection(Sel.atEnd(view.state.doc)));
+  paste((dt) => dt.items.add(new File([new Uint8Array([137, 80, 78, 71])], "shot.png", { type: "image/png" })));
+  await new Promise((r) => setTimeout(r, 100));
+  await m.sync.flush();
+  return { inline, list, codeText, afterHtml, pasted: (await m.backend.documentText(1)).text, images: [...m.backend.images.keys()].join() };
+});
+check("copy gives markdown", clip.inline === "Some **bold** and $x^2$ text.", JSON.stringify(clip.inline));
+check("copy in code is the code", clip.codeText === "a = 1", JSON.stringify(clip.codeText));
+check("copy keeps list items in their list", clip.list === "- one\n- two", JSON.stringify(clip.list));
+check("paste from the editor keeps math", clip.afterHtml.includes("**bold** and $x^2$ text.") && clip.afterHtml.trimEnd().endsWith("- two"),
+  JSON.stringify(clip.afterHtml));
+check("plain text pastes as markdown inline", clip.pasted.startsWith("Start *mid* `c` end"), JSON.stringify(clip.pasted));
+check("pasted image is stored and shown", clip.images === "/images/image-1.png" && clip.pasted.includes("![image-1](/images/image-1.png)"),
+  JSON.stringify(clip));
+
 // Raw HTML: blocks render sanitized, inline tag pairs render their element.
 await inline.evaluate(async () => {
   const m = window.marpora;
@@ -579,7 +634,7 @@ prefs.on("pageerror", (e) => errors.push(e.message));
 await prefs.goto((process.env.URL ?? "http://localhost:1420/") + "preferences.html");
 await prefs.waitForSelector(".nav-group-item");
 const prefsLog = () => prefs.evaluate(() => window.marporaPrefs.log);
-check("prefs: categories", (await prefs.locator(".nav-group-item").allTextContents()).join(",") === "Files,Markdown,Appearance,General");
+check("prefs: categories", (await prefs.locator(".nav-group-item").allTextContents()).join(",") === "Files,Image,Markdown,Appearance,General");
 check("prefs: Files shown first", await prefs.locator(".content[data-index='0'] .input-group-header-title").first().textContent() === "Save & Recover" &&
   (await prefs.locator(".content:not(.display-none)").count()) === 1);
 await prefs.getByLabel("Auto Save").check();
@@ -591,14 +646,17 @@ await prefs.click(".nav-group-item:text('Markdown')");
 await prefs.getByLabel(/Highlight/).check();
 check("prefs: flavor change keeps the others", JSON.stringify(await prefs.evaluate(() => window.marporaPrefs.current.flavor)) ===
   JSON.stringify({ inlineMath: false, highlight: true, subscript: false, superscript: false }));
-await prefs.selectOption(".content[data-index='1'] select", "false");
+await prefs.selectOption(".content[data-index='2'] select", "false");
 check("prefs: math numbering", (await prefs.evaluate(() => window.marporaPrefs.current.autoNumberMath)) === false);
+await prefs.click(".nav-group-item:text('Image')");
+await prefs.selectOption(".content[data-index='1'] select", "per-file-assets");
+check("prefs: image storage", (await prefs.evaluate(() => window.marporaPrefs.current.imageStorage)) === "per-file-assets");
 await prefs.click(".nav-group-item:text('Appearance')");
-await prefs.selectOption(".content[data-index='2'] select", "marpora-night");
+await prefs.selectOption(".content[data-index='3'] select", "marpora-night");
 check("prefs: theme", (await prefs.evaluate(() => window.marporaPrefs.current.theme)) === "marpora-night");
 await prefs.fill(".search-input", "recent");
 check("prefs: search marks matches", (await prefs.locator(".input-group.search-hit .input-group-header-title").allTextContents()).join() === "Recent Locations" &&
-  (await prefs.locator(".nav-group-item.no-search-hit").allTextContents()).join() === "Markdown,Appearance,General");
+  (await prefs.locator(".nav-group-item.no-search-hit").allTextContents()).join() === "Image,Markdown,Appearance,General");
 await prefs.fill(".search-input", "zzz");
 check("prefs: no results", (await prefs.locator(".no-results:not(.display-none)").textContent()) === 'No results found for "zzz"');
 await prefs.click(".clear-btn-icon");

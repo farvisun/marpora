@@ -10,6 +10,7 @@ use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::docs::Docs;
+use crate::images;
 use crate::library::{self, Recent};
 use crate::save::{self, Autosave};
 use crate::search::{self, Searches};
@@ -690,6 +691,43 @@ fn same_file(a: &Path, b: &Path) -> bool {
 #[cfg(not(unix))]
 fn same_file(_a: &Path, _b: &Path) -> bool {
     false
+}
+
+/// Store a pasted image (the request's body, an `x-ext` file) for document `x-doc-id`
+/// where the image setting says; returns how the document refers to it.
+#[tauri::command]
+pub fn save_image(
+    app: AppHandle,
+    request: tauri::ipc::Request<'_>,
+    docs: State<Docs>,
+    store: State<Store>,
+) -> CmdResult<String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("expected the image's bytes".into());
+    };
+    let header = |name: &str| request.headers().get(name).and_then(|v| v.to_str().ok());
+    let id: u64 = header("x-doc-id")
+        .and_then(|v| v.parse().ok())
+        .ok_or("no document given")?;
+    let doc = docs
+        .with(id, |open| open.path.clone())
+        .ok_or("document closed")?;
+    let settings = store.get();
+    let user_images = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("user-images");
+    let dir = images::storage_dir(&settings.image_storage, doc.as_deref(), &user_images);
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let path = dir.join(images::file_name(header("x-ext").unwrap_or("png"))?);
+    std::fs::write(&path, bytes).map_err(|e| format!("could not write {}: {e}", path.display()))?;
+    Ok(images::src_for(
+        &path,
+        doc.as_deref(),
+        settings.use_relative_image_path,
+    ))
 }
 
 /// Show the sidebar's folder in Finder.

@@ -53,6 +53,10 @@ export interface Settings {
   fileSearchUseRegexp: boolean;
   /** View › Status Bar. */
   showStatusBar: boolean;
+  /** Where pasted images go: "", "folder", "assets", "per-file-assets" or a path (src-tauri images.rs). */
+  imageStorage: string;
+  /** Refer to images in the document's folder by relative paths. */
+  useRelativeImagePath: boolean;
 }
 
 /** A sidebar Search (src-tauri search.rs). */
@@ -155,6 +159,10 @@ export interface Backend {
   renameLibraryFile(path: string, name: string): Promise<string>;
   /** The window's document moved (renamed in a sidebar); `path` is where it is now. */
   onPathChanged(handler: (path: string) => void): void;
+  /** Store a pasted image (`ext`: png, jpg, ...) for document `docId`; returns its path for the document. */
+  saveImage(docId: number, data: Uint8Array, ext: string): Promise<string>;
+  /** Files dropped on the window from Finder, at a point in the page. */
+  onFileDrop(handler: (paths: string[], x: number, y: number) => void): void;
   /** Show the library folder in Finder. */
   revealLibrary(): Promise<void>;
   /** Show recent folder `dir` in the sidebar, or one the user picks; false if cancelled. */
@@ -234,6 +242,8 @@ export class MemoryBackend implements Backend {
     fileSearchWholeWord: false,
     fileSearchUseRegexp: false,
     showStatusBar: true,
+    imageStorage: "",
+    useRelativeImagePath: true,
   };
 
   constructor(private text = DEMO) {}
@@ -338,6 +348,17 @@ export class MemoryBackend implements Backend {
   }
 
   onPathChanged(_handler: (path: string) => void) {}
+
+  /** Test hook: pasted images, as path to size. */
+  images = new Map<string, number>();
+
+  async saveImage(_docId: number, data: Uint8Array, ext: string) {
+    const path = `/images/image-${this.images.size + 1}.${ext}`;
+    this.images.set(path, data.length);
+    return path;
+  }
+
+  onFileDrop(_handler: (paths: string[], x: number, y: number) => void) {}
 
   async revealLibrary() {
     this.libraryLog.push("reveal");

@@ -6,6 +6,7 @@ import { render } from "solid-js/web";
 import { App } from "./chrome/App";
 import { basename } from "./chrome/library";
 import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
+import { dropFiles, imageExtension } from "./editor/clipboard";
 import { createEditor, runCommand } from "./editor/editor";
 import { DocSync } from "./editor/sync";
 import { connect, inTauri, report } from "./ipc";
@@ -79,6 +80,8 @@ async function main() {
       doc,
       plugins: [sync.plugin()],
       assetUrl: (src) => backend.assetUrl(ui.path, src),
+      saveImage: async (image) =>
+        backend.saveImage(opened.id, new Uint8Array(await image.arrayBuffer()), imageExtension(image.type) ?? "png"),
       onChange: (v) => {
         const head = v.state.selection.head;
         setUi("activeHeading", ui.outline.findLastIndex((h) => h.pos <= head));
@@ -183,6 +186,12 @@ async function main() {
     }
     await backend.reloadDocument(opened.id);
   };
+  backend.onFileDrop((paths, x, y) => {
+    if (source.active) return;
+    const dir = ui.path ? ui.path.slice(0, ui.path.lastIndexOf("/") + 1) : null;
+    const src = (p: string) => (settings.useRelativeImagePath && dir && p.startsWith(dir) ? p.slice(dir.length) : p);
+    dropFiles(view, paths, x, y, src, (p) => void openFile(p).catch(report));
+  });
   backend.onDiskChanged((id) => {
     if (id === opened.id)
       void reloadFromDisk("File content is changed by external applications. Reload content from disk ?").catch(report);

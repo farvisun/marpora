@@ -58,6 +58,8 @@ export class MemoryPrefs implements PrefsApi {
     fileSearchWholeWord: false,
     fileSearchUseRegexp: false,
     showStatusBar: true,
+    imageStorage: "",
+    useRelativeImagePath: true,
   };
   /** Actions taken, for tests. */
   log: string[] = [];
