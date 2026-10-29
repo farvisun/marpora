@@ -354,7 +354,7 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
                 </td>
                 <td>
                   <div class="row">
-                    <select value={it().value(settings())} onChange={(e) => it().change(e.currentTarget.value)}>
+                    <select aria-label={it().label} value={it().value(settings())} onChange={(e) => it().change(e.currentTarget.value)}>
                       <For each={it().options()}>
                         {([value, label]) => (
                           <option value={value} selected={value === it().value(settings())}>
