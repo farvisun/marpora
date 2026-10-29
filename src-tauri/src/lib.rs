@@ -28,7 +28,13 @@ use std::path::PathBuf;
 use tauri::{Manager, RunEvent, WindowEvent};
 
 pub fn run() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Debug builds: `MARPORA_BACKGROUND` starts the app without taking the front (see
+    // the activation policy in setup and windows.rs).
+    #[cfg(all(debug_assertions, target_os = "macos"))]
+    let builder =
+        builder.activate_ignoring_other_apps(std::env::var_os("MARPORA_BACKGROUND").is_none());
+    let app = builder
         .plugin(tauri_plugin_dialog::init())
         .manage(docs::Docs::default())
         .manage(watch::Watcher::default())
@@ -128,6 +134,12 @@ pub fn run() {
                 std::thread::spawn(move || save::prune_drafts(&dir));
             }
             app.set_menu(menu::build(app.handle())?)?;
+            // Debug builds: `MARPORA_BACKGROUND` keeps the app from ever coming to the
+            // front, so checks of the real app leave the user's typing alone.
+            #[cfg(all(debug_assertions, target_os = "macos"))]
+            if std::env::var_os("MARPORA_BACKGROUND").is_some() {
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
             #[cfg(target_os = "macos")]
             if let Some(mtm) = objc2_foundation::MainThreadMarker::new() {
                 native_menu::install(mtm);

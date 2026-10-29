@@ -105,12 +105,19 @@ pub fn open_preferences(app: &AppHandle, panel: Option<&str>) -> tauri::Result<(
     builder.build()?.set_focus()
 }
 
+/// Debug builds: `MARPORA_BACKGROUND` opens windows without focus and keeps the app
+/// from the front (lib.rs), for checks of the real app while the user works.
+fn background() -> bool {
+    cfg!(debug_assertions) && std::env::var_os("MARPORA_BACKGROUND").is_some()
+}
+
 fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<WebviewWindow> {
     let (width, height) = window_size();
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title(title)
         .inner_size(width, height)
-        .min_inner_size(420.0, 300.0);
+        .min_inner_size(420.0, 300.0)
+        .focused(!background());
     #[cfg(target_os = "macos")]
     let builder = builder.tabbing_identifier("marpora-documents");
     // Debug builds: run `MARPORA_INIT_JS` once the editor is up (parity captures).
@@ -130,7 +137,9 @@ fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<WebviewWi
     if std::env::var_os("MARPORA_DEVTOOLS").is_some() {
         window.open_devtools();
     }
-    window.set_focus()?;
+    if !background() {
+        window.set_focus()?;
+    }
     #[cfg(target_os = "macos")]
     {
         tab_button::install(app);
