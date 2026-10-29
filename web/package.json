@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "node test/e2e.mjs",
-    "tauri": "tauri"
+    "tauri": "cd .. && tauri"
   },
   "dependencies": {
     "@marp-team/marp-core": "4.4.0",
