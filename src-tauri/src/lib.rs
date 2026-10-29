@@ -24,6 +24,7 @@ mod save;
 mod search;
 mod settings;
 mod themes;
+mod updater;
 mod watch;
 mod windows;
 
@@ -40,6 +41,8 @@ pub fn run() {
         builder.activate_ignoring_other_apps(std::env::var_os("MARPORA_BACKGROUND").is_none());
     let app = builder
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updater::Restarting::default())
         .manage(docs::Docs::default())
         .manage(watch::Watcher::default())
         .manage(menu::Quitting::default())
@@ -197,6 +200,10 @@ pub fn run() {
             if app.state::<docs::Docs>().is_empty() {
                 let _ = windows::open(app, None);
             }
+            // Release builds look for an update once a launch, and say so only when
+            // there is one.
+            #[cfg(not(debug_assertions))]
+            updater::check(app, true);
             // Debug builds: open Preferences too (parity captures; menus can't be scripted).
             #[cfg(debug_assertions)]
             if std::env::var_os("MARPORA_OPEN_PREFS").is_some() {

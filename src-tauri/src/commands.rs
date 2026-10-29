@@ -1216,10 +1216,14 @@ pub(crate) fn system_open(target: &std::ffi::OsStr) -> CmdResult<()> {
         .map_err(|e| format!("could not open {}: {e}", target.display()))
 }
 
-/// The user cancelled closing a window, so File › Quit stops.
+/// The user cancelled closing a window, so File › Quit (or relaunching for an update)
+/// stops.
 #[tauri::command]
-pub fn cancel_quit(quitting: State<menu::Quitting>) {
+pub fn cancel_quit(quitting: State<menu::Quitting>, restarting: State<crate::updater::Restarting>) {
     quitting.0.store(false, std::sync::atomic::Ordering::SeqCst);
+    restarting
+        .0
+        .store(false, std::sync::atomic::Ordering::SeqCst);
 }
 
 /// Frontend errors, printed where `tauri dev` shows them.

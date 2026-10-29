@@ -668,6 +668,13 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         "Marpora",
         vec![
             Box::new(PredefinedMenuItem::about(app, Some("About Marpora"), None)?),
+            Box::new(MenuItem::with_id(
+                app,
+                "check-updates",
+                "Check for Updates…",
+                true,
+                None::<&str>,
+            )?),
             Box::new(PredefinedMenuItem::separator(app)?),
             Box::new(MenuItem::with_id(
                 app,
@@ -1181,6 +1188,7 @@ pub fn handle(app: &AppHandle, id: &str) {
             }
         }
         "quit" => quit(app),
+        "check-updates" => crate::updater::check(app, false),
         "import" => import(app),
         _ if HELP_DOCS.iter().any(|(help, ..)| *help == id) => {
             if let Some((_, name, text)) = HELP_DOCS.iter().find(|(help, ..)| *help == id) {
@@ -1322,7 +1330,7 @@ pub struct Quitting(pub AtomicBool);
 
 /// Close the windows, the focused one first; each asks about unsaved edits and may
 /// cancel the quit (`cancel_quit`). The app exits when the last one is gone.
-fn quit(app: &AppHandle) {
+pub fn quit(app: &AppHandle) {
     app.state::<Quitting>().0.store(true, Ordering::SeqCst);
     close_next(app, None);
 }
@@ -1344,6 +1352,14 @@ pub fn close_next(app: &AppHandle, closed: Option<&str>) {
     match next {
         Some(window) => {
             let _ = window.close();
+        }
+        // The last window is gone; an installed update starts in a new process.
+        None if app
+            .state::<crate::updater::Restarting>()
+            .0
+            .load(Ordering::SeqCst) =>
+        {
+            app.restart()
         }
         None => app.exit(0),
     }
