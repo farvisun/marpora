@@ -4,7 +4,7 @@ import type { EditorView } from "prosemirror-view";
 import { TextSelection } from "prosemirror-state";
 import { render } from "solid-js/web";
 import { App } from "./chrome/App";
-import { basename } from "./chrome/library";
+import { basename, dirname } from "./chrome/library";
 import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { dropFiles, imageExtension, insertImages } from "./editor/clipboard";
 import { insertTable } from "./editor/commands";
@@ -13,7 +13,8 @@ import { setWhitespace } from "./editor/whitespace";
 import { trackContextMenu } from "./editor/contextmenu";
 import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
-import { imageAt, removeImage, setImageSrc, setImageZoom, switchImageSyntax } from "./editor/imagetools";
+import { imageAt, imageNode, removeImage, setImageSrc, setImageZoom, switchImageSyntax, withSrc } from "./editor/imagetools";
+import { frontMatterValue, rootedSrc, setFrontMatterValue } from "./editor/frontmatter";
 import { DocSync } from "./editor/sync";
 import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
@@ -22,7 +23,7 @@ import { fileSearchOptionsOf, onFileSearchHidden, restoreFileSearch, toggleFileS
 import { buildPattern } from "./chrome/search";
 import { setSearch } from "./editor/search";
 import { applyTheme } from "./chrome/theme";
-import { exportHtml } from "./export";
+import { exportHtml, relative } from "./export";
 import { refreshDiagrams } from "./editor/diagramview";
 import { clearMathCache, setMathOptions } from "./math";
 import { initMarkdown, parseMarkdown, setFlavor } from "./md";
@@ -65,6 +66,7 @@ async function main() {
 
   const sync = new DocSync(backend, opened.id, doc, opened.version);
   let view!: EditorView;
+  let imageRoot = frontMatterValue(doc, "typora-root-url");
   let sourceHost!: HTMLElement;
   const source = new SourceMode(backend, opened.id, sync, () => view, () => sourceHost);
   const search = new Search(() =>
@@ -100,11 +102,17 @@ async function main() {
     view = createEditor(el, {
       doc,
       plugins: [sync.plugin()],
-      assetUrl: (src) => backend.assetUrl(ui.path, src),
+      assetUrl: (src) => backend.assetUrl(ui.path, rootedSrc(src, imageRoot)),
       openLink: (href) => backend.openLink(href),
       saveImage: async (image) =>
         backend.saveImage(opened.id, new Uint8Array(await image.arrayBuffer()), imageExtension(image.type) ?? "png"),
       onChange: (v) => {
+        // Format › Image › Use Image Root Path: images under `/` move with the root.
+        const root = frontMatterValue(v.state.doc, "typora-root-url");
+        if (root !== imageRoot) {
+          imageRoot = root;
+          redraw(v);
+        }
         const head = v.state.selection.head;
         setUi("activeHeading", ui.outline.findLastIndex((h) => h.pos <= head));
         if (!refreshTimer) refreshTimer = setTimeout(refresh, 150);
@@ -251,21 +259,70 @@ async function main() {
   const imageFile = async (id: string) => {
     const at = imageAt(view.state);
     if (!at) return;
+    const file = rootedSrc(at.src, imageRoot);
     if (id === "image-copy-to" || id === "image-move-to") {
-      const src = await backend.relocateImage(at.src, id === "image-copy-to");
-      // The document may have changed while the dialog was up.
+      const src = await backend.relocateImage(file, id === "image-copy-to");
+      // The image now refers to the new file; the document may have changed meanwhile.
       const now = imageAt(view.state);
-      if (src !== null && id === "image-move-to" && now?.src === at.src) setImageSrc(view, now, src);
+      if (src !== null && now?.src === at.src) setImageSrc(view, now, src);
       return;
     }
     if (id === "image-delete") {
       if (!(await confirmDialog(`Move “${basename(at.src)}” to the Trash?`, "Move to Trash"))) return;
-      await backend.imageFileAction(at.src, "trash");
+      await backend.imageFileAction(file, "trash");
       const now = imageAt(view.state);
       if (now?.src === at.src) removeImage(view, now);
       return;
     }
-    await backend.imageFileAction(at.src, id === "image-reveal" ? "reveal" : "copy");
+    await backend.imageFileAction(file, id === "image-reveal" ? "reveal" : "copy");
+  };
+  /** How the document's front matter names folder `dir`: relative to the document's
+   * folder, as Typora writes `./assets` or `../`, when it has one. */
+  const folderValue = (dir: string) => {
+    if (!ui.path) return dir;
+    const from = dirname(ui.path);
+    if (dir === from) return "./";
+    const rel = relative(from, dir);
+    return rel.startsWith("..") ? rel : `./${rel}`;
+  };
+  const setFrontMatter = (key: string, value: string | null) => {
+    const tr = setFrontMatterValue(view.state, key, value);
+    if (tr) view.dispatch(tr);
+  };
+  const pickFolder = () => backend.pickFolder(ui.path ? dirname(ui.path) : undefined);
+  /** Format › Image › When Insert: where this document's pasted images go. */
+  const INSERT_RULES: Record<string, string | null> = {
+    global: null,
+    folder: "./",
+    assets: "./assets",
+    "per-file": "./${filename}.assets",
+  };
+  const imageInsertRule = async (rule: string) => {
+    const value = rule === "custom" ? await pickFolder() : INSERT_RULES[rule];
+    if (rule === "custom" && value === null) return;
+    setFrontMatter("typora-copy-images-to", value === null ? null : rule === "custom" ? folderValue(value) : value);
+  };
+  /** Format › Image › Copy or Move All Images to…: every local image's file into a
+   * folder, the document then referring to the new files. */
+  const relocateAllImages = async (keep: boolean) => {
+    const dir = await pickFolder();
+    if (dir === null) return;
+    const srcs = new Set<string>();
+    view.state.doc.descendants((node, pos) => {
+      const image = imageNode(node, pos);
+      if (image?.src && !/^[a-z][a-z0-9+.-]*:/i.test(image.src)) srcs.add(image.src);
+    });
+    const list = [...srcs];
+    const moved = await backend.relocateImages(list.map((s) => rootedSrc(s, imageRoot)), dir, keep);
+    const to = new Map(list.flatMap((s, i) => (moved[i] === null ? [] : [[s, moved[i]!]])));
+    const tr = view.state.tr;
+    view.state.doc.descendants((node, pos) => {
+      const image = imageNode(node, pos);
+      const src = image && to.get(image.src);
+      // Images are one position wide in either syntax, so positions stay put.
+      if (src) tr.replaceWith(pos, pos + node.nodeSize, withSrc(image, src));
+    });
+    if (tr.docChanged) view.dispatch(tr);
   };
   /** Format › Image › Reload All Images: fetch each image again, then draw it anew. */
   const reloadImages = async () => {
@@ -399,6 +456,15 @@ async function main() {
       case "image-syntax-html":
         if (source.active) return;
         return void switchImageSyntax(view, id === "image-syntax-html");
+      case "image-root":
+        if (source.active) return;
+        return void pickFolder()
+          .then((dir) => dir !== null && setFrontMatter("typora-root-url", folderValue(dir)))
+          .catch(report);
+      case "images-copy-all":
+      case "images-move-all":
+        if (source.active) return;
+        return void relocateAllImages(id === "images-copy-all").catch(report);
       case "images-reload":
         if (source.active) return;
         return void reloadImages().catch(report);
@@ -417,6 +483,8 @@ async function main() {
       default:
         if (id.startsWith("theme:")) return void backend.setTheme(id.slice(6));
         if (id.startsWith("image-zoom:")) return void (!source.active && setImageZoom(view, Number(id.slice(11))));
+        if (id.startsWith("image-insert:"))
+          return void (!source.active && imageInsertRule(id.slice(13)).catch(report));
         // The other export formats go through Pandoc, from the core's text.
         if (id.startsWith("export-")) {
           return void Promise.all([source.flush(), sync.flush()])

@@ -8,6 +8,7 @@
 import type { EditorView } from "prosemirror-view";
 import { drawAllDiagrams } from "./editor/diagramview";
 import { mathBlocksIdle } from "./editor/mathblock";
+import { frontMatterValue, rootedSrc } from "./editor/frontmatter";
 import { imageSource } from "./editor/nodeviews";
 import { mathIdle } from "./math";
 
@@ -33,9 +34,10 @@ export async function exportHtml(view: EditorView, options: ExportOptions): Prom
   const source = view.dom;
   const write = source.cloneNode(true) as HTMLElement;
   const sourceImages = source.querySelectorAll("img");
+  const root = frontMatterValue(view.state.doc, "typora-root-url");
   write.querySelectorAll("img").forEach((img, i) => {
     const src = imageSource(sourceImages[i]);
-    if (src !== undefined) img.setAttribute("src", imagePath(src, options));
+    if (src !== undefined) img.setAttribute("src", imagePath(rootedSrc(src, root), options));
   });
   clean(write);
 

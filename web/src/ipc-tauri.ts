@@ -104,6 +104,16 @@ export class TauriBackend implements Backend {
     return invoke<string | null>("relocate_image", { src, keep });
   }
 
+  relocateImages(srcs: string[], dir: string, keep: boolean) {
+    return invoke<(string | null)[]>("relocate_images", { srcs, dir, keep });
+  }
+
+  async pickFolder(dir?: string) {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const picked = await open({ directory: true, defaultPath: dir });
+    return typeof picked === "string" ? picked : null;
+  }
+
   trashDocument() {
     return invoke<void>("trash_document");
   }

@@ -64,6 +64,7 @@ pub fn run() {
             commands::set_context_menu,
             commands::image_file_action,
             commands::relocate_image,
+            commands::relocate_images,
             commands::apply_patch,
             commands::document_text,
             commands::set_document_text,
@@ -156,7 +157,7 @@ pub fn run() {
             // Debug builds: open Preferences too (parity captures; menus can't be scripted).
             #[cfg(debug_assertions)]
             if std::env::var_os("MARPORA_OPEN_PREFS").is_some() {
-                let _ = windows::open_preferences(app);
+                let _ = windows::open_preferences(app, None);
             }
         }
         RunEvent::Reopen {

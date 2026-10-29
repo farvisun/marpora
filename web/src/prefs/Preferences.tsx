@@ -184,6 +184,13 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
       groups: [{ title: "Quit", items: [check("Quit Marpora when last window is closed", "quitOnLastWindowClosed")] }],
     },
   ];
+  // `#image` opens that panel (Format › Image › Global Image Settings…).
+  const showHash = () => {
+    const i = panels.findIndex((p) => `#${p.name.toLowerCase()}` === location.hash);
+    if (i >= 0) setActive(i);
+  };
+  showHash();
+  window.addEventListener("hashchange", showHash);
 
   const groupHit = (g: Group) => matches(query(), g.title) || (g.hint !== undefined && matches(query(), g.hint));
   const itemHit = (item: Item) => itemTexts(item).some((t) => matches(query(), t));

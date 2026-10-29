@@ -761,6 +761,46 @@ pub async fn relocate_image(
     )))
 }
 
+/// Format › Image › Copy All Images to… and Move All Images to…: the local image files
+/// `srcs` name, copied (`keep`) or moved into `dir`. Returns each one's new src, or
+/// nothing for those that are not local files or could not be written.
+#[tauri::command]
+pub fn relocate_images(
+    window: WebviewWindow,
+    srcs: Vec<String>,
+    dir: PathBuf,
+    keep: bool,
+    docs: State<Docs>,
+    store: State<Store>,
+) -> CmdResult<Vec<Option<String>>> {
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let doc = docs
+        .for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.path.clone()))
+        .flatten();
+    let relative = store.get().use_relative_image_path;
+    Ok(srcs
+        .iter()
+        .map(|src| {
+            let path = image_file(&window, &docs, src).ok()?;
+            let target = dir.join(path.file_name()?);
+            if target != path {
+                if keep {
+                    std::fs::copy(&path, &target).ok()?;
+                } else {
+                    std::fs::rename(&path, &target)
+                        .or_else(|_| {
+                            std::fs::copy(&path, &target).and_then(|_| std::fs::remove_file(&path))
+                        })
+                        .ok()?;
+                }
+            }
+            Some(images::src_for(&target, doc.as_deref(), relative))
+        })
+        .collect())
+}
+
 /// File › Open File Location: the document selected in Finder.
 #[tauri::command]
 pub fn reveal_document(window: WebviewWindow, docs: State<Docs>) -> CmdResult<()> {
@@ -855,8 +895,8 @@ pub fn save_image(
     let id: u64 = header("x-doc-id")
         .and_then(|v| v.parse().ok())
         .ok_or("no document given")?;
-    let doc = docs
-        .with(id, |open| open.path.clone())
+    let (doc, text) = docs
+        .with(id, |open| (open.path.clone(), open.doc.text()))
         .ok_or("document closed")?;
     let settings = store.get();
     let user_images = app
@@ -864,7 +904,10 @@ pub fn save_image(
         .app_data_dir()
         .map_err(|e| e.to_string())?
         .join("user-images");
-    let dir = images::storage_dir(&settings.image_storage, doc.as_deref(), &user_images);
+    // The document's own rule (Format › Image › When Insert) wins over Preferences'.
+    let rule = images::front_matter(&text, "typora-copy-images-to")
+        .unwrap_or_else(|| settings.image_storage.clone());
+    let dir = images::storage_dir(&rule, doc.as_deref(), &user_images);
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     let path = dir.join(images::file_name(header("x-ext").unwrap_or("png"))?);

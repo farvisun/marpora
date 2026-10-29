@@ -75,9 +75,14 @@ pub fn open_folder(app: &AppHandle, dir: PathBuf) -> tauri::Result<()> {
     build(app, &label, "Untitled".to_owned()).map(drop)
 }
 
-/// Show the Preferences window, opening it the first time.
-pub fn open_preferences(app: &AppHandle) -> tauri::Result<()> {
+/// Show the Preferences window, opening it the first time, at `panel` ("image", ...)
+/// when given.
+pub fn open_preferences(app: &AppHandle, panel: Option<&str>) -> tauri::Result<()> {
+    let hash = panel.map(|p| format!("#{p}")).unwrap_or_default();
     if let Some(w) = app.get_webview_window("preferences") {
+        if !hash.is_empty() {
+            w.eval(format!("location.hash = {hash:?}"))?;
+        }
         return w.set_focus();
     }
     let builder = WebviewWindowBuilder::new(
@@ -88,6 +93,10 @@ pub fn open_preferences(app: &AppHandle) -> tauri::Result<()> {
     .title("Preferences")
     .inner_size(800.0, 600.0)
     .min_inner_size(600.0, 400.0);
+    let builder = match hash.is_empty() {
+        true => builder,
+        false => builder.initialization_script(format!("location.hash = {hash:?};")),
+    };
     #[cfg(debug_assertions)]
     let builder = match env_pair("MARPORA_WINDOW_POS", ',') {
         Some((x, y)) => builder.position(x, y),

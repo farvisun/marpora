@@ -33,9 +33,35 @@ pub fn storage_dir(setting: &str, doc: Option<&Path>, user_images: &Path) -> Pat
                     (false, Some(dir)) => Some(dir.join(p)),
                     (false, None) => None,
                 })
+                // `./assets` is `assets`: drop the `.` so relative srcs stay short.
+                .map(|p| {
+                    p.components()
+                        .filter(|c| !matches!(c, Component::CurDir))
+                        .collect()
+                })
         }
     };
     chosen.unwrap_or_else(|| user_images.to_path_buf())
+}
+
+/// The value of `key` in the YAML front matter at the start of `text`, as Typora reads
+/// `typora-root-url` and `typora-copy-images-to`: one `key: value` line, unquoted.
+pub fn front_matter(text: &str, key: &str) -> Option<String> {
+    let mut lines = text.lines();
+    if lines.next()?.trim_end() != "---" {
+        return None;
+    }
+    lines
+        .take_while(|l| !matches!(l.trim_end(), "---" | "..."))
+        .find_map(|l| {
+            let value = l.strip_prefix(key)?.trim_start().strip_prefix(':')?.trim();
+            let value = value
+                .strip_prefix('"')
+                .and_then(|v| v.strip_suffix('"'))
+                .or_else(|| value.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')))
+                .unwrap_or(value);
+            (!value.is_empty()).then(|| value.to_owned())
+        })
 }
 
 /// `image-<local time to the millisecond>.<ext>`, as Typora names pasted images.
@@ -67,6 +93,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn front_matter_values() {
+        let text =
+            "---\ntitle: x\ntypora-copy-images-to: \"./assets\"\ntypora-root-url: ../\n---\n# Hi\n";
+        assert_eq!(
+            front_matter(text, "typora-copy-images-to").as_deref(),
+            Some("./assets")
+        );
+        assert_eq!(
+            front_matter(text, "typora-root-url").as_deref(),
+            Some("../")
+        );
+        assert_eq!(front_matter(text, "typora"), None);
+        assert_eq!(
+            front_matter("# Hi\ntypora-root-url: a\n", "typora-root-url"),
+            None
+        );
+        assert_eq!(front_matter("---\na: 1\n---\nb: 2\n", "b"), None);
+    }
+
+    #[test]
     fn storage_follows_the_setting() {
         let doc = Path::new("/n/My Doc.md");
         let user = Path::new("/data/user-images");
@@ -83,6 +129,11 @@ mod tests {
             dir("img/${filename}", Some(doc)),
             Path::new("/n/img/My Doc")
         );
+        assert_eq!(
+            dir("./${filename}.assets", Some(doc)),
+            Path::new("/n/My Doc.assets")
+        );
+        assert_eq!(dir("./", Some(doc)), Path::new("/n"));
         assert_eq!(dir("/pics", None), Path::new("/pics"));
         assert_eq!(dir("img", None), user);
     }

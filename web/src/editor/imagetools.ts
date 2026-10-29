@@ -105,19 +105,16 @@ export function switchImageSyntax(view: EditorView, html: boolean): boolean {
   return true;
 }
 
+/** The image `at` pointing at `src`, in the same syntax. */
+export function withSrc(at: ImageAt, src: string): PMNode {
+  if (!at.html) return schema.nodes.image.create({ ...at.node.attrs, src });
+  const style = parseImg(at.node.attrs.html)?.getAttribute("style") ?? undefined;
+  return schema.nodes.html_inline.create({ html: imgHtml({ ...at, src, style }) });
+}
+
 /** Point the image at `src` (after its file moved), keeping its syntax. */
 export function setImageSrc(view: EditorView, at: ImageAt, src: string) {
-  let node: PMNode;
-  if (at.html) {
-    const img = parseImg(at.node.attrs.html);
-    if (!img) return;
-    img.setAttribute("src", src);
-    const style = img.getAttribute("style") ?? undefined;
-    node = schema.nodes.html_inline.create({ html: imgHtml({ ...at, src, style }) });
-  } else {
-    node = schema.nodes.image.create({ ...at.node.attrs, src });
-  }
-  replaceImage(view, at, node);
+  replaceImage(view, at, withSrc(at, src));
 }
 
 /** Remove the image from the document. */

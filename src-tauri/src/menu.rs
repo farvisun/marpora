@@ -397,6 +397,31 @@ const IMAGE: &[Item] = &[
     ("insert-image", "Insert Image", Some("Ctrl+CmdOrCtrl+I")),
     ("insert-local-images", "Insert Local Images…", None),
     ("-", "", None),
+    ("image-root", "Use Image Root Path…", None),
+];
+
+/// Format › Image › When Insert: this document's rule for pasted images, kept in its
+/// front matter as `typora-copy-images-to`.
+const IMAGE_INSERT: &[Item] = &[
+    ("image-insert:global", "Follow Global Settings", None),
+    ("-", "", None),
+    (
+        "image-insert:folder",
+        "Copy Image to Current Folder (./)",
+        None,
+    ),
+    ("image-insert:assets", "Copy Image to ./assets Folder", None),
+    (
+        "image-insert:per-file",
+        "Copy Image to ./${filename}.assets Folder",
+        None,
+    ),
+    ("image-insert:custom", "Copy Image to Custom Folder…", None),
+];
+
+const IMAGE_FILE: &[Item] = &[
+    ("image-settings", "Global Image Settings…", None),
+    ("-", "", None),
     ("image-reveal", "Open Image Location…", None),
     ("image-copy", "Copy Image Content", None),
 ];
@@ -427,6 +452,9 @@ const IMAGE_END: &[Item] = &[
     ("-", "", None),
     ("image-copy-to", "Copy Image to…", None),
     ("image-move-to", "Rename or Move Image to…", None),
+    ("-", "", None),
+    ("images-copy-all", "Copy All Images to…", None),
+    ("images-move-all", "Move All Images to…", None),
     ("-", "", None),
     ("images-reload", "Reload All Images", None),
 ];
@@ -765,6 +793,12 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
     let mut image = items(app, IMAGE)?;
     image.push(Box::new(submenu(
         app,
+        "When Insert",
+        items(app, IMAGE_INSERT)?,
+    )?));
+    image.extend(items(app, IMAGE_FILE)?);
+    image.push(Box::new(submenu(
+        app,
         "Zoom Image",
         items(app, IMAGE_ZOOM)?,
     )?));
@@ -1076,7 +1110,10 @@ pub fn handle(app: &AppHandle, id: &str) {
             }
         }
         "preferences" => {
-            let _ = windows::open_preferences(app);
+            let _ = windows::open_preferences(app, None);
+        }
+        "image-settings" => {
+            let _ = windows::open_preferences(app, Some("image"));
         }
         "open-folder" => {
             let handle = app.clone();

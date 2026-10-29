@@ -566,6 +566,30 @@ await inline.evaluate(() => window.marpora.handleMenu("image-copy"));
 const imgLog = await inline.evaluate(() => window.marpora.backend.imageLog.join());
 check("image file actions reach the backend", imgLog === "move a.png,copy img/b.png", imgLog);
 
+// Format › Image › Use Image Root Path, When Insert and Move All Images write the
+// front matter Typora reads, and `/` paths load under the root.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "![a](/img/a.png) ![b](b.png) ![w](https://x.test/w.png)\n");
+  await m.sync.resync();
+  m.backend.pickedFolder = "/site";
+  m.handleMenu("image-root");
+});
+await inline.waitForTimeout(200);
+imgText = await imageText();
+check("root path goes in the front matter", imgText.startsWith("---\ntypora-root-url: /site\n---\n"), imgText);
+const imgSrcs = await inline.locator("#write .md-image img").evaluateAll((imgs) => imgs.map((i) => i.getAttribute("src")).join());
+check("images load under the root", imgSrcs === "/site/img/a.png,b.png,https://x.test/w.png", imgSrcs);
+imgText = await imageText("image-insert:assets");
+check("when insert rule in the front matter", imgText.startsWith("---\ntypora-root-url: /site\ntypora-copy-images-to: ./assets\n---\n"), imgText);
+imgText = await imageText("image-insert:global");
+check("follow global settings drops the rule", imgText.startsWith("---\ntypora-root-url: /site\n---\n"), imgText);
+await inline.evaluate(() => (window.marpora.backend.pickedFolder = "/pics"));
+imgText = await imageText("images-move-all");
+check("move all images repoints them", imgText.endsWith("![a](/pics/a.png) ![b](/pics/b.png) ![w](https://x.test/w.png)\n"), imgText);
+const moveLog = await inline.evaluate(() => window.marpora.backend.imageLog.at(-1));
+check("move all images sends rooted local files", moveLog === "move /site/img/a.png b.png to /pics", moveLog);
+
 // Edit › Line Endings converts the text; Whitespace and Line Breaks restyles it.
 await inline.evaluate(async () => {
   const m = window.marpora;

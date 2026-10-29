@@ -176,6 +176,10 @@ export interface Backend {
   imageFileAction(src: string, action: "reveal" | "copy" | "trash"): Promise<void>;
   /** Copy (`keep`) or move the image file `src` names where the user picks; its new src, or null if cancelled. */
   relocateImage(src: string, keep: boolean): Promise<string | null>;
+  /** Copy (`keep`) or move the image files `srcs` name into `dir`; each one's new src, or null. */
+  relocateImages(srcs: string[], dir: string, keep: boolean): Promise<(string | null)[]>;
+  /** A folder the user picks, starting in `dir`; null if cancelled. */
+  pickFolder(dir?: string): Promise<string | null>;
   /** Put text (and HTML) on the system clipboard. */
   writeClipboard(text: string, html?: string): Promise<void>;
   /** The system clipboard's text. */
@@ -388,6 +392,15 @@ export class MemoryBackend implements Backend {
   async relocateImage(src: string, keep: boolean) {
     this.imageLog.push(`${keep ? "copy" : "move"} ${src}`);
     return this.relocateTo;
+  }
+  async relocateImages(srcs: string[], dir: string, keep: boolean) {
+    this.imageLog.push(`${keep ? "copy" : "move"} ${srcs.join(" ")} to ${dir}`);
+    return srcs.map((s) => (/^[a-z]+:/.test(s) ? null : `${dir}/${s.slice(s.lastIndexOf("/") + 1)}`));
+  }
+  /** What the next pickFolder returns (the mock has no dialog). */
+  pickedFolder: string | null = null;
+  async pickFolder() {
+    return this.pickedFolder;
   }
 
   /** Test hook: whether the document went to the Trash. */
