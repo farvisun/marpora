@@ -30,6 +30,7 @@ const FILE_TOP: &[Item] = &[
 const FILE_SAVE: &[Item] = &[
     ("quick-open", "Open Quickly…", Some("CmdOrCtrl+Shift+O")),
     ("-", "", None),
+    ("get-info", "Get Info…", None),
     ("reveal-sidebar", "Reveal in File Tree", None),
     ("open-location", "Open File Location", None),
     ("-", "", None),
@@ -44,6 +45,7 @@ const FILE_SAVE: &[Item] = &[
     ("reload", "Reload from Disk", None),
     ("save-all", "Save All", Some("CmdOrCtrl+Alt+S")),
     ("-", "", None),
+    ("import", "Import…", None),
 ];
 
 /// File › Export, in Typora's order.
@@ -64,7 +66,11 @@ const EXPORT: &[Item] = &[
     ("export-opml", "OPML", None),
 ];
 
-const FILE_BOTTOM: &[Item] = &[("-", "", None), ("print", "Print…", Some("CmdOrCtrl+P"))];
+const FILE_BOTTOM: &[Item] = &[
+    ("-", "", None),
+    ("page-setup", "Page Setup…", Some("CmdOrCtrl+Shift+P")),
+    ("print", "Print…", Some("CmdOrCtrl+P")),
+];
 
 /// Documents closed in this session, the last one last (File › Reopen Closed File).
 #[derive(Default)]
@@ -838,6 +844,61 @@ pub fn refresh_recent(app: &AppHandle) {
     }
 }
 
+/// File › Import…: a file Pandoc reads, as Markdown in a new untitled window.
+fn import(app: &AppHandle) {
+    let handle = app.clone();
+    app.dialog()
+        .file()
+        .add_filter("Documents", crate::pandoc::IMPORT_EXTENSIONS)
+        .pick_file(move |file| {
+            let Some(input) = file.and_then(|f| f.into_path().ok()) else {
+                return;
+            };
+            let home = handle.path().home_dir().ok();
+            let result = crate::pandoc::find(std::env::var_os("PATH").as_deref(), home.as_deref())
+                .ok_or_else(|| {
+                    "Importing needs Pandoc. Install it from https://pandoc.org/installing.html and try again."
+                        .to_owned()
+                })
+                .and_then(|pandoc| crate::pandoc::import(&pandoc, &input));
+            match result {
+                Ok(text) => {
+                    let _ = windows::open_text(&handle, &text);
+                }
+                Err(e) => {
+                    use tauri_plugin_dialog::MessageDialogKind;
+                    handle
+                        .dialog()
+                        .message(e)
+                        .kind(MessageDialogKind::Error)
+                        .show(|_| {});
+                }
+            }
+        });
+}
+
+/// File › Get Info…: Finder's info window for `path`, as Typora shows it.
+fn get_info(path: &Path) {
+    // The path goes in as an argument, never into the script.
+    let _ = std::process::Command::new("osascript")
+        .args([
+            "-e",
+            "on run argv",
+            "-e",
+            "tell application \"Finder\"",
+            "-e",
+            "open information window of (POSIX file (item 1 of argv) as alias)",
+            "-e",
+            "activate",
+            "-e",
+            "end tell",
+            "-e",
+            "end run",
+        ])
+        .arg(path)
+        .spawn();
+}
+
 pub fn handle(app: &AppHandle, id: &str) {
     match id {
         "new" | "new-window" => {
@@ -871,6 +932,21 @@ pub fn handle(app: &AppHandle, id: &str) {
             }
         }
         "quit" => quit(app),
+        "import" => import(app),
+        #[cfg(target_os = "macos")]
+        "page-setup" => crate::pdf::page_setup(),
+        "get-info" => {
+            let docs = app.state::<crate::docs::Docs>();
+            let path = app
+                .webview_windows()
+                .into_values()
+                .find(|w| w.is_focused().unwrap_or(false))
+                .and_then(|w| docs.for_window(w.label()))
+                .and_then(|id| docs.with(id, |open| open.path.clone()).flatten());
+            if let Some(path) = path {
+                get_info(&path);
+            }
+        }
         "preferences" => {
             let _ = windows::open_preferences(app);
         }

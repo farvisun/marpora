@@ -14,8 +14,8 @@ use objc2::{
 };
 use objc2_app_kit::{
     NSBitmapImageFileType, NSBitmapImageRep, NSDeviceRGBColorSpace, NSGraphicsContext, NSImage,
-    NSPrintInfo, NSPrintJobSavingURL, NSPrintOperation, NSPrintSaveJob, NSPrintingPaginationMode,
-    NSView, NSWindow,
+    NSPageLayout, NSPrintInfo, NSPrintJobSavingURL, NSPrintOperation, NSPrintSaveJob,
+    NSPrintingPaginationMode, NSView, NSWindow,
 };
 use objc2_foundation::{
     NSCopying, NSData, NSDictionary, NSError, NSNumber, NSPoint, NSRect, NSSize, NSString, NSURL,
@@ -31,17 +31,43 @@ const MM: f64 = 72.0 / 25.4;
 const PAPER: (f64, f64) = (210.0 * MM, 297.0 * MM);
 const MARGIN: f64 = 16.0 * MM;
 
+/// File › Page Setup's paper for printing, in points, once the user has chosen one.
+static PRINT_PAPER: std::sync::Mutex<Option<(f64, f64)>> = std::sync::Mutex::new(None);
+
+/// The paper for `output`: Page Setup's for printing, else A4.
+pub fn paper_for(printing: bool) -> (f64, f64) {
+    let chosen = *PRINT_PAPER.lock().unwrap_or_else(|e| e.into_inner());
+    chosen.filter(|_| printing).unwrap_or(PAPER)
+}
+
+/// File › Page Setup…: the system's page layout panel, whose paper Print then uses.
+pub fn page_setup() {
+    let Some(mtm) = MainThreadMarker::new() else {
+        return;
+    };
+    let info = NSPrintInfo::sharedPrintInfo();
+    let mut chosen = PRINT_PAPER.lock().unwrap_or_else(|e| e.into_inner());
+    if chosen.is_none() {
+        info.setPaperSize(NSSize::new(PAPER.0, PAPER.1));
+    }
+    // NSModalResponseOK
+    if NSPageLayout::pageLayout(mtm).runModalWithPrintInfo(&info) == 1 {
+        let size = info.paperSize();
+        *chosen = Some((size.width, size.height));
+    }
+}
+
 /// WebKit takes the page box from CSS, not from the print info, so the paper and
 /// margins go into the page as Typora's Mac build puts them.
-pub fn page_css() -> String {
+pub fn page_css(paper: (f64, f64)) -> String {
     format!(
         "@media print {{ * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }} \
          @page {{ size: {w:.2}pt {h:.2}pt; margin-top: {m:.2}pt !important; margin-right: {m:.2}pt !important; \
          margin-bottom: {m:.2}pt !important; margin-left: {m:.2}pt !important; }} \
          html, body {{ margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; \
          print-color-adjust: exact !important; }} }}",
-        w = PAPER.0,
-        h = PAPER.1,
+        w = paper.0,
+        h = paper.1,
         m = MARGIN,
     )
 }
@@ -115,7 +141,8 @@ impl PrintJob {
         // SAFETY: plain property setters on objects created here, on the main thread.
         unsafe {
             let info = NSPrintInfo::sharedPrintInfo().copy();
-            info.setPaperSize(NSSize::new(PAPER.0, PAPER.1));
+            let paper = paper_for(matches!(ivars.output, Output::Printer));
+            info.setPaperSize(NSSize::new(paper.0, paper.1));
             // The page's `@page` rule sets the margins (see `page_css`).
             info.setTopMargin(0.0);
             info.setBottomMargin(0.0);

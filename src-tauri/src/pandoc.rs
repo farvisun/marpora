@@ -108,6 +108,45 @@ pub fn find(path_var: Option<&std::ffi::OsStr>, home: Option<&Path>) -> Option<P
         .find(|p| p.is_file())
 }
 
+/// What File › Import reads, as Pandoc's readers take them.
+pub const IMPORT_EXTENSIONS: &[&str] = &[
+    "docx",
+    "odt",
+    "rtf",
+    "epub",
+    "html",
+    "htm",
+    "tex",
+    "latex",
+    "opml",
+    "rst",
+    "textile",
+    "wiki",
+    "mediawiki",
+    "org",
+    "ipynb",
+];
+
+/// File › Import: `input` as Markdown, through the Pandoc at `pandoc`.
+pub fn import(pandoc: &Path, input: &Path) -> Result<String, String> {
+    let mut cmd = Command::new(pandoc);
+    cmd.args(["--to", "gfm", "--wrap=none"]).arg(input);
+    if let Some(dir) = input.parent() {
+        cmd.current_dir(dir);
+    }
+    let out = cmd
+        .output()
+        .map_err(|e| format!("could not run {}: {e}", pandoc.display()))?;
+    if !out.status.success() {
+        return Err(format!(
+            "Pandoc could not import {}: {}",
+            input.display(),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
 /// Convert `markdown` to `output` with the Pandoc at `pandoc`, from directory `cwd`.
 pub fn convert(
     pandoc: &Path,

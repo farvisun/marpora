@@ -35,6 +35,18 @@ fn open_untitled(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     build(app, &label, title_for(None))
 }
 
+/// An untitled window holding `text`, unsaved (File › Import).
+pub fn open_text(app: &AppHandle, text: &str) -> tauri::Result<()> {
+    let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
+    load(app, &label, None, None);
+    let docs = app.state::<Docs>();
+    if let Some(id) = docs.for_window(&label) {
+        let flavor = app.state::<crate::settings::Store>().get().flavor;
+        docs.with(id, |open| open.doc.replace_text(text, &flavor));
+    }
+    build(app, &label, title_for(None)).map(drop)
+}
+
 /// File › New Tab: an untitled document in a new tab of `parent`'s window.
 pub fn open_tab(app: &AppHandle, parent: &WebviewWindow) -> tauri::Result<()> {
     let window = open_untitled(app)?;

@@ -344,7 +344,11 @@ async fn print_page(window: WebviewWindow, html: String, output: PageOutput) -> 
         std::process::id(),
         NEXT.fetch_add(1, Ordering::Relaxed)
     ));
-    let style = format!("<style type='text/css'>{}</style>", crate::pdf::page_css());
+    let paper = crate::pdf::paper_for(matches!(output, PageOutput::Printer));
+    let style = format!(
+        "<style type='text/css'>{}</style>",
+        crate::pdf::page_css(paper)
+    );
     let html = match html.find("</head>") {
         Some(i) => format!("{}{style}{}", &html[..i], &html[i..]),
         None => format!("{style}{html}"),

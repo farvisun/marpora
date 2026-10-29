@@ -115,6 +115,16 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             if let Some(mtm) = objc2_foundation::MainThreadMarker::new() {
                 native_menu::install(mtm);
+                // Debug builds: the menu bar as text, for checks without the app in front.
+                #[cfg(debug_assertions)]
+                if std::env::var_os("MARPORA_MENU_PROBE").is_some()
+                    && let Some(menu) =
+                        objc2_app_kit::NSApplication::sharedApplication(mtm).mainMenu()
+                {
+                    let mut out = Vec::new();
+                    context_menu::describe(&menu, 0, &mut out);
+                    eprintln!("MENU {}", out.join(" | "));
+                }
             }
 
             let paths = std::env::args().skip(1).filter(|a| !a.starts_with('-'));
