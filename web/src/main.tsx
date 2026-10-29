@@ -418,6 +418,8 @@ async function main() {
       case "table":
         if (source.active) return;
         return setUi("tableDialog", true);
+      case "ai-chat":
+        return setUi("aiChat", !ui.aiChat);
       case "ai-ask":
         if (source.active) return;
         return setUi("inlineAi", { instruction: "", run: false, seq: (ui.inlineAi?.seq ?? 0) + 1 });

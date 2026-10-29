@@ -1152,6 +1152,39 @@ await aiBox.waitFor();
 check("ai: translate asks for the language", (await ai.locator(".md-ai-input input").inputValue()) === "Translate it to " &&
   (await ai.evaluate(() => window.marpora.backend.aiRequests.length)) === 4);
 await ai.keyboard.press("Escape");
+
+// AI › AI Chat: questions carry the document and selection; answers go in on a click.
+await ai.evaluate(() => window.marpora.handleMenu("ai-chat"));
+const chat = ai.locator("#md-ai-chat");
+await chat.waitFor();
+check("chat: panel opens beside the page", (await ai.evaluate(() => document.body.classList.contains("ai-chat-open"))) &&
+  (await ai.locator("content").evaluate((c) => getComputedStyle(c).right)) === "320px");
+await aiSelect("Second");
+await ai.evaluate(() => window.marpora.backend.aiReplies.push("It says **hi**.", "Done."));
+await chat.locator("textarea").fill("What does it say?");
+await chat.locator("textarea").press("Enter");
+await chat.locator(".md-ai-chat-assistant:not(.md-ai-chat-streaming)").first().waitFor();
+const chatAsked = await ai.evaluate(() => window.marpora.backend.aiRequests.at(-1));
+check("chat: question has the document and selection", chatAsked.system.includes("<document>\nOne two three.") &&
+  chatAsked.messages.length === 1 && chatAsked.messages[0].content.includes("<selection>\nSecond\n</selection>"), JSON.stringify(chatAsked.messages));
+check("chat: shows the conversation", (await chat.locator(".md-ai-chat-text").allTextContents()).join("|") === "What does it say?|It says hi." && (await chat.locator(".md-ai-chat-md strong").textContent()) === "hi");
+await chat.locator("textarea").fill("And then?");
+await chat.locator("textarea").press("Enter");
+await ai.waitForFunction(() => document.querySelectorAll("#md-ai-chat .md-ai-chat-assistant:not(.md-ai-chat-streaming)").length === 2);
+const followUp = await ai.evaluate(() => window.marpora.backend.aiRequests.at(-1).messages.map((m) => m.role + ":" + m.content.slice(0, 12)));
+check("chat: follow-ups carry the history", followUp.join("|") === "user:My selection|assistant:It says **hi|user:My selection", followUp.join("|"));
+await aiSelect("Second");
+await chat.locator(".md-ai-chat-assistant").first().getByText("Replace Selection").click();
+check("chat: replace the selection", (await aiText()).startsWith("One two three.\n\nIt says **hi**. para.\n"), await aiText());
+await ai.evaluate(() => window.marpora.handleMenu("ai-chat"));
+check("chat: menu closes it", (await chat.count()) === 0 && !(await ai.evaluate(() => document.body.classList.contains("ai-chat-open"))));
+await ai.reload();
+await ai.waitForSelector("#write");
+await ai.evaluate(() => window.marpora.handleMenu("ai-chat"));
+await chat.waitFor();
+check("chat: kept across a reload", (await chat.locator(".md-ai-chat-msg").count()) === 4);
+await chat.getByText("New Chat").click();
+check("chat: new chat clears", (await chat.locator(".md-ai-chat-msg").count()) === 0);
 await ai.close();
 
 // Preferences: Typora's markup; changes go to the app, and search marks matches.

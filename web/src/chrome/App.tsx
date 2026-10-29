@@ -4,6 +4,7 @@
 import { createEffect, Show } from "solid-js";
 import type { EditorView } from "prosemirror-view";
 import type { Backend } from "../ipc";
+import { AiChat } from "./AiChat";
 import { InlineAi } from "./InlineAi";
 import { OutlinePopover } from "./OutlinePopover";
 import { QuickOpen } from "./QuickOpen";
@@ -51,6 +52,7 @@ export function App(props: ChromeProps) {
       <QuickOpen backend={props.backend} onOpenFile={props.onOpenFile} />
       <OutlinePopover onOutlineClick={props.onOutlineClick} />
       <InlineAi backend={props.backend} view={props.view} />
+      <AiChat backend={props.backend} view={props.view} />
       <Show when={ui.tableDialog}>
         <TableDialog onInsert={props.onInsertTable} />
       </Show>

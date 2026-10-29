@@ -6,11 +6,9 @@ import type { EditorView } from "prosemirror-view";
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import type { Backend } from "../ipc";
 import { markdownSlice } from "../editor/clipboard";
-import { aiRequest, aiTargetOf, cleanAnswer, PRESETS, setAiTarget, type Target } from "../editor/ai";
+import { aiRequest, aiTargetOf, cleanAnswer, newRequestId, PRESETS, setAiTarget, type Target } from "../editor/ai";
 import { parseMarkdown } from "../md";
 import { setUi, ui } from "./store";
-
-let nextId = 1;
 
 type Phase = "prompt" | "streaming" | "done" | "error";
 
@@ -53,7 +51,7 @@ export function InlineAi(props: { backend: Backend; view: () => EditorView }) {
     if (!target || !instruction.trim()) return;
     stop();
     asked = instruction;
-    running = nextId++;
+    running = newRequestId();
     setAnswer("");
     setError("");
     setPhase("streaming");

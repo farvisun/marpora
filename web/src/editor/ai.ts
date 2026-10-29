@@ -32,6 +32,34 @@ replacement; when asked to write at the cursor, reply with only the new text. Wr
 Markdown in the document's style, never wrap the reply in a code fence, and add no \
 notes, quotes or preamble around it.`;
 
+let nextId = 1;
+
+/** An id for a new AI request in this window (inline prompt and chat alike). */
+export function newRequestId(): number {
+  return nextId++;
+}
+
+const CHAT_SYSTEM = `You are the assistant in Marpora, a Markdown editor, talking with the \
+user about their document, which is below between <document> tags. Answer questions \
+about it and help write it. Write text meant for the document as Markdown in its style \
+and without a wrapping code fence: the user can insert your reply at the cursor or put \
+it in place of their selection. Be brief unless asked for more.`;
+
+/** A chat turn; `shown` is the question as typed, when `content` adds the selection. */
+export type ChatMessage = { role: "user" | "assistant"; content: string; shown?: string };
+
+/** The chat's next request: the conversation so far, then `question`, with the current
+ * selection quoted when there is one. */
+export function chatRequest(state: EditorState, history: ChatMessage[], question: string): AiRequest {
+  const { from, to, empty } = state.selection;
+  const selected = empty ? "" : sliceMarkdown(state.doc.slice(from, to));
+  const content = selected ? `My selection in the document:\n<selection>\n${selected}\n</selection>\n\n${question}` : question;
+  return {
+    system: `${CHAT_SYSTEM}\n\n<document>\n${serializeDoc(state.doc)}</document>`,
+    messages: [...history.map(({ role, content }) => ({ role, content })), { role: "user", content }],
+  };
+}
+
 /** The part of the document the request works on: [from, to), or a cursor when equal. */
 export interface Target {
   from: number;

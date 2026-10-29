@@ -91,6 +91,8 @@ export const [ui, setUi] = createStore({
   /** AI › Ask AI's prompt (chrome/InlineAi.tsx): its starting text, and whether to run
    * it at once (a preset); bumped `seq` reopens it. */
   inlineAi: null as { instruction: string; run: boolean; seq: number } | null,
+  /** AI › AI Chat's panel is showing (chrome/AiChat.tsx). */
+  aiChat: false,
   /** Bumped when the sidebar should list its folder again (Show hidden files changed). */
   libraryVersion: 0,
   /** The sidebar file being renamed in place. */
