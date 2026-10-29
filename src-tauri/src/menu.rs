@@ -430,6 +430,36 @@ const VIEW_SIDEBAR: &[Item] = &[
     ("-", "", None),
 ];
 
+/// Help's guides: menu id, file name and text. They open as files in the app's data
+/// folder, written afresh when the app's copy changes.
+const HELP_DOCS: &[(&str, &str, &str)] = &[
+    (
+        "help-quick-start",
+        "Quick Start.md",
+        include_str!("../help/Quick Start.md"),
+    ),
+    (
+        "help-markdown",
+        "Markdown Reference.md",
+        include_str!("../help/Markdown Reference.md"),
+    ),
+];
+
+fn open_help(app: &AppHandle, name: &str, text: &str) {
+    let Ok(dir) = app.path().app_data_dir().map(|d| d.join("help")) else {
+        return;
+    };
+    let path = dir.join(name);
+    if std::fs::read_to_string(&path).ok().as_deref() != Some(text) {
+        let written = std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&path, text));
+        if let Err(e) = written {
+            eprintln!("could not write {}: {e}", path.display());
+            return;
+        }
+    }
+    let _ = windows::open(app, Some(path));
+}
+
 /// Zoom levels for View › Zoom In and Zoom Out, as browsers step them.
 const ZOOMS: &[f64] = &[
     0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0,
@@ -761,6 +791,44 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         ],
     )?;
 
+    let help = submenu(
+        app,
+        "Help",
+        vec![
+            Box::new(MenuItem::with_id(
+                app,
+                "help-quick-start",
+                "Quick Start",
+                true,
+                Some("CmdOrCtrl+Shift+/"),
+            )?),
+            Box::new(MenuItem::with_id(
+                app,
+                "help-markdown",
+                "Markdown Reference",
+                true,
+                None::<&str>,
+            )?),
+            Box::new(MenuItem::with_id(
+                app,
+                "help-pandoc",
+                "Install and Use Pandoc",
+                true,
+                None::<&str>,
+            )?),
+            Box::new(MenuItem::with_id(
+                app,
+                "help-themes",
+                "Custom Themes",
+                true,
+                None::<&str>,
+            )?),
+        ],
+    )?;
+    // macOS puts its search field at the top of this menu.
+    #[cfg(target_os = "macos")]
+    help.set_as_help_menu_for_nsapp()?;
+
     Menu::with_items(
         app,
         &[
@@ -790,6 +858,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
                 &theme_items.iter().map(|b| b.as_ref()).collect::<Vec<_>>(),
             )?,
             &window,
+            &help,
         ],
     )
 }
@@ -935,6 +1004,17 @@ pub fn handle(app: &AppHandle, id: &str) {
         }
         "quit" => quit(app),
         "import" => import(app),
+        _ if HELP_DOCS.iter().any(|(help, ..)| *help == id) => {
+            if let Some((_, name, text)) = HELP_DOCS.iter().find(|(help, ..)| *help == id) {
+                open_help(app, name, text);
+            }
+        }
+        "help-pandoc" => {
+            let _ = crate::commands::system_open("https://pandoc.org/installing.html".as_ref());
+        }
+        "help-themes" => {
+            let _ = crate::commands::open_theme_folder(app.clone());
+        }
         #[cfg(target_os = "macos")]
         "page-setup" => crate::pdf::page_setup(),
         "get-info" => {
