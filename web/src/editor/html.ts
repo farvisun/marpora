@@ -14,6 +14,7 @@ import DOMPurify from "dompurify";
 import type { Node as PMNode } from "prosemirror-model";
 import { type EditorState, Plugin, PluginKey, Selection, TextSelection } from "prosemirror-state";
 import { Decoration, DecorationSet, type EditorView, type NodeView, type ViewMutationRecord } from "prosemirror-view";
+import { buildAll, changedRanges, rebuild } from "./blockwise";
 
 /** Nothing that runs or restyles the page. */
 const PURIFY = { FORBID_TAGS: ["style", "link", "meta", "base", "form", "title"], FORBID_ATTR: ["autofocus"] };
@@ -224,10 +225,10 @@ function attrsOf(element: Element): Record<string, string> {
   return attrs;
 }
 
-function inlineDecorations(state: EditorState): DecorationSet {
+/** The decorations of the inline HTML in the blocks between `from` and `to`. */
+function inlineDecorations(doc: PMNode, from: number, to: number, head: number): Decoration[] {
   const decos: Decoration[] = [];
-  const head = state.selection.head;
-  state.doc.descendants((node, pos) => {
+  doc.nodesBetween(from, to, (node, pos) => {
     if (!node.inlineContent) return true;
     if (node.type.spec.code) return false;
     let any = false;
@@ -257,8 +258,28 @@ function inlineDecorations(state: EditorState): DecorationSet {
     });
     return false;
   });
-  return DecorationSet.create(state.doc, decos);
+  return decos;
 }
+
+/** The inline HTML decorations; a block is decorated again when an edit touches it or
+ * the cursor leaves or enters it. */
+const inlineKey = new PluginKey<DecorationSet>("marpora-html-inline");
+
+const inlinePlugin = new Plugin<DecorationSet>({
+  key: inlineKey,
+  state: {
+    init: (_, state) => buildAll(state.doc, (doc, from, to) => inlineDecorations(doc, from, to, state.selection.head)),
+    apply(tr, set, prev, state) {
+      const head = state.selection.head;
+      if (!tr.docChanged && head === prev.selection.head) return set;
+      const ranges = changedRanges(tr, [tr.mapping.map(prev.selection.head), head]);
+      return rebuild(set, tr, ranges, (doc, from, to) => inlineDecorations(doc, from, to, head));
+    },
+  },
+  props: {
+    decorations: (state) => inlineKey.getState(state),
+  },
+});
 
 /** The name of a rendered void element (`<br>`, `<img ...>`), else null. */
 function voidName(html: string): string | null {
@@ -312,13 +333,14 @@ function editingDecoration(state: EditorState): Decoration[] {
   return [];
 }
 
-export const htmlPlugin = new Plugin({
+const blockPlugin = new Plugin({
   key: new PluginKey("marpora-html"),
   props: {
     decorations(state) {
       const editing = editingDecoration(state);
-      const inline = inlineDecorations(state);
-      return editing.length ? inline.add(state.doc, editing) : inline;
+      return editing.length ? DecorationSet.create(state.doc, editing) : null;
     },
   },
 });
+
+export const htmlPlugins = [inlinePlugin, blockPlugin];

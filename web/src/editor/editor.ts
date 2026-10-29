@@ -12,7 +12,7 @@ import { alertPlugin } from "./alert";
 import { type ClipboardOptions, clipboardPlugin } from "./clipboard";
 import { type LinkOptions, linksPlugin } from "./links";
 import { highlightPlugin } from "./highlight";
-import { htmlPlugin } from "./html";
+import { htmlPlugins } from "./html";
 import { markdownInputRules } from "./inputrules";
 import { mathPlugin } from "./mathblock";
 import { hiddenSourceKeys } from "./navigation";
@@ -47,7 +47,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       tocPlugin,
       highlightPlugin,
       mathPlugin,
-      htmlPlugin,
+      ...htmlPlugins,
       searchPlugin,
       tablePlugin,
       alertPlugin,

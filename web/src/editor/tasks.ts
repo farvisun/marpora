@@ -1,7 +1,8 @@
 // Task list checkboxes, rendered as `li > input + p` like Typora.
 
-import { Plugin, PluginKey, type EditorState } from "prosemirror-state";
-import { Decoration, DecorationSet, type EditorView } from "prosemirror-view";
+import { Plugin, PluginKey } from "prosemirror-state";
+import { Decoration, type DecorationSet, type EditorView } from "prosemirror-view";
+import { type Build, buildAll, changedRanges, rebuild } from "./blockwise";
 
 function checkbox(checked: boolean) {
   return (view: EditorView, getPos: () => number | undefined) => {
@@ -23,9 +24,9 @@ function checkbox(checked: boolean) {
   };
 }
 
-function build(state: EditorState): DecorationSet {
+const build: Build = (doc, from, to) => {
   const decos: Decoration[] = [];
-  state.doc.descendants((node, pos) => {
+  doc.nodesBetween(from, to, (node, pos) => {
     if (node.type.name === "list_item" && node.attrs.checked !== null) {
       decos.push(
         Decoration.widget(pos + 1, checkbox(node.attrs.checked), {
@@ -38,16 +39,16 @@ function build(state: EditorState): DecorationSet {
     // Lists and tasks only live in block containers; skip inline content.
     return !node.isTextblock;
   });
-  return DecorationSet.create(state.doc, decos);
-}
+  return decos;
+};
 
 const key = new PluginKey<DecorationSet>("marpora-tasks");
 
 export const tasksPlugin = new Plugin<DecorationSet>({
   key,
   state: {
-    init: (_, state) => build(state),
-    apply: (tr, old, _prev, state) => (tr.docChanged ? build(state) : old),
+    init: (_, state) => buildAll(state.doc, build),
+    apply: (tr, old) => (tr.docChanged ? rebuild(old, tr, changedRanges(tr), build) : old),
   },
   props: {
     decorations: (state) => key.getState(state),
