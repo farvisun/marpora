@@ -71,6 +71,7 @@ pub fn run() {
             commands::export_path,
             commands::write_export,
             commands::export_pdf,
+            commands::export_image,
             commands::export_pandoc,
             commands::print_page_html,
         ])

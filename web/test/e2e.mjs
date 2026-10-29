@@ -220,6 +220,8 @@ const exported = await inline.evaluate(async () => {
   };
   const styled = await run("export-html");
   const plain = await run("export-html-plain");
+  await run("export-image");
+  const image = [...m.backend.exports.keys()][0] === "/export/untitled.png" && [...m.backend.exports.values()][0] === styled;
   const doc = new DOMParser().parseFromString(styled, "text/html");
   const q = (s) => doc.querySelector(s);
   return {
@@ -232,6 +234,7 @@ const exported = await inline.evaluate(async () => {
     diagram: !!q("pre[lang=mermaid] .md-diagram-panel-preview svg"),
     footnotes: q("#write > :last-child")?.className === "footnotes-area" && !!q(".footnote-line")?.textContent.includes("The note."),
     plain: !plain.includes("<style type='text/css'") && plain.includes("<h1"),
+    image,
   };
 });
 check("export body", exported.body);
@@ -243,6 +246,7 @@ check("export math as SVG", exported.math);
 check("export offscreen diagram drawn", exported.diagram);
 check("export footnotes at the end", exported.footnotes);
 check("plain export has no styles", exported.plain);
+check("image export takes the styled page", exported.image);
 
 // Find and replace: Typora's panel, counts, options, replace, Replace All and its Undo.
 await inline.evaluate(async () => {

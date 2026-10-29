@@ -179,6 +179,8 @@ export interface Backend {
   writeExport(path: string, contents: string): Promise<void>;
   /** Print the export page `html` to a PDF at a path `exportPath` returned. */
   exportPdf(path: string, html: string): Promise<void>;
+  /** Save the export page `html`, all of it, as a PNG image at a path `exportPath` returned. */
+  exportImage(path: string, html: string): Promise<void>;
   /** Print the export page `html` through the print panel. */
   print(html: string): Promise<void>;
   /** Export the saved-to-core text through Pandoc as `format` (`docx`, `latex`, ...). */
@@ -450,6 +452,10 @@ export class MemoryBackend implements Backend {
   }
 
   async exportPdf(path: string, html: string) {
+    this.exports.set(path, html);
+  }
+
+  async exportImage(path: string, html: string) {
     this.exports.set(path, html);
   }
 

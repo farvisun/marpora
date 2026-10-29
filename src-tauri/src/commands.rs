@@ -294,17 +294,40 @@ pub async fn export_pdf(
     if !grants.0.lock().unwrap().remove(&path) {
         return Err(format!("{} was not chosen for export", path.display()));
     }
-    print_page(window, html, Some(path)).await
+    print_page(window, html, PageOutput::Pdf(path)).await
+}
+
+/// Export the page `html` as a PNG image of all of it at `path`, a path the user chose
+/// through `export_path`.
+#[tauri::command]
+pub async fn export_image(
+    window: WebviewWindow,
+    path: String,
+    html: String,
+    grants: State<'_, ExportGrants>,
+) -> CmdResult<()> {
+    let path = PathBuf::from(path);
+    if !grants.0.lock().unwrap().remove(&path) {
+        return Err(format!("{} was not chosen for export", path.display()));
+    }
+    print_page(window, html, PageOutput::Png(path)).await
 }
 
 /// Print the page `html` through the print panel.
 #[tauri::command]
 pub async fn print_page_html(window: WebviewWindow, html: String) -> CmdResult<()> {
-    print_page(window, html, None).await
+    print_page(window, html, PageOutput::Printer).await
+}
+
+/// Where `print_page` sends the page.
+enum PageOutput {
+    Pdf(PathBuf),
+    Png(PathBuf),
+    Printer,
 }
 
 #[cfg(target_os = "macos")]
-async fn print_page(window: WebviewWindow, html: String, pdf: Option<PathBuf>) -> CmdResult<()> {
+async fn print_page(window: WebviewWindow, html: String, output: PageOutput) -> CmdResult<()> {
     use std::sync::atomic::{AtomicU32, Ordering};
     static NEXT: AtomicU32 = AtomicU32::new(0);
     let page = std::env::temp_dir().join(format!(
@@ -324,9 +347,10 @@ async fn print_page(window: WebviewWindow, html: String, pdf: Option<PathBuf>) -
     let target = window.clone();
     window
         .run_on_main_thread(move || {
-            let output = match pdf {
-                Some(path) => crate::pdf::Output::Pdf(path),
-                None => crate::pdf::Output::Printer,
+            let output = match output {
+                PageOutput::Pdf(path) => crate::pdf::Output::Pdf(path),
+                PageOutput::Png(path) => crate::pdf::Output::Png(path),
+                PageOutput::Printer => crate::pdf::Output::Printer,
             };
             let done = Box::new(move |r| {
                 let _ = tx.send(r);
@@ -352,7 +376,7 @@ async fn print_page(window: WebviewWindow, html: String, pdf: Option<PathBuf>) -
 }
 
 #[cfg(not(target_os = "macos"))]
-async fn print_page(_window: WebviewWindow, _html: String, _pdf: Option<PathBuf>) -> CmdResult<()> {
+async fn print_page(_window: WebviewWindow, _html: String, _output: PageOutput) -> CmdResult<()> {
     Err("printing is not available on this platform yet".into())
 }
 

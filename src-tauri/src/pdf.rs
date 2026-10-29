@@ -1,20 +1,28 @@
-//! PDF export and printing on macOS, as Typora does them there: the export page loads
-//! in an offscreen WKWebView, which NSPrintOperation prints, either to a PDF file or
-//! through the print panel.
+//! PDF and image export and printing on macOS, as Typora does them there: the export
+//! page loads in an offscreen WKWebView, which NSPrintOperation prints, either to a PDF
+//! file or through the print panel, or which is snapshotted whole into a PNG file.
 
 use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 
+use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObject, NSObjectProtocol, ProtocolObject};
-use objc2::{DefinedClass, MainThreadMarker, MainThreadOnly, Message, define_class, msg_send, sel};
+use objc2::{
+    AnyThread, DefinedClass, MainThreadMarker, MainThreadOnly, Message, define_class, msg_send, sel,
+};
 use objc2_app_kit::{
+    NSBitmapImageFileType, NSBitmapImageRep, NSDeviceRGBColorSpace, NSGraphicsContext, NSImage,
     NSPrintInfo, NSPrintJobSavingURL, NSPrintOperation, NSPrintSaveJob, NSPrintingPaginationMode,
     NSView, NSWindow,
 };
-use objc2_foundation::{NSCopying, NSError, NSPoint, NSRect, NSSize, NSString, NSURL};
-use objc2_web_kit::{WKNavigation, WKNavigationDelegate, WKWebView, WKWebViewConfiguration};
+use objc2_foundation::{
+    NSCopying, NSData, NSDictionary, NSError, NSNumber, NSPoint, NSRect, NSSize, NSString, NSURL,
+};
+use objc2_web_kit::{
+    WKNavigation, WKNavigationDelegate, WKPDFConfiguration, WKWebView, WKWebViewConfiguration,
+};
 
 /// Points per millimetre.
 const MM: f64 = 72.0 / 25.4;
@@ -43,6 +51,8 @@ pub enum Output {
     Pdf(PathBuf),
     /// Show the print panel.
     Printer,
+    /// Save the whole page, at the window's width, as a PNG file.
+    Png(PathBuf),
 }
 
 type Done = Box<dyn FnOnce(Result<(), String>)>;
@@ -67,7 +77,10 @@ define_class!(
     unsafe impl WKNavigationDelegate for PrintJob {
         #[unsafe(method(webView:didFinishNavigation:))]
         fn did_finish(&self, web: &WKWebView, _navigation: Option<&WKNavigation>) {
-            self.print(web);
+            match self.ivars().output {
+                Output::Png(_) => self.snapshot(web),
+                _ => self.print(web),
+            }
         }
 
         #[unsafe(method(webView:didFailNavigation:withError:))]
@@ -135,6 +148,100 @@ impl PrintJob {
         }
     }
 
+    /// Measure the page, grow the view to its height, and draw all of it into a PNG.
+    /// WebKit only paints what an offscreen view would show of a window's height, so a
+    /// snapshot comes out blank below that: the page is drawn as one PDF page instead,
+    /// which is then rasterized at the screen's scale.
+    fn snapshot(&self, web: &WKWebView) {
+        let job = self.retain();
+        let view = web.retain();
+        let measured = RcBlock::new(move |height: *mut AnyObject, error: *mut NSError| {
+            // SAFETY: WebKit passes an NSNumber for a number result, or an error.
+            let height = unsafe { height.cast::<NSNumber>().as_ref() }.map(|n| n.doubleValue());
+            let Some(height) = height.filter(|h| *h > 0.0) else {
+                return job.failed(error, "could not measure the page");
+            };
+            let mut frame = view.frame();
+            frame.size.height = height.ceil();
+            view.setFrame(frame);
+            // SAFETY: a new configuration and a plain property setter, on the main thread.
+            let config = unsafe { WKPDFConfiguration::new(job.mtm()) };
+            unsafe { config.setRect(NSRect::new(NSPoint::new(0.0, 0.0), frame.size)) };
+            let scale = job.ivars().window.backingScaleFactor();
+            let job = job.clone();
+            let drawn = RcBlock::new(move |pdf: *mut NSData, error: *mut NSError| {
+                // SAFETY: WebKit passes the PDF, or null and an error.
+                match unsafe { pdf.as_ref() } {
+                    Some(pdf) => job.finish(job.write_png(pdf, scale)),
+                    None => job.failed(error, "could not draw the page"),
+                }
+            });
+            // SAFETY: called on the main thread, from WebKit's own completion handler.
+            unsafe { view.createPDFWithConfiguration_completionHandler(Some(&config), &drawn) };
+        });
+        // SAFETY: as above.
+        unsafe {
+            web.evaluateJavaScript_completionHandler(
+                &NSString::from_str("document.documentElement.scrollHeight"),
+                Some(&measured),
+            );
+        }
+    }
+
+    /// Rasterize the one-page `pdf` at `scale` pixels per point into the PNG file.
+    fn write_png(&self, pdf: &NSData, scale: f64) -> Result<(), String> {
+        let Output::Png(path) = &self.ivars().output else {
+            return Err("not an image export".into());
+        };
+        let image =
+            NSImage::initWithData(NSImage::alloc(), pdf).ok_or("could not read the page")?;
+        let size = image.size();
+        let pixels = |points: f64| (points * scale).round() as isize;
+        // SAFETY: an RGBA bitmap that allocates its own memory (null planes, row and pixel
+        // sizes worked out by AppKit).
+        let bitmap = unsafe {
+            NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
+                NSBitmapImageRep::alloc(),
+                std::ptr::null_mut(),
+                pixels(size.width),
+                pixels(size.height),
+                8,
+                4,
+                true,
+                false,
+                NSDeviceRGBColorSpace,
+                0,
+                0,
+            )
+        }
+        .ok_or("the page is too large for an image")?;
+        bitmap.setSize(size);
+        let context = NSGraphicsContext::graphicsContextWithBitmapImageRep(&bitmap)
+            .ok_or("could not draw the image")?;
+        NSGraphicsContext::saveGraphicsState_class();
+        NSGraphicsContext::setCurrentContext(Some(&context));
+        image.drawInRect(NSRect::new(NSPoint::new(0.0, 0.0), size));
+        NSGraphicsContext::restoreGraphicsState_class();
+        // SAFETY: an empty property dictionary is valid for PNG.
+        let png = unsafe {
+            bitmap.representationUsingType_properties(
+                NSBitmapImageFileType::PNG,
+                &NSDictionary::new(),
+            )
+        }
+        .ok_or("could not encode the image")?;
+        std::fs::write(path, png.to_vec())
+            .map_err(|e| format!("could not write {}: {e}", path.display()))
+    }
+
+    fn failed(&self, error: *mut NSError, fallback: &str) {
+        // SAFETY: WebKit's error argument is null or a valid NSError.
+        let message = unsafe { error.as_ref() }
+            .map(|e| e.localizedDescription().to_string())
+            .unwrap_or_else(|| fallback.to_owned());
+        self.finish(Err(message));
+    }
+
     fn finish(&self, result: Result<(), String>) {
         let ivars = self.ivars();
         if let Some(web) = ivars.web.take() {
@@ -147,8 +254,8 @@ impl PrintJob {
     }
 }
 
-/// Print the page in `html_file` (which may load any local file) as `output`. Runs on
-/// the main thread; `done` is called when the job ends.
+/// Print or snapshot the page in `html_file` (which may load any local file) as
+/// `output`. Runs on the main thread; `done` is called when the job ends.
 pub fn print(window: &NSWindow, html_file: &Path, output: Output, done: Done) {
     let Some(mtm) = MainThreadMarker::new() else {
         return done(Err("printing must start on the main thread".into()));
@@ -159,8 +266,13 @@ pub fn print(window: &NSWindow, html_file: &Path, output: Output, done: Done) {
     // SAFETY: WebKit objects are created and used on the main thread only.
     unsafe {
         let config = WKWebViewConfiguration::new(mtm);
-        // Offscreen but inside a window, which WebKit needs to lay the page out.
-        let frame = NSRect::new(NSPoint::new(-20000.0, 0.0), NSSize::new(800.0, 1000.0));
+        // Offscreen but inside a window, which WebKit needs to lay the page out. An
+        // image is as wide as the window, like the document on screen.
+        let width = match output {
+            Output::Png(_) => content.frame().size.width,
+            _ => 800.0,
+        };
+        let frame = NSRect::new(NSPoint::new(-20000.0, 0.0), NSSize::new(width, 1000.0));
         let web = WKWebView::initWithFrame_configuration(WKWebView::alloc(mtm), frame, &config);
         content.addSubview(&web as &NSView);
 

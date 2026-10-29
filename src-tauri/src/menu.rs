@@ -36,6 +36,7 @@ const EXPORT: &[Item] = &[
     ("export-pdf", "PDF", None),
     ("export-html", "HTML", None),
     ("export-html-plain", "HTML (without styles)", None),
+    ("export-image", "Image", None),
     ("-", "", None),
     ("export-docx", "Word (.docx)", None),
     ("export-odt", "OpenOffice", None),

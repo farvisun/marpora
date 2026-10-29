@@ -207,11 +207,12 @@ async function main() {
     }
   };
 
-  const exportAs = async (format: "html" | "html-plain" | "pdf") => {
-    const pdf = format === "pdf";
-    const target = await backend.exportPath(opened.id, pdf ? "PDF" : "HTML", pdf ? "pdf" : "html");
+  const exportAs = async (format: "html" | "html-plain" | "pdf" | "image") => {
+    const [name, extension] = format === "pdf" ? ["PDF", "pdf"] : format === "image" ? ["PNG", "png"] : ["HTML", "html"];
+    const target = await backend.exportPath(opened.id, name, extension);
     if (!target) return;
-    if (pdf) await backend.exportPdf(target, await page({ target, print: true }));
+    if (format === "pdf") await backend.exportPdf(target, await page({ target, print: true }));
+    else if (format === "image") await backend.exportImage(target, await page({ target }));
     else await backend.writeExport(target, await page({ target, plain: format === "html-plain" }));
   };
 
@@ -223,6 +224,8 @@ async function main() {
         return void exportAs("html-plain").catch(exportFailed);
       case "export-pdf":
         return void exportAs("pdf").catch(exportFailed);
+      case "export-image":
+        return void exportAs("image").catch(exportFailed);
       case "print":
         return void page({ target: null, print: true })
           .then((html) => backend.print(html))

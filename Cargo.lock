@@ -2046,6 +2046,7 @@ dependencies = [
 name = "marpora"
 version = "0.1.0"
 dependencies = [
+ "block2",
  "chrono",
  "grep-matcher",
  "grep-regex",
