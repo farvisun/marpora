@@ -9,6 +9,7 @@ import { EditorView } from "prosemirror-view";
 import { commands } from "./commands";
 import { focusPlugin } from "./focus";
 import { highlightPlugin } from "./highlight";
+import { htmlPlugin } from "./html";
 import { markdownInputRules } from "./inputrules";
 import { mathPlugin } from "./mathblock";
 import { hiddenSourceKeys } from "./navigation";
@@ -41,6 +42,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       tocPlugin,
       highlightPlugin,
       mathPlugin,
+      htmlPlugin,
       searchPlugin,
       ...(opts.plugins ?? []),
     ],

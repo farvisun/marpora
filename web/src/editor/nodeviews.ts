@@ -4,6 +4,7 @@ import type { Node as PMNode } from "prosemirror-model";
 import { Plugin, PluginKey } from "prosemirror-state";
 import type { EditorView, NodeView, NodeViewConstructor } from "prosemirror-view";
 import { FenceView } from "./fence";
+import { HtmlBlockView, HtmlInlineView } from "./html";
 import { MathBlockView } from "./mathblock";
 import { InlineMathView } from "./mathinline";
 
@@ -147,5 +148,8 @@ export function nodeViews(ctx: ViewContext): Record<string, NodeViewConstructor>
     code_block: (node, view, getPos, decorations) => new FenceView(node, view, getPos, decorations),
     math_block: (node, view, getPos, decorations) => new MathBlockView(node, view, getPos, decorations),
     math_inline: (node, view, getPos) => new InlineMathView(node, view, getPos),
+    html_block: (node, view, getPos, decorations) =>
+      new HtmlBlockView(node, view, getPos, decorations, (src) => ctx.assetUrl(src)),
+    html_inline: (node) => new HtmlInlineView(node, (src) => ctx.assetUrl(src)),
   };
 }

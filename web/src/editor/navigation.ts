@@ -1,4 +1,4 @@
-// Arrow keys into blocks whose source is hidden until the cursor is inside: math
+// Arrow keys into blocks whose source is hidden until the cursor is inside: math and HTML
 // blocks and diagram fences show only their rendering, so the browser's own caret
 // movement would skip over them.
 
@@ -9,7 +9,7 @@ import { diagramKind } from "../diagram";
 import { langOf } from "./schema";
 
 function hidesSource(node: PMNode): boolean {
-  if (node.type.name === "math_block") return true;
+  if (node.type.name === "math_block" || node.type.name === "html_block") return true;
   return node.type.name === "code_block" && diagramKind(langOf(node)) !== null;
 }
 

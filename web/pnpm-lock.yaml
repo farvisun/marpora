@@ -20,6 +20,9 @@ importers:
       codemirror:
         specifier: 5.65.20
         version: 5.65.20
+      dompurify:
+        specifier: 3.4.17
+        version: 3.4.17
       flowchart.js:
         specifier: 1.18.1
         version: 1.18.1

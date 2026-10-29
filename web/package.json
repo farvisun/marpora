@@ -19,6 +19,7 @@
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.4",
     "codemirror": "5.65.20",
+    "dompurify": "3.4.17",
     "flowchart.js": "1.18.1",
     "lodash": "4.18.1",
     "mathjax": "4.1.0",

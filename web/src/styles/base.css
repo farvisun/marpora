@@ -901,9 +901,39 @@ pre.md-rawblock-input {
   font-size: 0.9em;
 }
 
-.md-htmlblock {
-  margin: 0.8em 0;
+/* ---- Raw HTML (src/editor/html.ts), with Typora's rules ------------------------- */
+
+#write .md-htmlblock { white-space: normal; position: relative; }
+.md-htmlblock-container { min-height: 20px; cursor: default; }
+.md-htmlblock-container > :first-child { margin-top: 0; }
+.md-htmlblock-container > :last-child { margin-bottom: 0; }
+.md-htmlblock .md-rawblock-tooltip { z-index: 0; }
+.md-htmlblock .CodeMirror-lines { padding: 6px 0; }
+.md-htmlblock .CodeMirror-code { white-space: pre-wrap; }
+/* Typora swaps the source panel in while editing; the rendering stays as a preview. */
+.md-htmlblock:not(.md-rawblock-on-edit) > .md-htmlblock-panel { display: none; }
+.md-htmlblock.md-rawblock-on-edit > .md-htmlblock-container { padding-top: 8px; }
+
+.md-raw-html-src { white-space: pre-line; font-size: 0.9em; }
+
+.md-linebreak-mark,
+.md-raw-html-src-content,
+.md-raw-inline {
+  font-family: var(--monospace);
+  opacity: 0.6;
+  color: inherit;
+  white-space: pre-wrap;
 }
+
+.md-raw-inline.md-meta { opacity: 0.8 !important; }
+.md-html-inline { white-space: normal; }
+.md-html-inline .md-meta { white-space: pre-wrap; }
+.md-html-inline .md-plain,
+.md-html-inline strong { color: inherit; }
+/* Hidden tags of a rendered pair, and the source of a rendered <br> or <img>. */
+.md-html-tag-hidden,
+.md-html-inline > .md-html-src { display: none; }
+.md-html-inline.md-expand > .md-html-src { display: inline; }
 
 /* ---- Diagrams (src/editor/diagramview.ts), with Typora's rules ------------------ */
 
@@ -1183,12 +1213,6 @@ mark .md-inline-math { color: inherit; }
 
 .md-inline-math.md-expand > .md-inline-math-preview { display: block; }
 .md-inline-math script:focus { outline: none; }
-
-.md-html-inline {
-  font-family: var(--monospace);
-  font-size: 0.9em;
-  color: var(--meta-content-color);
-}
 
 figure.md-table-fig {
   overflow-x: auto;

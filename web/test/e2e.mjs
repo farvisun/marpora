@@ -302,6 +302,35 @@ check("source mode find", (await searchStatus()) === "1 / 1" && sourceHits.join(
 await inline.keyboard.press("Escape");
 await inline.evaluate(() => window.marpora.handleMenu("source-mode"));
 
+// Raw HTML: blocks render sanitized, inline tag pairs render their element.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, '<div class="box"><b>Bold</b> <a href="https://x.test">link</a><script>alert(1)</script></div>\n\n' +
+    "<!-- note -->\n\nA <mark>marked</mark> and <kbd>K</kbd> line<br>next <span onclick=\"x()\">s</span>.\n");
+  await m.sync.resync();
+  m.view.dispatch(m.view.state.tr.setSelection(m.view.state.selection.constructor.atEnd(m.view.state.doc)));
+});
+const html = inline.locator("#write .md-htmlblock").first();
+check("html block renders", await html.locator(".md-htmlblock-container > div.box > b").textContent() === "Bold" &&
+  !(await html.locator(".md-htmlblock-panel").isVisible()));
+check("html block sanitized", (await html.locator("script").count()) === 0);
+const comment = await inline.locator("#write .md-htmlblock .md-raw-html-src-content").allTextContents();
+check("html comment shows source", comment.join() === "<!-- note -->", JSON.stringify(comment));
+check("inline html pairs render", (await inline.locator("#write p mark").textContent()) === "marked" &&
+  (await inline.locator("#write p kbd").textContent()) === "K");
+check("inline html tags hidden", (await inline.locator("#write p .md-html-tag:visible").count()) === 0);
+check("inline br renders", (await inline.locator("#write p .md-html-inline > br").count()) === 1);
+check("inline handlers dropped", (await inline.locator("#write p span[onclick]").count()) === 0 &&
+  (await inline.locator("#write p span:not([class])").textContent()) === "s");
+await inline.locator("#write p mark").click();
+check("inline html tags shown at cursor", (await inline.locator("#write p .md-html-tag:visible").allTextContents()).join() === "<mark>,</mark>");
+await html.locator(".md-htmlblock-container b").click();
+check("click on html edits it", (await html.locator(".md-htmlblock-panel").isVisible()) &&
+  (await inline.evaluate(() => window.marpora.view.state.selection.$head.parent.type.name)) === "html_block");
+await inline.keyboard.type(" ");
+check("html edit keeps source", (await docText()).startsWith('<div class="box"><b>Bold</b> <a href="https://x.test">link</a><script>alert(1)</script></div> \n'),
+  await docText());
+
 // The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
 const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 lib.on("pageerror", (e) => errors.push(e.message));
