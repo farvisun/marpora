@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      # Must match the wasm-bindgen version in Cargo.lock.
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+
+      - run: cargo fmt --all --check
+      # Builds the WASM parser and web/dist, which the Tauri crate embeds.
+      - run: pnpm build
+        working-directory: web
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: pnpm test
+        working-directory: web
+
+      - name: End-to-end tests (WebKit, in-memory backend)
+        working-directory: web
+        run: |
+          pnpm exec playwright install webkit
+          pnpm exec vite > vite.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:1420/ > /dev/null && break; sleep 1; done
+          pnpm test:e2e
