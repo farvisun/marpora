@@ -1,7 +1,7 @@
 {
   "name": "marpora-web",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "wasm": "cargo build -p marpora-md --features wasm --target wasm32-unknown-unknown --release && wasm-bindgen ../target/wasm32-unknown-unknown/release/marpora_md.wasm --target web --out-dir src/md/pkg",

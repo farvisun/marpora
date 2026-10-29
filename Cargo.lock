@@ -2215,7 +2215,7 @@ dependencies = [
 
 [[package]]
 name = "marpora"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "block2",
  "chrono",
@@ -2242,7 +2242,7 @@ dependencies = [
 
 [[package]]
 name = "marpora-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "marpora-md",
  "proptest",
@@ -2253,7 +2253,7 @@ dependencies = [
 
 [[package]]
 name = "marpora-llm"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "futures-util",
  "reqwest",
@@ -2265,7 +2265,7 @@ dependencies = [
 
 [[package]]
 name = "marpora-md"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "comrak",
  "proptest",
