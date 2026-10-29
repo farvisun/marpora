@@ -2,14 +2,19 @@
 //! documents through `marpora mcp` (mcp.rs), which relays each tool call here as one
 //! JSON line, `{"method": …, "params": {…}}`, and reads back `{"result": …}` or
 //! `{"error": "…"}`. Edits go through the document like changes on disk do, so the
-//! editor shows them at once and Undo takes them back.
+//! editor shows them at once and Undo takes them back. With Preferences › AI › Agents
+//! set to ask first, an edit is shown to the user as a suggestion instead, and the call
+//! waits for them to accept or reject it.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc;
+use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -102,7 +107,7 @@ pub fn serve(app: &AppHandle) {
                         continue;
                     }
                     let reply = match serde_json::from_str::<Request>(&line) {
-                        Ok(req) => match call(&app, &req.method, req.params) {
+                        Ok(req) => match call(&app, &req.method, req.params, &req.client) {
                             Ok(result) => json!({ "result": result }),
                             Err(error) => json!({ "error": error }),
                         },
@@ -125,18 +130,21 @@ struct Request {
     method: String,
     #[serde(default)]
     params: Value,
+    /// The MCP client's name, when it gave one.
+    #[serde(default)]
+    client: String,
 }
 
 type Result<T> = std::result::Result<T, String>;
 
-fn call(app: &AppHandle, method: &str, params: Value) -> Result<Value> {
+fn call(app: &AppHandle, method: &str, params: Value, client: &str) -> Result<Value> {
     match method {
         "list_documents" => Ok(list(app)),
         "read_document" => read(app, &params),
         "get_outline" => outline_of(app, &params),
         "get_selection" => selection(app, &params),
-        "edit_document" => edit(app, &params),
-        "write_document" => write(app, &params),
+        "edit_document" => edit(app, &params, client),
+        "write_document" => write(app, &params, client),
         "open_file" => open_file(app, &params),
         "create_document" => create(app, &params),
         "save_document" => save(app, &params),
@@ -353,26 +361,148 @@ fn current_text(app: &AppHandle, id: u64) -> Result<String> {
         .ok_or_else(|| "document closed".into())
 }
 
-fn edit(app: &AppHandle, params: &Value) -> Result<Value> {
-    let (label, id) = target(app, params)?;
-    let all = params
-        .get("replace_all")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let (text, count) = replace(
-        &current_text(app, id)?,
-        &lf(str_param(params, "old_text")?),
-        &lf(str_param(params, "new_text")?),
-        all,
-    )?;
-    let version = apply(app, &label, id, &text)?;
-    Ok(json!({ "id": id, "version": version, "replacements": count }))
+/// An edit an agent asked for, which can be made again on newer text.
+enum Change {
+    Replace { old: String, new: String, all: bool },
+    Write(String),
 }
 
-fn write(app: &AppHandle, params: &Value) -> Result<Value> {
+impl Change {
+    /// The text after the change, and the number of replacements.
+    fn on(&self, text: &str) -> Result<(String, usize)> {
+        match self {
+            Change::Replace { old, new, all } => replace(text, old, new, *all),
+            Change::Write(new) => Ok((lf(new), 1)),
+        }
+    }
+}
+
+fn edit(app: &AppHandle, params: &Value, client: &str) -> Result<Value> {
     let (label, id) = target(app, params)?;
-    let version = apply(app, &label, id, str_param(params, "text")?)?;
-    Ok(json!({ "id": id, "version": version }))
+    let change = Change::Replace {
+        old: lf(str_param(params, "old_text")?),
+        new: lf(str_param(params, "new_text")?),
+        all: params
+            .get("replace_all")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+    };
+    make(app, &label, id, &change, client)
+}
+
+fn write(app: &AppHandle, params: &Value, client: &str) -> Result<Value> {
+    let (label, id) = target(app, params)?;
+    let change = Change::Write(str_param(params, "text")?.to_owned());
+    make(app, &label, id, &change, client)
+}
+
+/// Make `change`, at once or when the user accepts it.
+fn make(app: &AppHandle, label: &str, id: u64, change: &Change, client: &str) -> Result<Value> {
+    let settings = app.state::<Store>().get();
+    let ask =
+        settings.agent_edits == "suggest" && !settings.agents_trusted.iter().any(|a| a == client);
+    if ask {
+        let current = current_text(app, id)?;
+        let (text, replacements) = change.on(&current)?;
+        if text == current {
+            return Ok(json!({ "id": id, "replacements": replacements, "changed": false }));
+        }
+        let (line, removed, added) = hunk(&current, &text);
+        let suggestion = Suggestion {
+            id: NEXT_SUGGESTION.fetch_add(1, Ordering::Relaxed),
+            doc_id: id,
+            agent: client.to_owned(),
+            line,
+            removed,
+            added,
+        };
+        if !wait_for_user(app, label, &suggestion) {
+            return Err(
+                "The user declined this edit in Marpora; the document is unchanged.".into(),
+            );
+        }
+    }
+    // On the text as it is now: the user may have typed while deciding.
+    let (text, replacements) = change.on(&current_text(app, id)?)?;
+    let version = apply(app, label, id, &text)?;
+    Ok(json!({ "id": id, "version": version, "replacements": replacements }))
+}
+
+/// An edit shown to the user (the "agent-suggestion" event): the lines it changes, from
+/// line `line` (1-based).
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct Suggestion {
+    id: u64,
+    doc_id: u64,
+    agent: String,
+    line: usize,
+    removed: String,
+    added: String,
+}
+
+static NEXT_SUGGESTION: AtomicU64 = AtomicU64::new(1);
+
+/// Suggestions waiting for the user, by id.
+#[derive(Default)]
+pub struct Suggestions(Mutex<HashMap<u64, mpsc::Sender<bool>>>);
+
+/// How long an agent's edit waits for the user before it is dropped.
+const ANSWER_TIME: Duration = Duration::from_secs(600);
+
+/// Show `suggestion` in the document's window and wait for the user's answer: true
+/// when they accept it.
+fn wait_for_user(app: &AppHandle, label: &str, suggestion: &Suggestion) -> bool {
+    let (tx, rx) = mpsc::channel();
+    let pending = &app.state::<Suggestions>().0;
+    pending.lock().unwrap().insert(suggestion.id, tx);
+    let _ = app.emit_to(label, "agent-suggestion", suggestion);
+    let accepted = rx.recv_timeout(ANSWER_TIME).unwrap_or(false);
+    pending.lock().unwrap().remove(&suggestion.id);
+    // Gone from the window too when it timed out.
+    let _ = app.emit_to(label, "agent-suggestion-done", suggestion.id);
+    accepted
+}
+
+/// The user's answer to suggestion `id`; with `trust`, its agent's edits apply at once
+/// from now on.
+#[tauri::command]
+pub fn agent_answer(
+    app: AppHandle,
+    id: u64,
+    accept: bool,
+    trust: Option<String>,
+    pending: tauri::State<Suggestions>,
+) {
+    if let Some(agent) = trust.filter(|a| !a.is_empty()) {
+        app.state::<Store>().update(&app, |s| {
+            if !s.agents_trusted.contains(&agent) {
+                s.agents_trusted.push(agent);
+            }
+        });
+    }
+    if let Some(tx) = pending.0.lock().unwrap().remove(&id) {
+        let _ = tx.send(accept);
+    }
+}
+
+/// Where `new` differs from `old`, by whole lines: the first changed line (1-based),
+/// and the lines taken out and put in.
+pub fn hunk(old: &str, new: &str) -> (usize, String, String) {
+    let a: Vec<&str> = old.split_inclusive('\n').collect();
+    let b: Vec<&str> = new.split_inclusive('\n').collect();
+    let head = a.iter().zip(&b).take_while(|(x, y)| x == y).count();
+    let tail = a[head..]
+        .iter()
+        .rev()
+        .zip(b[head..].iter().rev())
+        .take_while(|(x, y)| x == y)
+        .count();
+    (
+        head + 1,
+        a[head..a.len() - tail].concat(),
+        b[head..b.len() - tail].concat(),
+    )
 }
 
 /// Run `f` on the main thread, where windows are made, and wait for it.
@@ -462,6 +592,30 @@ fn save(app: &AppHandle, params: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hunk_is_the_changed_lines() {
+        assert_eq!(
+            hunk("a\nb\nc\nd\n", "a\nB\nB2\nd\n"),
+            (2, "b\nc\n".to_owned(), "B\nB2\n".to_owned())
+        );
+        assert_eq!(
+            hunk("a\nb", "a\nb\nc"),
+            (2, "b".to_owned(), "b\nc".to_owned())
+        );
+        assert_eq!(hunk("same\n", "same\n"), (2, String::new(), String::new()));
+    }
+
+    #[test]
+    fn changes_apply_to_newer_text() {
+        let change = Change::Replace {
+            old: "two".into(),
+            new: "2".into(),
+            all: false,
+        };
+        assert_eq!(change.on("one two").unwrap(), ("one 2".to_owned(), 1));
+        assert!(change.on("one three").is_err());
+    }
 
     #[test]
     fn replace_needs_one_match_unless_all() {

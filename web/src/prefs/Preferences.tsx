@@ -310,6 +310,26 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
             }),
           ),
         },
+        {
+          title: "Agents",
+          hint: "Edits from Claude Code, Codex and other MCP clients.",
+          items: [
+            {
+              kind: "select",
+              label: "Agent edits",
+              options: () => [
+                ["apply", "Apply at once"],
+                ["suggest", "Ask me first"],
+              ],
+              value: (s) => s.agentEdits,
+              change: (v) => update({ agentEdits: v }),
+            },
+            {
+              kind: "buttons",
+              buttons: [{ label: "Forget Always-Allowed Agents", run: () => update({ agentsTrusted: [] }) }],
+            },
+          ],
+        },
       ],
     },
   ];

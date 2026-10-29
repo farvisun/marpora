@@ -3,6 +3,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { MenuContext } from "./editor/contextmenu";
 import type {
+  AgentSuggestion,
   AiEvent,
   AiRequest,
   AgentSelection,
@@ -223,6 +224,18 @@ export class TauriBackend implements Backend {
     void getCurrentWebviewWindow().listen<{ docId: number; patch: RemotePatch }>("remote-patch", (e) =>
       handler(e.payload.docId, e.payload.patch),
     );
+  }
+
+  onAgentSuggestion(handler: (s: AgentSuggestion) => void) {
+    void getCurrentWebviewWindow().listen<AgentSuggestion>("agent-suggestion", (e) => handler(e.payload));
+  }
+
+  onAgentSuggestionDone(handler: (id: number) => void) {
+    void getCurrentWebviewWindow().listen<number>("agent-suggestion-done", (e) => handler(e.payload));
+  }
+
+  agentAnswer(id: number, accept: boolean, trust?: string) {
+    return invoke<void>("agent_answer", { id, accept, trust: trust ?? null });
   }
 
   onDiskChanged(handler: (docId: number) => void) {

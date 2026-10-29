@@ -63,6 +63,11 @@ pub struct Settings {
     pub ai_model: String,
     /// The OpenAI-compatible endpoint, up to `/v1`.
     pub ai_base_url: String,
+    /// Preferences › AI › Agents: "apply" edits from agents (MCP) at once, or "suggest"
+    /// them for the user to accept or reject.
+    pub agent_edits: String,
+    /// Agents (MCP client names) whose edits apply at once even when suggesting.
+    pub agents_trusted: Vec<String>,
     /// Edit › Line Endings › Insert Final New Line On Save.
     pub insert_final_newline: bool,
     /// Edit › Whitespace and Line Breaks: Typora's `indentFirstLine`,
@@ -106,6 +111,8 @@ impl Default for Settings {
             ai_provider: "anthropic".to_owned(),
             ai_model: String::new(),
             ai_base_url: String::new(),
+            agent_edits: "apply".to_owned(),
+            agents_trusted: Vec::new(),
         }
     }
 }

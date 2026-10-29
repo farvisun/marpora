@@ -83,6 +83,8 @@ export class MemoryPrefs implements PrefsApi {
     aiProvider: "anthropic",
     aiModel: "",
     aiBaseUrl: "",
+    agentEdits: "apply",
+    agentsTrusted: [],
   };
   /** Actions taken, for tests. */
   log: string[] = [];

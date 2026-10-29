@@ -94,6 +94,10 @@ export interface Settings {
   aiModel: string;
   /** The OpenAI-compatible endpoint, up to `/v1`. */
   aiBaseUrl: string;
+  /** Preferences › AI › Agents: "apply" agents' edits at once, or "suggest" them. */
+  agentEdits: string;
+  /** Agents whose edits apply at once even when suggesting. */
+  agentsTrusted: string[];
 }
 
 /** A sidebar Search (src-tauri search.rs). */
@@ -117,6 +121,18 @@ export interface FileHit {
   /** Matches in the lines found; 0 when only the file name matched. */
   total: number;
   lines: { line: number; text: string; ranges: [number, number][] }[];
+}
+
+/** An agent's edit waiting for the user (src-tauri agent.rs): the lines it changes. */
+export interface AgentSuggestion {
+  id: number;
+  docId: number;
+  /** The MCP client's name; empty when it gave none. */
+  agent: string;
+  /** The first changed line, from 1. */
+  line: number;
+  removed: string;
+  added: string;
 }
 
 /** A theme's CSS (src-tauri themes.rs). `css` is null for themes bundled with the app. */
@@ -259,6 +275,13 @@ export interface Backend {
   save(docId: number, saveAs: boolean): Promise<{ path: string; version: number } | null>;
   isDirty(docId: number): Promise<boolean>;
   onRemotePatch(handler: (docId: number, patch: RemotePatch) => void): void;
+  /** An agent's edit for the user to accept (Preferences › AI › Agents set to ask first). */
+  onAgentSuggestion(handler: (s: AgentSuggestion) => void): void;
+  /** Suggestion `id` is no longer waiting (answered, or it timed out). */
+  onAgentSuggestionDone(handler: (id: number) => void): void;
+  /** Accept or reject suggestion `id`; `trust` (its agent) applies that agent's edits at
+   * once from now on. */
+  agentAnswer(id: number, accept: boolean, trust?: string): Promise<void>;
   /** The file changed on disk while the document had unsaved edits. */
   onDiskChanged(handler: (docId: number) => void): void;
   /** Replace the document with its file on disk, dropping unsaved edits. */
@@ -351,6 +374,8 @@ export class MemoryBackend implements Backend {
     aiProvider: "anthropic",
     aiModel: "",
     aiBaseUrl: "",
+    agentEdits: "apply",
+    agentsTrusted: [],
   };
 
   constructor(private text = DEMO) {}
@@ -612,6 +637,25 @@ export class MemoryBackend implements Backend {
 
   onRemotePatch(handler: (id: number, p: RemotePatch) => void) {
     this.remote.push(handler);
+  }
+
+  private suggestionHandlers: ((s: AgentSuggestion) => void)[] = [];
+  private suggestionDoneHandlers: ((id: number) => void)[] = [];
+  /** Test hook: answers given, as `id accept trust`. */
+  agentAnswers: string[] = [];
+  onAgentSuggestion(handler: (s: AgentSuggestion) => void) {
+    this.suggestionHandlers.push(handler);
+  }
+  onAgentSuggestionDone(handler: (id: number) => void) {
+    this.suggestionDoneHandlers.push(handler);
+  }
+  /** Test hook: an agent suggests an edit. */
+  suggest(s: AgentSuggestion) {
+    for (const h of this.suggestionHandlers) h(s);
+  }
+  async agentAnswer(id: number, accept: boolean, trust?: string) {
+    this.agentAnswers.push(`${id} ${accept} ${trust ?? ""}`.trim());
+    for (const h of this.suggestionDoneHandlers) h(id);
   }
 
   /** Test hook: simulate an edit by an agent. */

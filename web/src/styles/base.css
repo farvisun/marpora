@@ -1870,6 +1870,46 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
 .md-ai-actions .btn { font-size: 12px; padding: 2px 10px; }
 .md-ai-actions kbd { margin-left: 6px; font-family: inherit; font-size: 11px; opacity: 0.6; }
 
+/* An agent's edit waiting for the user (chrome/AgentSuggestion.tsx) */
+#md-agent-suggestion {
+  position: fixed;
+  z-index: 9998;
+  top: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 8px;
+  font-size: 13px;
+  color: var(--text-color);
+  background-color: var(--side-bar-bg-color, #fafafa);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.agent-suggestion-head { display: flex; gap: 8px; align-items: baseline; padding: 0 2px 6px; }
+.agent-suggestion-count { margin-left: auto; opacity: 0.6; font-size: 12px; }
+.agent-suggestion-diff {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  font: 12px/1.5 var(--monospace, ui-monospace, Menlo, monospace);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: var(--bg-color, #fff);
+  border-radius: 3px;
+}
+.agent-suggestion-diff > div { padding: 0 8px 0 22px; text-indent: -14px; }
+.agent-del { background: rgba(255, 80, 80, 0.14); }
+.agent-del::before { content: "−"; display: inline-block; width: 14px; text-indent: 0; opacity: 0.6; }
+.agent-add { background: rgba(60, 180, 90, 0.16); }
+.agent-add::before { content: "+"; display: inline-block; width: 14px; text-indent: 0; opacity: 0.6; }
+.agent-suggestion-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.agent-suggestion-actions .btn { font-size: 12px; padding: 2px 10px; }
+.agent-suggestion-actions .btn-link { padding-left: 2px; }
+.agent-suggestion-spacer { flex: 1; }
+
 /* AI › AI Chat (chrome/AiChat.tsx) */
 :root { --ai-chat-width: 320px; }
 .ai-chat-open content,

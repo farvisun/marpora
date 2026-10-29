@@ -1169,6 +1169,27 @@ await ai.keyboard.type("formal");
 check("ai: custom prompts in the list", (await ai.locator(".md-ai-presets li").allTextContents()).join() === "Make Formal",
   (await ai.locator(".md-ai-presets li").allTextContents()).join());
 await ai.keyboard.press("Escape");
+// Preferences › AI › Agents set to ask first: an agent's edit waits for Accept or Reject.
+await ai.evaluate(() => {
+  const b = window.marpora.backend;
+  b.suggest({ id: 1, docId: 1, agent: "claude-code", line: 3, removed: "Second para.\n", added: "Second paragraph.\nThird.\n" });
+  b.suggest({ id: 2, docId: 1, agent: "claude-code", line: 1, removed: "One", added: "Uno" });
+  b.suggest({ id: 3, docId: 1, agent: "", line: 1, removed: "", added: "New\n" });
+});
+const agentBar = ai.locator("#md-agent-suggestion");
+await agentBar.waitFor();
+check("agent: suggestion shows its lines", (await agentBar.locator(".agent-suggestion-head").textContent()).startsWith("claude-code suggests an edit at line 3") &&
+  (await agentBar.locator(".agent-del").allTextContents()).join("|") === "Second para." &&
+  (await agentBar.locator(".agent-add").allTextContents()).join("|") === "Second paragraph.|Third." &&
+  (await agentBar.locator(".agent-suggestion-count").textContent()) === "2 more waiting");
+await agentBar.locator(".agent-accept").click();
+check("agent: accept answers and shows the next", (await ai.evaluate(() => window.marpora.backend.agentAnswers.join())) === "1 true" &&
+  (await agentBar.locator(".agent-add").textContent()) === "Uno");
+await agentBar.locator(".agent-trust").click();
+check("agent: always allow trusts the agent", (await ai.evaluate(() => window.marpora.backend.agentAnswers.at(-1))) === "2 true claude-code" &&
+  (await agentBar.locator(".agent-trust").count()) === 0 && (await agentBar.locator(".agent-suggestion-head b").textContent()) === "An agent");
+await agentBar.locator(".agent-reject").click();
+check("agent: reject answers and the bar goes", (await ai.evaluate(() => window.marpora.backend.agentAnswers.at(-1))) === "3 false" && (await agentBar.count()) === 0);
 
 // AI › AI Chat: questions carry the document and selection; answers go in on a click.
 await ai.evaluate(() => window.marpora.handleMenu("ai-chat"));
@@ -1368,11 +1389,13 @@ check("prefs: export settings", exportSettings === "marpora-night|true|<meta nam
 await prefs.click(".nav-group-item:text('AI')");
 const aiPanel = prefs.locator(".content[data-index='6']");
 check("prefs: ai model placeholder", (await aiPanel.getByLabel("Model").getAttribute("placeholder")) === "claude-opus-5-5");
-await aiPanel.locator("select").selectOption("openai");
+await aiPanel.getByLabel("Provider").selectOption("openai");
 await aiPanel.getByLabel("Model").fill("gpt-test");
 await aiPanel.getByLabel("Model").blur();
 check("prefs: ai provider and model", (await prefs.evaluate(() => [window.marporaPrefs.current.aiProvider, window.marporaPrefs.current.aiModel].join())) === "openai,gpt-test" &&
   (await aiPanel.getByLabel("Endpoint").getAttribute("placeholder")) === "https://api.openai.com/v1");
+await aiPanel.getByLabel("Agent edits").selectOption("suggest");
+check("prefs: agent edits ask first", (await prefs.evaluate(() => window.marporaPrefs.current.agentEdits)) === "suggest");
 const anthropicKey = aiPanel.getByLabel("Anthropic API key", { exact: true });
 check("prefs: no key yet", (await anthropicKey.getAttribute("placeholder")) === "Not set");
 await anthropicKey.fill("sk-test");

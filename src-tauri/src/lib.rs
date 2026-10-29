@@ -47,6 +47,7 @@ pub fn run() {
         .manage(search::Searches::default())
         .manage(ai::Tasks::default())
         .manage(present::Presents::default())
+        .manage(agent::Suggestions::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::Focused(true) = event {
@@ -130,6 +131,7 @@ pub fn run() {
             commands::export_slides_pptx,
             commands::marp_themes,
             ai::ai_prompts,
+            agent::agent_answer,
             commands::open_marp_theme_folder,
             present::present_open,
             present::present_send,

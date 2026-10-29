@@ -9,9 +9,15 @@ use serde_json::{Value, json};
 const PROTOCOL: &str = "2025-06-18";
 
 const INSTRUCTIONS: &str = "Tools for the Markdown documents open in the Marpora editor. \
-Edits show in the editor at once, and the user can undo them. Documents are named by id \
-(from list_documents) or path; with none, tools act on the document in front. Read a \
-document before editing it, and edit with exact text from it.";
+Edits show in the editor at once, and the user can undo them; if the user has Marpora \
+ask first, an edit waits for them to accept it, and a declined edit comes back as an \
+error. Documents are named by id (from list_documents) or path; with none, tools act \
+on the document in front. Read a document before editing it, and edit with exact text \
+from it.";
+
+/// The client's name from `initialize` (`claude-code`, `codex-mcp-client`, ...), which
+/// the editor shows with edits it is asked to accept.
+static CLIENT: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
 /// The tools, as `tools/list` describes them.
 fn tools() -> Value {
@@ -132,7 +138,11 @@ fn handle(message: &Value) -> Option<Value> {
     let method = message.get("method").and_then(Value::as_str).unwrap_or("");
     let params = message.get("params").cloned().unwrap_or(Value::Null);
     let result = match method {
-        "initialize" => json!({
+        "initialize" => {
+            if let Some(name) = params.pointer("/clientInfo/name").and_then(Value::as_str) {
+                *CLIENT.lock().unwrap() = name.to_owned();
+            }
+            json!({
             "protocolVersion": params
                 .get("protocolVersion")
                 .and_then(Value::as_str)
@@ -140,7 +150,8 @@ fn handle(message: &Value) -> Option<Value> {
             "capabilities": { "tools": {} },
             "serverInfo": { "name": "marpora", "version": env!("CARGO_PKG_VERSION") },
             "instructions": INSTRUCTIONS,
-        }),
+            })
+        }
         "ping" => json!({}),
         "tools/list" => json!({ "tools": tools() }),
         "tools/call" => {
@@ -182,7 +193,13 @@ fn call(name: &str, args: Value) -> Result<Value, String> {
             .flatten()
             .ok_or("Marpora is not running; ask the user to open it.")?,
     };
-    writeln!(stream, "{}", json!({ "method": name, "params": args })).map_err(|e| e.to_string())?;
+    let client = CLIENT.lock().unwrap().clone();
+    writeln!(
+        stream,
+        "{}",
+        json!({ "method": name, "params": args, "client": client })
+    )
+    .map_err(|e| e.to_string())?;
     let mut line = String::new();
     BufReader::new(&stream)
         .read_line(&mut line)

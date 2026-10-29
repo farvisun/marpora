@@ -4,6 +4,7 @@
 import { createEffect, Show } from "solid-js";
 import type { EditorView } from "prosemirror-view";
 import type { Backend } from "../ipc";
+import { AgentSuggestion } from "./AgentSuggestion";
 import { AiChat } from "./AiChat";
 import { InlineAi } from "./InlineAi";
 import { Presenter } from "./Presenter";
@@ -55,6 +56,7 @@ export function App(props: ChromeProps) {
       <QuickOpen backend={props.backend} onOpenFile={props.onOpenFile} />
       <OutlinePopover onOutlineClick={props.onOutlineClick} />
       <InlineAi backend={props.backend} view={props.view} />
+      <AgentSuggestion backend={props.backend} />
       <AiChat backend={props.backend} view={props.view} />
       <SlidePreview {...props.slides} />
       <Presenter markdown={props.slides.markdown} />
