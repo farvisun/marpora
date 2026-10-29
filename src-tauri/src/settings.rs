@@ -71,7 +71,11 @@ pub struct Store {
 
 impl Store {
     pub fn load(app: &AppHandle) -> Self {
-        let path = app.path().app_config_dir().ok().map(|d| d.join("settings.json"));
+        let path = app
+            .path()
+            .app_config_dir()
+            .ok()
+            .map(|d| d.join("settings.json"));
         let settings = path
             .as_ref()
             .and_then(|p| std::fs::read_to_string(p).ok())

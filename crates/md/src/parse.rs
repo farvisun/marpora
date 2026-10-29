@@ -439,7 +439,11 @@ fn push_source_text(out: &mut Vec<Node>, source: &str, marks: &[Mark]) {
         if i > 0 {
             out.push(with_marks(Node::new("soft_break"), marks));
         }
-        let line = if i > 0 { line.trim_start_matches([' ', '\t']) } else { line };
+        let line = if i > 0 {
+            line.trim_start_matches([' ', '\t'])
+        } else {
+            line
+        };
         push_text(out, line, marks);
     }
 }

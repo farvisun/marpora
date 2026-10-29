@@ -59,7 +59,6 @@ pub fn open_preferences(app: &AppHandle) -> tauri::Result<()> {
 }
 
 fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<()> {
-
     let (width, height) = window_size();
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title(title)

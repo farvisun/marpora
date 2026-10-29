@@ -79,7 +79,11 @@ const PARAGRAPH: &[Item] = &[
     ("paragraph", "Paragraph", Some("CmdOrCtrl+0")),
     ("-", "", None),
     ("heading-up", "Increase Heading Level", Some("CmdOrCtrl+=")),
-    ("heading-down", "Decrease Heading Level", Some("CmdOrCtrl+-")),
+    (
+        "heading-down",
+        "Decrease Heading Level",
+        Some("CmdOrCtrl+-"),
+    ),
     ("-", "", None),
     ("table", "Table", Some("CmdOrCtrl+Alt+T")),
     ("code-fence", "Code Fences", Some("CmdOrCtrl+Alt+C")),
@@ -110,7 +114,11 @@ const FORMAT: &[Item] = &[
 const VIEW: &[Item] = &[
     ("source-mode", "Source Code Mode", Some("CmdOrCtrl+/")),
     ("-", "", None),
-    ("toggle-sidebar", "Toggle Sidebar", Some("CmdOrCtrl+Shift+L")),
+    (
+        "toggle-sidebar",
+        "Toggle Sidebar",
+        Some("CmdOrCtrl+Shift+L"),
+    ),
     ("outline", "Outline", Some("Ctrl+Cmd+1")),
     ("articles", "Articles", Some("Ctrl+Cmd+2")),
     ("file-tree", "File Tree", Some("Ctrl+Cmd+3")),
@@ -122,7 +130,10 @@ const VIEW: &[Item] = &[
     ("word-count", "Show Status Bar", None),
 ];
 
-fn items<R: Runtime>(app: &AppHandle<R>, list: &[Item]) -> tauri::Result<Vec<Box<dyn tauri::menu::IsMenuItem<R>>>> {
+fn items<R: Runtime>(
+    app: &AppHandle<R>,
+    list: &[Item],
+) -> tauri::Result<Vec<Box<dyn tauri::menu::IsMenuItem<R>>>> {
     let mut out: Vec<Box<dyn tauri::menu::IsMenuItem<R>>> = Vec::new();
     for (id, label, accel) in list {
         if *id == "-" {
@@ -198,7 +209,11 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
     edit.push(Box::new(PredefinedMenuItem::paste(app, None)?));
     edit.push(Box::new(PredefinedMenuItem::select_all(app, None)?));
     edit.push(Box::new(PredefinedMenuItem::separator(app)?));
-    edit.push(Box::new(submenu(app, "Find and Replace", items(app, FIND)?)?));
+    edit.push(Box::new(submenu(
+        app,
+        "Find and Replace",
+        items(app, FIND)?,
+    )?));
 
     let current = app.state::<Store>().get().theme;
     let mut theme_items: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
@@ -208,7 +223,12 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             last_source = theme.source;
             theme_items.push(Box::new(PredefinedMenuItem::separator(app)?));
             if theme.source == Source::Typora {
-                theme_items.push(Box::new(MenuItem::new(app, "From Typora", false, None::<&str>)?));
+                theme_items.push(Box::new(MenuItem::new(
+                    app,
+                    "From Typora",
+                    false,
+                    None::<&str>,
+                )?));
             }
         }
         theme_items.push(Box::new(CheckMenuItem::with_id(
@@ -265,12 +285,24 @@ fn recent_items(app: &AppHandle) -> tauri::Result<Vec<Box<dyn tauri::menu::IsMen
     let mut out: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
     for path in &files {
         let name = windows::title_for(Some(Path::new(path)));
-        out.push(Box::new(MenuItem::with_id(app, format!("recent:{path}"), name, true, None::<&str>)?));
+        out.push(Box::new(MenuItem::with_id(
+            app,
+            format!("recent:{path}"),
+            name,
+            true,
+            None::<&str>,
+        )?));
     }
     if !files.is_empty() {
         out.push(Box::new(PredefinedMenuItem::separator(app)?));
     }
-    out.push(Box::new(MenuItem::with_id(app, "recent-clear", "Clear Items", !files.is_empty(), None::<&str>)?));
+    out.push(Box::new(MenuItem::with_id(
+        app,
+        "recent-clear",
+        "Clear Items",
+        !files.is_empty(),
+        None::<&str>,
+    )?));
     Ok(out)
 }
 
@@ -342,7 +374,8 @@ pub fn handle(app: &AppHandle, id: &str) {
 
 /// Switch every window to theme `id` and move the menu checkmark.
 pub fn set_theme(app: &AppHandle, id: &str) {
-    app.state::<Store>().update(app, |s| s.theme = id.to_owned());
+    app.state::<Store>()
+        .update(app, |s| s.theme = id.to_owned());
     let Some(MenuItemKind::Submenu(menu)) = app.menu().and_then(|m| m.get("themes")) else {
         return;
     };

@@ -122,7 +122,8 @@ pub fn set_document_text(
 
 #[tauri::command]
 pub fn is_dirty(doc_id: u64, docs: State<Docs>) -> bool {
-    docs.with(doc_id, |open| open.doc.is_dirty()).unwrap_or(false)
+    docs.with(doc_id, |open| open.doc.is_dirty())
+        .unwrap_or(false)
 }
 
 /// Save to the document's path, asking for one when it has none or `save_as` is set.
@@ -135,7 +136,9 @@ pub async fn save_document(
     docs: State<'_, Docs>,
 ) -> CmdResult<Option<Saved>> {
     let (current, suggested) = docs
-        .with(doc_id, |open| (open.path.clone(), suggested_name(&open.doc.text())))
+        .with(doc_id, |open| {
+            (open.path.clone(), suggested_name(&open.doc.text()))
+        })
         .ok_or("document closed")?;
 
     let path = match current {
@@ -147,9 +150,13 @@ pub async fn save_document(
                 .set_parent(&window)
                 .add_filter("Markdown", &["md", "markdown"]);
             dialog = match &current {
-                Some(p) => dialog.set_directory(p.parent().unwrap_or(Path::new("/"))).set_file_name(
-                    p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(suggested),
-                ),
+                Some(p) => dialog
+                    .set_directory(p.parent().unwrap_or(Path::new("/")))
+                    .set_file_name(
+                        p.file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or(suggested),
+                    ),
                 None => dialog.set_file_name(suggested),
             };
             match dialog.blocking_save_file().and_then(|f| f.into_path().ok()) {
@@ -195,7 +202,9 @@ fn ask_export_path(
     docs: &Docs,
 ) -> CmdResult<Option<PathBuf>> {
     let (current, suggested) = docs
-        .with(doc_id, |open| (open.path.clone(), suggested_name(&open.doc.text())))
+        .with(doc_id, |open| {
+            (open.path.clone(), suggested_name(&open.doc.text()))
+        })
         .ok_or("document closed")?;
     let stem = current
         .as_deref()
@@ -229,7 +238,8 @@ pub async fn export_pandoc(
     format: String,
     docs: State<'_, Docs>,
 ) -> CmdResult<bool> {
-    let format = pandoc::format(&format).ok_or_else(|| format!("unknown export format {format}"))?;
+    let format =
+        pandoc::format(&format).ok_or_else(|| format!("unknown export format {format}"))?;
     let home = app.path().home_dir().ok();
     let Some(pandoc) = pandoc::find(std::env::var_os("PATH").as_deref(), home.as_deref()) else {
         return Err(format!(
@@ -237,15 +247,26 @@ pub async fn export_pandoc(
             format.name
         ));
     };
-    let Some(path) = ask_export_path(&app, &window, doc_id, format.name, format.extension, &docs)? else {
+    let Some(path) = ask_export_path(&app, &window, doc_id, format.name, format.extension, &docs)?
+    else {
         return Ok(false);
     };
     let (text, dir) = docs
-        .with(doc_id, |open| (open.doc.text(), open.path.as_deref().and_then(Path::parent).map(Path::to_path_buf)))
+        .with(doc_id, |open| {
+            (
+                open.doc.text(),
+                open.path
+                    .as_deref()
+                    .and_then(Path::parent)
+                    .map(Path::to_path_buf),
+            )
+        })
         .ok_or("document closed")?;
-    tauri::async_runtime::spawn_blocking(move || pandoc::convert(&pandoc, format, &text, &path, dir.as_deref()))
-        .await
-        .map_err(|e| e.to_string())??;
+    tauri::async_runtime::spawn_blocking(move || {
+        pandoc::convert(&pandoc, format, &text, &path, dir.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
     Ok(true)
 }
 
@@ -256,7 +277,8 @@ pub fn write_export(path: String, contents: String, grants: State<ExportGrants>)
     if !grants.0.lock().unwrap().remove(&path) {
         return Err(format!("{} was not chosen for export", path.display()));
     }
-    save::write_atomically(&path, &contents).map_err(|e| format!("could not write {}: {e}", path.display()))
+    save::write_atomically(&path, &contents)
+        .map_err(|e| format!("could not write {}: {e}", path.display()))
 }
 
 /// Export the page `html` (from the editor's HTML export) as a PDF at `path`, a path
@@ -311,7 +333,12 @@ async fn print_page(window: WebviewWindow, html: String, pdf: Option<PathBuf>) -
             });
             match target.ns_window() {
                 // SAFETY: the window is alive while its command runs, and this is the main thread.
-                Ok(ns) => crate::pdf::print(unsafe { &*(ns as *const objc2_app_kit::NSWindow) }, &file, output, done),
+                Ok(ns) => crate::pdf::print(
+                    unsafe { &*(ns as *const objc2_app_kit::NSWindow) },
+                    &file,
+                    output,
+                    done,
+                ),
                 Err(e) => done(Err(e.to_string())),
             }
         })
@@ -612,12 +639,22 @@ pub fn set_theme(app: AppHandle, id: String) {
 fn suggested_name(text: &str) -> String {
     let title = text
         .lines()
-        .find_map(|l| l.trim_start().strip_prefix('#').map(|h| h.trim_start_matches('#').trim()))
+        .find_map(|l| {
+            l.trim_start()
+                .strip_prefix('#')
+                .map(|h| h.trim_start_matches('#').trim())
+        })
         .filter(|t| !t.is_empty())
         .unwrap_or("Untitled");
     let clean: String = title
         .chars()
-        .map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { '-' } else { c })
+        .map(|c| {
+            if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                '-'
+            } else {
+                c
+            }
+        })
         .take(80)
         .collect();
     format!("{clean}.md")

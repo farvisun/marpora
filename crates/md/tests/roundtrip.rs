@@ -256,7 +256,13 @@ fn math_blocks_parse_in_every_flavor() {
 #[test]
 fn flavor_json_defaults_missing_fields() {
     let f: Flavor = serde_json::from_str(r#"{"inlineMath":true}"#).unwrap();
-    assert_eq!(f, Flavor { inline_math: true, ..Flavor::default() });
+    assert_eq!(
+        f,
+        Flavor {
+            inline_math: true,
+            ..Flavor::default()
+        }
+    );
 }
 
 #[test]

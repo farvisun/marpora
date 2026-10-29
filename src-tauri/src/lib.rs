@@ -115,14 +115,24 @@ pub fn run() {
                 let _ = windows::open_preferences(app);
             }
         }
-        RunEvent::Reopen { has_visible_windows: false, .. } => {
+        RunEvent::Reopen {
+            has_visible_windows: false,
+            ..
+        } => {
             let _ = windows::open(app, None);
         }
         // The last window closed: stay in the Dock, as Mac apps do, unless asked not to.
         // File › Quit exits with a code, so it is never held back.
-        RunEvent::ExitRequested { code: None, api, .. }
-            if !app.state::<settings::Store>().get().quit_on_last_window_closed
-                && !app.state::<menu::Quitting>().0.load(std::sync::atomic::Ordering::SeqCst) =>
+        RunEvent::ExitRequested {
+            code: None, api, ..
+        } if !app
+            .state::<settings::Store>()
+            .get()
+            .quit_on_last_window_closed
+            && !app
+                .state::<menu::Quitting>()
+                .0
+                .load(std::sync::atomic::Ordering::SeqCst) =>
         {
             api.prevent_exit();
         }
