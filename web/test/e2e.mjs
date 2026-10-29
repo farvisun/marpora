@@ -248,6 +248,39 @@ check("export footnotes at the end", exported.footnotes);
 check("plain export has no styles", exported.plain);
 check("image export takes the styled page", exported.image);
 
+// Preferences › Export: another theme, page breaks and extra HTML in exports.
+const exportPrefs = await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.updateSettings({
+    exportTheme: "marpora-night",
+    exportPageBreak: true,
+    exportAppendHead: "<meta name='extra-head'>",
+    exportAppendBody: "<p id='extra-tail'>tail</p>",
+  });
+  const run = async (id) => {
+    m.backend.exports.clear();
+    m.handleMenu(id);
+    for (let i = 0; i < 200 && !m.backend.exports.size; i++) await new Promise((r) => setTimeout(r, 50));
+    return new DOMParser().parseFromString([...m.backend.exports.values()][0] ?? "", "text/html");
+  };
+  const html = await run("export-html");
+  const pdf = await run("export-pdf");
+  const plain = await run("export-html-plain");
+  await m.backend.updateSettings({ exportTheme: "", exportPageBreak: false, exportAppendHead: "", exportAppendBody: "" });
+  const styleIds = (d) => [...d.querySelectorAll("style")].map((s) => s.id);
+  const css = (d, id) => d.getElementById(id)?.textContent ?? "";
+  return {
+    theme: css(html, "style-theme").includes("--bg-color") && !styleIds(html).includes("style-marpora"),
+    extra: !!html.querySelector("head meta[name='extra-head']") && html.body.lastElementChild?.id === "extra-tail",
+    pageBreak: css(pdf, "style-page-break").includes("break-before: page") && !css(html, "style-page-break"),
+    plain: !plain.querySelector("#extra-tail"),
+  };
+});
+check("export uses the export theme", exportPrefs.theme);
+check("export appends extra html", exportPrefs.extra);
+check("pdf breaks pages at top headings", exportPrefs.pageBreak);
+check("plain html has no extras", exportPrefs.plain);
+
 // Find and replace: Typora's panel, counts, options, replace, Replace All and its Undo.
 await inline.evaluate(async () => {
   const m = window.marpora;
@@ -1047,7 +1080,7 @@ prefs.on("pageerror", (e) => errors.push(e.message));
 await prefs.goto((process.env.URL ?? "http://localhost:1420/") + "preferences.html");
 await prefs.waitForSelector(".nav-group-item");
 const prefsLog = () => prefs.evaluate(() => window.marporaPrefs.log);
-check("prefs: categories", (await prefs.locator(".nav-group-item").allTextContents()).join(",") === "Files,Image,Markdown,Appearance,General");
+check("prefs: categories", (await prefs.locator(".nav-group-item").allTextContents()).join(",") === "Files,Image,Markdown,Appearance,General,Export");
 check("prefs: Files shown first", await prefs.locator(".content[data-index='0'] .input-group-header-title").first().textContent() === "Save & Recover" &&
   (await prefs.locator(".content:not(.display-none)").count()) === 1);
 await prefs.getByLabel("Auto Save").check();
@@ -1067,9 +1100,21 @@ check("prefs: image storage", (await prefs.evaluate(() => window.marporaPrefs.cu
 await prefs.click(".nav-group-item:text('Appearance')");
 await prefs.selectOption(".content[data-index='3'] select", "marpora-night");
 check("prefs: theme", (await prefs.evaluate(() => window.marporaPrefs.current.theme)) === "marpora-night");
+await prefs.click(".nav-group-item:text('Export')");
+await prefs.selectOption(".content[data-index='5'] select", "marpora-night");
+await prefs.getByLabel("Page Break Between Top Headings").check();
+await prefs.getByLabel("Append in <head />").fill("<meta name='x'>");
+await prefs.getByLabel("Append in <head />").blur();
+await prefs.getByLabel("Width").fill("99999");
+await prefs.getByLabel("Width").press("Enter");
+const exportSettings = await prefs.evaluate(() => {
+  const c = window.marporaPrefs.current;
+  return [c.exportTheme, c.exportPageBreak, c.exportAppendHead, c.exportImageWidth].join("|");
+});
+check("prefs: export settings", exportSettings === "marpora-night|true|<meta name='x'>|4000", exportSettings);
 await prefs.fill(".search-input", "recent");
 check("prefs: search marks matches", (await prefs.locator(".input-group.search-hit .input-group-header-title").allTextContents()).join() === "Recent Locations" &&
-  (await prefs.locator(".nav-group-item.no-search-hit").allTextContents()).join() === "Image,Markdown,Appearance,General");
+  (await prefs.locator(".nav-group-item.no-search-hit").allTextContents()).join() === "Image,Markdown,Appearance,General,Export");
 await prefs.fill(".search-input", "zzz");
 check("prefs: no results", (await prefs.locator(".no-results:not(.display-none)").textContent()) === 'No results found for "zzz"');
 await prefs.click(".clear-btn-icon");

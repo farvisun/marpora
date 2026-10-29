@@ -384,6 +384,31 @@ select:focus {
   width: 95%;
 }
 
+/* Typora's text fields (Export's settings). */
+input[type="text"],
+input[type="number"],
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+  outline: none;
+  border: 1px solid rgba(136, 136, 136, 0.7);
+  font: inherit;
+  color: inherit;
+}
+
+.row input[type="text"],
+.row textarea {
+  width: 95%;
+  box-sizing: border-box;
+  padding: 2px 4px;
+  resize: vertical;
+}
+
+.row input[type="number"] {
+  width: 72px;
+}
+
 .label-input-group tbody,
 .label-input-group tr {
   background: none;

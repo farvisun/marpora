@@ -22,7 +22,7 @@ import { blockOfLine, SourceMode } from "./chrome/source";
 import { fileSearchOptionsOf, onFileSearchHidden, restoreFileSearch, toggleFileSearch } from "./chrome/librarySearch";
 import { buildPattern } from "./chrome/search";
 import { setSearch } from "./editor/search";
-import { applyTheme } from "./chrome/theme";
+import { applyTheme, themeCss } from "./chrome/theme";
 import { exportHtml, relative } from "./export";
 import { refreshDiagrams } from "./editor/diagramview";
 import { clearMathCache, setMathOptions } from "./math";
@@ -345,11 +345,22 @@ async function main() {
   };
 
   /** The export page; built from the rendered document, which source mode hides. */
-  const page = async (options: { target: string | null; plain?: boolean; print?: boolean }) => {
+  /** `exported`: a file export rather than printing, which takes Preferences › Export's
+   * extra HTML too. */
+  const page = async (options: { target: string | null; plain?: boolean; print?: boolean; exported?: boolean }) => {
     const fromSource = source.active;
     if (fromSource) await toggleSource();
     try {
-      return await exportHtml(view, { docPath: ui.path, ...options });
+      const own = settings.exportTheme && settings.exportTheme !== ui.theme;
+      const extra = options.exported && !options.plain;
+      return await exportHtml(view, {
+        docPath: ui.path,
+        ...options,
+        theme: own ? await themeCss(backend, settings.exportTheme) : null,
+        pageBreak: settings.exportPageBreak,
+        appendHead: extra ? settings.exportAppendHead : "",
+        appendBody: extra ? settings.exportAppendBody : "",
+      });
     } finally {
       if (fromSource) await toggleSource();
     }
@@ -359,9 +370,9 @@ async function main() {
     const [name, extension] = format === "pdf" ? ["PDF", "pdf"] : format === "image" ? ["PNG", "png"] : ["HTML", "html"];
     const target = await backend.exportPath(opened.id, name, extension);
     if (!target) return;
-    if (format === "pdf") await backend.exportPdf(target, await page({ target, print: true }));
+    if (format === "pdf") await backend.exportPdf(target, await page({ target, print: true, exported: true }));
     else if (format === "image") await backend.exportImage(target, await page({ target }));
-    else await backend.writeExport(target, await page({ target, plain: format === "html-plain" }));
+    else await backend.writeExport(target, await page({ target, plain: format === "html-plain", exported: true }));
   };
 
   const handleMenu = (id: string) => {

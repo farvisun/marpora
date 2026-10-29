@@ -64,6 +64,11 @@ export class MemoryPrefs implements PrefsApi {
     indentFirstLine: false,
     hideBr: false,
     ignoreLineBreak: false,
+    exportTheme: "",
+    exportPageBreak: false,
+    exportAppendHead: "",
+    exportAppendBody: "",
+    exportImageWidth: 640,
   };
   /** Actions taken, for tests. */
   log: string[] = [];

@@ -72,6 +72,15 @@ export interface Settings {
   hideBr: boolean;
   /** "Preserve single line break": soft breaks show as spaces. */
   ignoreLineBreak: boolean;
+  /** Preferences › Export: the theme exports use ("" for the window's). */
+  exportTheme: string;
+  /** PDF and print: each top level heading starts a page. */
+  exportPageBreak: boolean;
+  /** HTML and PDF: extra HTML in `<head>` and at the end of `<body>`. */
+  exportAppendHead: string;
+  exportAppendBody: string;
+  /** Image export: the page width. */
+  exportImageWidth: number;
 }
 
 /** A sidebar Search (src-tauri search.rs). */
@@ -287,6 +296,11 @@ export class MemoryBackend implements Backend {
     indentFirstLine: false,
     hideBr: false,
     ignoreLineBreak: false,
+    exportTheme: "",
+    exportPageBreak: false,
+    exportAppendHead: "",
+    exportAppendBody: "",
+    exportImageWidth: 640,
   };
 
   constructor(private text = DEMO) {}

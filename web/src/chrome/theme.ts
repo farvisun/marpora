@@ -54,3 +54,20 @@ export async function applyTheme(backend: Backend, id: string): Promise<string> 
   document.body.dataset.theme = id;
   return id;
 }
+
+/** Theme `id`'s CSS, with the user's additions, as text whose references are absolute
+ * URLs (a separate export theme); null when it is gone. */
+export async function themeCss(backend: Backend, id: string): Promise<string | null> {
+  const theme = await backend.loadTheme(id).catch(() => null);
+  if (!theme) return null;
+  const resolve = (base: string, rel: string) => backend.assetUrl(base, rel);
+  let main: string;
+  if (theme.css === null) {
+    const href = new URL(`${import.meta.env.BASE_URL}themes/${id}.css`, location.href).href;
+    const css = await fetch(href).then((r) => (r.ok ? r.text() : ""));
+    main = rebaseCss(css, href.slice(0, href.lastIndexOf("/")), (base, rel) => new URL(rel, base).href);
+  } else {
+    main = rebaseCss(theme.css, theme.dir ?? "", resolve);
+  }
+  return [main, ...theme.user.map(([css, dir]) => rebaseCss(css, dir, resolve))].join("\n");
+}

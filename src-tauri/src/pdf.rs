@@ -77,8 +77,8 @@ pub enum Output {
     Pdf(PathBuf),
     /// Show the print panel.
     Printer,
-    /// Save the whole page, at the window's width, as a PNG file.
-    Png(PathBuf),
+    /// Save the whole page, laid out this wide (Preferences › Export), as a PNG file.
+    Png(PathBuf, f64),
 }
 
 type Done = Box<dyn FnOnce(Result<(), String>)>;
@@ -104,7 +104,7 @@ define_class!(
         #[unsafe(method(webView:didFinishNavigation:))]
         fn did_finish(&self, web: &WKWebView, _navigation: Option<&WKNavigation>) {
             match self.ivars().output {
-                Output::Png(_) => self.snapshot(web),
+                Output::Png(..) => self.snapshot(web),
                 _ => self.print(web),
             }
         }
@@ -217,7 +217,7 @@ impl PrintJob {
 
     /// Rasterize the one-page `pdf` at `scale` pixels per point into the PNG file.
     fn write_png(&self, pdf: &NSData, scale: f64) -> Result<(), String> {
-        let Output::Png(path) = &self.ivars().output else {
+        let Output::Png(path, _) = &self.ivars().output else {
             return Err("not an image export".into());
         };
         let image =
@@ -293,10 +293,9 @@ pub fn print(window: &NSWindow, html_file: &Path, output: Output, done: Done) {
     // SAFETY: WebKit objects are created and used on the main thread only.
     unsafe {
         let config = WKWebViewConfiguration::new(mtm);
-        // Offscreen but inside a window, which WebKit needs to lay the page out. An
-        // image is as wide as the window, like the document on screen.
+        // Offscreen but inside a window, which WebKit needs to lay the page out.
         let width = match output {
-            Output::Png(_) => content.frame().size.width,
+            Output::Png(_, width) => width,
             _ => 800.0,
         };
         let frame = NSRect::new(NSPoint::new(-20000.0, 0.0), NSSize::new(width, 1000.0));

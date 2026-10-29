@@ -47,6 +47,15 @@ pub struct Settings {
     pub image_storage: String,
     /// Refer to images inside the document's folder by relative paths.
     pub use_relative_image_path: bool,
+    /// Preferences › Export: the theme exports use ("" for the window's).
+    pub export_theme: String,
+    /// PDF and print: start each top level heading on a new page.
+    pub export_page_break: bool,
+    /// HTML and PDF: extra HTML in the page's `<head>` and at the end of its `<body>`.
+    pub export_append_head: String,
+    pub export_append_body: String,
+    /// Image export: the page width in points.
+    pub export_image_width: u32,
     /// Edit › Line Endings › Insert Final New Line On Save.
     pub insert_final_newline: bool,
     /// Edit › Whitespace and Line Breaks: Typora's `indentFirstLine`,
@@ -82,6 +91,11 @@ impl Default for Settings {
             indent_first_line: false,
             hide_br: false,
             ignore_line_break: false,
+            export_theme: String::new(),
+            export_page_break: false,
+            export_append_head: String::new(),
+            export_append_body: String::new(),
+            export_image_width: 640,
         }
     }
 }

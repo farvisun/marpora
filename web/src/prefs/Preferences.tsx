@@ -19,6 +19,24 @@ type Item =
       value(s: Settings): string;
       change(value: string): void;
     }
+  | {
+      kind: "text";
+      label: string;
+      placeholder?: string;
+      /** A textarea, for HTML. */
+      multiline?: boolean;
+      value(s: Settings): string;
+      change(value: string): void;
+    }
+  | {
+      kind: "number";
+      label: string;
+      unit: string;
+      min: number;
+      max: number;
+      value(s: Settings): number;
+      change(value: number): void;
+    }
   | { kind: "buttons"; buttons: { label: string; run(): void }[]; spaced?: boolean };
 
 interface Group {
@@ -59,6 +77,10 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
     label,
     checked: (s) => s[key] as boolean,
     change: (on) => update({ [key]: on }),
+  });
+  const text = (key: "exportAppendHead" | "exportAppendBody") => ({
+    value: (s: Settings) => s[key],
+    change: (v: string) => update({ [key]: v }),
   });
   const flavor = (label: string, key: keyof Settings["flavor"]): Item => ({
     kind: "check",
@@ -183,6 +205,52 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
       icon: GeneralIcon,
       groups: [{ title: "Quit", items: [check("Quit Marpora when last window is closed", "quitOnLastWindowClosed")] }],
     },
+    {
+      name: "Export",
+      icon: ExportIcon,
+      groups: [
+        {
+          title: "Theme",
+          hint: "Change this option to specify a separated theme for export.",
+          items: [
+            {
+              kind: "select",
+              label: "Theme",
+              options: () => [["", "Current Theme"], ...themes().map((t): [string, string] => [t.id, t.name])],
+              value: (s) => s.exportTheme,
+              change: (id) => update({ exportTheme: id }),
+            },
+          ],
+        },
+        {
+          title: "PDF",
+          items: [
+            check("Page Break Between Top Headings", "exportPageBreak"),
+          ],
+        },
+        {
+          title: "HTML",
+          items: [
+            { kind: "text", label: "Append in <head />", multiline: true, ...text("exportAppendHead") },
+            { kind: "text", label: "Append in <body />", multiline: true, ...text("exportAppendBody") },
+          ],
+        },
+        {
+          title: "Image",
+          items: [
+            {
+              kind: "number",
+              label: "Width",
+              unit: "px",
+              min: 200,
+              max: 4000,
+              value: (s) => s.exportImageWidth,
+              change: (n) => update({ exportImageWidth: n }),
+            },
+          ],
+        },
+      ],
+    },
   ];
   // `#image` opens that panel (Format › Image › Global Image Settings…).
   const showHash = () => {
@@ -234,6 +302,70 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
                         )}
                       </For>
                     </select>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </Match>
+      <Match when={item.kind === "text" && item}>
+        {(it) => (
+          <table class="label-input-group">
+            <tbody>
+              <tr classList={{ "search-hit": itemHit(it()) }}>
+                <td>
+                  <span>{it().label}</span>
+                </td>
+                <td>
+                  <div class="row">
+                    {it().multiline ? (
+                      <textarea
+                        rows={3}
+                        aria-label={it().label}
+                        placeholder={it().placeholder}
+                        value={it().value(settings())}
+                        onChange={(e) => it().change(e.currentTarget.value)}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        aria-label={it().label}
+                        placeholder={it().placeholder}
+                        value={it().value(settings())}
+                        onChange={(e) => it().change(e.currentTarget.value)}
+                      />
+                    )}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </Match>
+      <Match when={item.kind === "number" && item}>
+        {(it) => (
+          <table class="label-input-group">
+            <tbody>
+              <tr classList={{ "search-hit": itemHit(it()) }}>
+                <td>
+                  <span>{it().label}</span>
+                </td>
+                <td>
+                  <div class="row">
+                    <input
+                      type="number"
+                      aria-label={it().label}
+                      min={it().min}
+                      max={it().max}
+                      value={it().value(settings())}
+                      onChange={(e) => {
+                        const n = Math.round(e.currentTarget.valueAsNumber);
+                        if (Number.isFinite(n)) it().change(Math.min(it().max, Math.max(it().min, n)));
+                        else e.currentTarget.value = String(it().value(settings()));
+                      }}
+                    />{" "}
+                    <span>{it().unit}</span>
                   </div>
                 </td>
               </tr>
@@ -386,6 +518,15 @@ function GeneralIcon() {
       <circle cx="13.5" cy="5" r="3.4" />
       <circle cx="5.5" cy="13" r="3.4" />
       <circle cx="13.5" cy="13" r="3.4" />
+    </svg>
+  );
+}
+
+function ExportIcon() {
+  return (
+    <svg viewBox="0 0 19 18">
+      <path d="M3 1.5h8l4 4v11H3z" fill="none" stroke="currentColor" stroke-width="1.4" />
+      <path d="M9 7v7M6 11l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" />
     </svg>
   );
 }

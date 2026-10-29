@@ -21,6 +21,13 @@ export interface ExportOptions {
   plain?: boolean;
   /** A page to print (PDF export, Print): images by absolute `file://` URL. */
   print?: boolean;
+  /** A theme's CSS (themeCss) in place of the window's (Preferences › Export). */
+  theme?: string | null;
+  /** Printing: each top level heading starts a page. */
+  pageBreak?: boolean;
+  /** Extra HTML in `<head>` and at the end of `<body>`. */
+  appendHead?: string;
+  appendBody?: string;
 }
 
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -46,13 +53,15 @@ export async function exportHtml(view: EditorView, options: ExportOptions): Prom
   if (options.plain) {
     return `<!doctype html>\n<html>\n<head>\n${meta}\n${title}\n</head>\n<body>${write.innerHTML}</body>\n</html>`;
   }
-  const extra = options.print ? [...EXTRA_CSS, ...printCss(source)] : EXTRA_CSS;
-  const styles = [...(await collectCss()), ...extra].map(([id, css]) => style(css, id)).join("\n");
+  const extra: [string, string][] = options.print ? [...EXTRA_CSS, ...printCss(source)] : [...EXTRA_CSS];
+  if (options.print && options.pageBreak) extra.push(["page-break", PAGE_BREAK_CSS]);
+  const styles = [...(await collectCss(options.theme)), ...extra].map(([id, css]) => style(css, id)).join("\n");
   return (
     `<!doctype html>\n<html>\n<head>\n${meta}${style("html {overflow-x: initial !important;}")}\n` +
-    `${styles}\n\n${title}\n</head>\n` +
+    `${styles}\n\n${title}\n${options.appendHead ?? ""}</head>\n` +
     `<body class='typora-export${options.print ? " typora-print" : ""}'><div class='typora-export-content'>\n` +
-    `<div id='write'  class='${options.print ? "is-mac" : ""}'>${write.innerHTML}</div></div>\n</body>\n</html>`
+    `<div id='write'  class='${options.print ? "is-mac" : ""}'>${write.innerHTML}</div></div>\n` +
+    `${options.appendBody ?? ""}</body>\n</html>`
   );
 }
 
@@ -274,7 +283,13 @@ function escapeHtml(text: string): string {
  * files they refer to (images) inlined as data URLs so the page stands alone. Sheets
  * the window cannot read (another origin) stay as `@import`s.
  */
-async function collectCss(): Promise<[string, string][]> {
+/** Preferences › Export › Page Break Between Top Headings. */
+const PAGE_BREAK_CSS = "#write > h1:not(:first-child) { break-before: page; page-break-before: always; }";
+
+/** The window's theme sheets, which an export theme replaces. */
+const THEME_SHEETS = new Set(["theme-css", "theme-user-css"]);
+
+async function collectCss(theme?: string | null): Promise<[string, string][]> {
   const sheets: [string, string][] = [];
   const read = (sheet: CSSStyleSheet, imports: string[]): string => {
     const base = sheet.href ?? document.baseURI;
@@ -299,6 +314,11 @@ async function collectCss(): Promise<[string, string][]> {
   for (const sheet of document.styleSheets) {
     if (sheet.disabled) continue;
     const owner = sheet.ownerNode as Element | null;
+    if (theme != null && owner && THEME_SHEETS.has(owner.id)) {
+      // In the theme's place, so the sheets after it still win.
+      if (owner.id === "theme-css") sheets.push(["theme", await inlineUrls(theme)]);
+      continue;
+    }
     // Of MathJax's sheets only the SVG output's; the others style its menus.
     if (owner?.id.startsWith("MJX-") && owner.id !== "MJX-SVG-styles") continue;
     const file = sheet.href ?? owner?.getAttribute("data-vite-dev-id");

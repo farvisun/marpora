@@ -314,12 +314,14 @@ pub async fn export_image(
     path: String,
     html: String,
     grants: State<'_, ExportGrants>,
+    store: State<'_, Store>,
 ) -> CmdResult<()> {
     let path = PathBuf::from(path);
     if !grants.0.lock().unwrap().remove(&path) {
         return Err(format!("{} was not chosen for export", path.display()));
     }
-    print_page(window, html, PageOutput::Png(path)).await
+    let width = f64::from(store.get().export_image_width.clamp(200, 4000));
+    print_page(window, html, PageOutput::Png(path, width)).await
 }
 
 /// Print the page `html` through the print panel.
@@ -331,7 +333,8 @@ pub async fn print_page_html(window: WebviewWindow, html: String) -> CmdResult<(
 /// Where `print_page` sends the page.
 enum PageOutput {
     Pdf(PathBuf),
-    Png(PathBuf),
+    /// A PNG file, and the page's width.
+    Png(PathBuf, f64),
     Printer,
 }
 
@@ -362,7 +365,7 @@ async fn print_page(window: WebviewWindow, html: String, output: PageOutput) -> 
         .run_on_main_thread(move || {
             let output = match output {
                 PageOutput::Pdf(path) => crate::pdf::Output::Pdf(path),
-                PageOutput::Png(path) => crate::pdf::Output::Png(path),
+                PageOutput::Png(path, width) => crate::pdf::Output::Png(path, width),
                 PageOutput::Printer => crate::pdf::Output::Printer,
             };
             let done = Box::new(move |r| {
