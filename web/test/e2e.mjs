@@ -444,6 +444,39 @@ tmd = await tableRun();
 check("toolbar deletes the table", tmd === "after", JSON.stringify(tmd));
 check("toolbar gone with the table", (await inline.locator(".ty-table-edit").count()) === 0);
 
+// Format menu: underline, inline math and comments; links open with ⌘-click.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "Hello world and more\n\n# My Heading\n\n[jump](#my-heading) and [site](https://x.test)\n");
+  await m.sync.resync();
+});
+const selectText = (text) => inline.evaluate((text) => {
+  const { view } = window.marpora;
+  let pos = -1;
+  view.state.doc.descendants((n, p) => { if (pos < 0 && n.isText && n.text.includes(text)) pos = p + n.text.indexOf(text); });
+  const Selection = Object.getPrototypeOf(view.state.selection.constructor);
+  const TextSelection = Selection.near(view.state.doc.resolve(pos)).constructor;
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos, pos + text.length)));
+}, text);
+await selectText("world");
+let fmd = await tableRun("underline");
+check("underline wraps in <u>", fmd.startsWith("Hello <u>world</u> and"), fmd);
+check("underline renders", (await inline.locator("#write p u").textContent()) === "world");
+fmd = await tableRun("underline");
+check("underline again removes it", fmd.startsWith("Hello world and"), fmd);
+await selectText("and");
+fmd = await tableRun("inline-math");
+check("inline math from the selection", fmd.startsWith("Hello world $and$ more"), fmd);
+await selectText("Hello");
+fmd = await tableRun("comment");
+check("comment wraps the selection", fmd.startsWith("<!-- Hello --> world"), fmd);
+await inline.locator("#write a", { hasText: "site" }).click({ modifiers: ["Meta"] });
+check("⌘-click opens a link", (await inline.evaluate(() => window.marpora.backend.links.join())) === "https://x.test");
+await inline.locator("#write a", { hasText: "jump" }).click({ modifiers: ["Meta"] });
+await inline.waitForTimeout(50);
+check("⌘-click on #anchor goes to the heading",
+  (await inline.evaluate(() => window.marpora.view.state.selection.$head.parent.textContent)) === "My Heading");
+
 // The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
 const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 lib.on("pageerror", (e) => errors.push(e.message));

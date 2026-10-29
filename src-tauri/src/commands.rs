@@ -12,6 +12,7 @@ use tauri_plugin_dialog::DialogExt;
 use crate::docs::Docs;
 use crate::images;
 use crate::library::{self, Recent};
+use crate::links::{self, Target};
 use crate::save::{self, Autosave};
 use crate::search::{self, Searches};
 use crate::settings::{Settings, Store};
@@ -802,9 +803,40 @@ pub fn open_theme_folder(app: AppHandle) -> CmdResult<()> {
     reveal(&themes::user_dir(&app).ok_or("no themes folder")?)
 }
 
+/// Open a link from the document (see links.rs): Markdown files in a new window, other
+/// files and addresses with the system. A `#heading` link comes back for the editor to
+/// scroll to.
+#[tauri::command]
+pub fn open_link(
+    app: AppHandle,
+    window: WebviewWindow,
+    href: String,
+    docs: State<Docs>,
+) -> CmdResult<Option<String>> {
+    let doc = docs
+        .for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.path.clone()))
+        .flatten();
+    match links::resolve(&href, doc.as_deref())? {
+        Target::Anchor(heading) => Ok(Some(heading)),
+        Target::External(url) => system_open(url.as_ref()).map(|()| None),
+        Target::File(path) if !path.exists() => Err(format!("{} does not exist", path.display())),
+        Target::File(path) if path.is_file() && library::is_markdown(&path) => {
+            windows::open(&app, Some(path)).map_err(|e| e.to_string())?;
+            Ok(None)
+        }
+        Target::File(path) => system_open(path.as_os_str()).map(|()| None),
+    }
+}
+
 /// Open folder `dir` in the file manager, creating it first.
 fn reveal(dir: &Path) -> CmdResult<()> {
     std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    system_open(dir.as_os_str())
+}
+
+/// Open `target`, a path or an address, with the system's handler for it.
+fn system_open(target: &std::ffi::OsStr) -> CmdResult<()> {
     let opener = if cfg!(target_os = "macos") {
         "open"
     } else if cfg!(windows) {
@@ -813,10 +845,10 @@ fn reveal(dir: &Path) -> CmdResult<()> {
         "xdg-open"
     };
     std::process::Command::new(opener)
-        .arg(dir)
+        .arg(target)
         .spawn()
         .map(drop)
-        .map_err(|e| format!("could not open {}: {e}", dir.display()))
+        .map_err(|e| format!("could not open {}: {e}", target.display()))
 }
 
 /// The user cancelled closing a window, so File › Quit stops.

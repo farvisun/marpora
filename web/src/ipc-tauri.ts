@@ -91,6 +91,10 @@ export class TauriBackend implements Backend {
     return invoke<string>("rename_library_file", { path, name });
   }
 
+  openLink(href: string) {
+    return invoke<string | null>("open_link", { href });
+  }
+
   saveImage(docId: number, data: Uint8Array, ext: string) {
     return invoke<string>("save_image", data, { headers: { "x-doc-id": String(docId), "x-ext": ext } });
   }

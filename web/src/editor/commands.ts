@@ -5,6 +5,8 @@ import { redo, undo } from "prosemirror-history";
 import type { MarkType, Node as PMNode, NodeType } from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
 import { type Command, type EditorState, NodeSelection, TextSelection } from "prosemirror-state";
+import { tagPairs } from "./html";
+import { linkAt } from "./links";
 import { schema } from "./schema";
 import {
   addColumn,
@@ -121,6 +123,58 @@ function toggleMarkCmd(type: MarkType, attrs?: Record<string, unknown>): Command
   return toggleMark(type, attrs);
 }
 
+/** Format › Underline: Typora writes `<u>…</u>`. Inside a pair of `tag`, removes it. */
+function toggleTag(tag: string): Command {
+  return (state, dispatch) => {
+    const { $from, $to, from, to } = state.selection;
+    if (!$from.parent.inlineContent || !$from.sameParent($to) || $from.parent.type.spec.code) return false;
+    const base = $from.start();
+    const pair = tagPairs($from.parent, base)
+      .filter((p) => p.element?.localName === tag && p.open < from && p.close >= to)
+      .at(-1);
+    if (pair) {
+      if (dispatch) dispatch(state.tr.delete(pair.close, pair.close + 1).delete(pair.open, pair.open + 1));
+      return true;
+    }
+    if (dispatch) {
+      const html = (h: string) => n.html_inline.create({ html: h });
+      const tr = state.tr.insert(to, html(`</${tag}>`)).insert(from, html(`<${tag}>`));
+      dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 1, to + 1)));
+    }
+    return true;
+  };
+}
+
+/** Format › Inline Math: the selection as TeX, or an empty formula to type into. */
+const inlineMath: Command = (state, dispatch) => {
+  const { $from, $to, from, to } = state.selection;
+  if (!$from.parent.inlineContent || !$from.sameParent($to) || $from.parent.type.spec.code) return false;
+  if (dispatch) {
+    const tr = state.tr.replaceWith(from, to, n.math_inline.create({ tex: state.doc.textBetween(from, to) }));
+    dispatch(tr.setSelection(NodeSelection.create(tr.doc, from)).scrollIntoView());
+  }
+  return true;
+};
+
+/** Format › Comment: the selection inside `<!-- -->`. */
+const comment: Command = (state, dispatch) => {
+  const { $from, $to, from, to } = state.selection;
+  if (!$from.parent.inlineContent || !$from.sameParent($to) || $from.parent.type.spec.code) return false;
+  if (dispatch) {
+    const text = state.doc.textBetween(from, to);
+    dispatch(state.tr.replaceWith(from, to, n.html_inline.create({ html: `<!-- ${text} -->` })).scrollIntoView());
+  }
+  return true;
+};
+
+/** Format › Hyperlink Actions › Copy Link Address. */
+const copyLink: Command = (state, dispatch) => {
+  const href = linkAt(state)?.attrs.href;
+  if (!href) return false;
+  if (dispatch) void navigator.clipboard.writeText(href);
+  return true;
+};
+
 /** ⌘\: remove all inline formatting from the selection. */
 const clearFormat: Command = (state, dispatch) => {
   const { from, to, empty } = state.selection;
@@ -157,6 +211,12 @@ export const commands: Record<string, Command> = {
   code: toggleMarkCmd(m.code),
   strike: toggleMarkCmd(m.strike),
   highlight: toggleMarkCmd(m.highlight),
+  underline: toggleTag("u"),
+  "inline-math": inlineMath,
+  sup: toggleMarkCmd(m.sup),
+  sub: toggleMarkCmd(m.sub),
+  comment,
+  "copy-link": copyLink,
   "clear-format": clearFormat,
   link: toggleMarkCmd(m.link, { href: "" }),
   paragraph: setBlockType(n.paragraph),

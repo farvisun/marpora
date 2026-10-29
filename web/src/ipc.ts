@@ -159,6 +159,8 @@ export interface Backend {
   renameLibraryFile(path: string, name: string): Promise<string>;
   /** The window's document moved (renamed in a sidebar); `path` is where it is now. */
   onPathChanged(handler: (path: string) => void): void;
+  /** Open a link from the document; returns the heading a `#…` link names. */
+  openLink(href: string): Promise<string | null>;
   /** Store a pasted image (`ext`: png, jpg, ...) for document `docId`; returns its path for the document. */
   saveImage(docId: number, data: Uint8Array, ext: string): Promise<string>;
   /** Files dropped on the window from Finder, at a point in the page. */
@@ -348,6 +350,14 @@ export class MemoryBackend implements Backend {
   }
 
   onPathChanged(_handler: (path: string) => void) {}
+
+  /** Test hook: links opened. */
+  links: string[] = [];
+
+  async openLink(href: string) {
+    this.links.push(href);
+    return href.startsWith("#") ? decodeURIComponent(href.slice(1)) : null;
+  }
 
   /** Test hook: pasted images, as path to size. */
   images = new Map<string, number>();

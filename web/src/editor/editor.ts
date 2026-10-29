@@ -9,6 +9,7 @@ import { EditorView } from "prosemirror-view";
 import { commands } from "./commands";
 import { focusPlugin } from "./focus";
 import { type ClipboardOptions, clipboardPlugin } from "./clipboard";
+import { type LinkOptions, linksPlugin } from "./links";
 import { highlightPlugin } from "./highlight";
 import { htmlPlugin } from "./html";
 import { markdownInputRules } from "./inputrules";
@@ -21,7 +22,7 @@ import { searchPlugin } from "./search";
 import { tablePlugin } from "./table";
 import { tasksPlugin } from "./tasks";
 
-export interface EditorOptions extends ViewContext, ClipboardOptions {
+export interface EditorOptions extends ViewContext, ClipboardOptions, LinkOptions {
   doc: PMNode;
   plugins?: Plugin[];
   onChange?: (view: EditorView) => void;
@@ -48,6 +49,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       searchPlugin,
       tablePlugin,
       clipboardPlugin(opts),
+      linksPlugin(opts),
       ...(opts.plugins ?? []),
     ],
   });

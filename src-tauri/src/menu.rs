@@ -148,11 +148,26 @@ const PARAGRAPH_BLOCKS: &[Item] = &[
 const FORMAT: &[Item] = &[
     ("strong", "Strong", Some("CmdOrCtrl+B")),
     ("em", "Emphasis", Some("CmdOrCtrl+I")),
+    ("underline", "Underline", Some("CmdOrCtrl+U")),
     ("code", "Code", Some("Ctrl+`")),
+    ("-", "", None),
+    ("inline-math", "Inline Math", Some("Ctrl+M")),
     ("strike", "Strike", Some("Ctrl+Shift+`")),
     ("highlight", "Highlight", Some("CmdOrCtrl+Shift+H")),
+    ("sup", "Superscript", None),
+    ("sub", "Subscript", None),
+    ("comment", "Comment", Some("Ctrl+-")),
     ("-", "", None),
     ("link", "Hyperlink", Some("CmdOrCtrl+K")),
+];
+
+/// Format › Hyperlink Actions.
+const LINK_ACTIONS: &[Item] = &[
+    ("open-link", "Open Link", None),
+    ("copy-link", "Copy Link Address", None),
+];
+
+const FORMAT_END: &[Item] = &[
     ("-", "", None),
     ("clear-format", "Clear Format", Some("CmdOrCtrl+\\")),
 ];
@@ -264,6 +279,14 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
     paragraph.push(Box::new(submenu(app, "Table", items(app, TABLE)?)?));
     paragraph.extend(items(app, PARAGRAPH_BLOCKS)?);
 
+    let mut format = items(app, FORMAT)?;
+    format.push(Box::new(submenu(
+        app,
+        "Hyperlink Actions",
+        items(app, LINK_ACTIONS)?,
+    )?));
+    format.extend(items(app, FORMAT_END)?);
+
     let current = app.state::<Store>().get().theme;
     let mut theme_items: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
     let mut last_source = Source::Bundled;
@@ -324,7 +347,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             )?,
             &submenu(app, "Edit", edit)?,
             &submenu(app, "Paragraph", paragraph)?,
-            &submenu(app, "Format", items(app, FORMAT)?)?,
+            &submenu(app, "Format", format)?,
             &Submenu::with_id_and_items(
                 app,
                 "view",

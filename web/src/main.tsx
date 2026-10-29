@@ -8,6 +8,7 @@ import { basename } from "./chrome/library";
 import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { dropFiles, imageExtension } from "./editor/clipboard";
 import { createEditor, runCommand } from "./editor/editor";
+import { linkAt, openLink } from "./editor/links";
 import { DocSync } from "./editor/sync";
 import { connect, inTauri, report } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
@@ -80,6 +81,7 @@ async function main() {
       doc,
       plugins: [sync.plugin()],
       assetUrl: (src) => backend.assetUrl(ui.path, src),
+      openLink: (href) => backend.openLink(href),
       saveImage: async (image) =>
         backend.saveImage(opened.id, new Uint8Array(await image.arrayBuffer()), imageExtension(image.type) ?? "png"),
       onChange: (v) => {
@@ -270,6 +272,10 @@ async function main() {
         return void toggleSource();
       case "close":
         return void closeWindow();
+      case "open-link": {
+        const href = linkAt(view.state)?.attrs.href;
+        return void (href && openLink(view, { openLink: (h) => backend.openLink(h) }, href));
+      }
       case "find":
         return search.open(false);
       case "replace":

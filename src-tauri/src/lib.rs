@@ -4,6 +4,7 @@ mod commands;
 mod docs;
 mod images;
 mod library;
+mod links;
 mod menu;
 mod pandoc;
 #[cfg(target_os = "macos")]
@@ -42,6 +43,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::initial_document,
+            commands::open_link,
             commands::apply_patch,
             commands::document_text,
             commands::set_document_text,
