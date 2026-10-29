@@ -448,6 +448,69 @@ pub fn recent_files(recent: State<Recent>) -> Vec<String> {
 }
 
 #[tauri::command]
+pub fn recent_folders(recent: State<Recent>) -> Vec<String> {
+    recent.folders()
+}
+
+/// Create an untitled file in the sidebar's folder (its footer's New File). Returns
+/// its path; the window opens it.
+#[tauri::command]
+pub fn new_library_file(window: WebviewWindow, docs: State<Docs>) -> CmdResult<String> {
+    let dir = library_root(&window, &docs).ok_or("no folder is open")?;
+    let path = dir.join(library::untitled_name(&dir));
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|e| format!("could not create {}: {e}", path.display()))?;
+    Ok(path_string(&path))
+}
+
+/// Show the sidebar's folder in Finder.
+#[tauri::command]
+pub fn reveal_library(window: WebviewWindow, docs: State<Docs>) -> CmdResult<()> {
+    reveal(&library_root(&window, &docs).ok_or("no folder is open")?)
+}
+
+/// Show `dir`, one of the recent folders, in this window's sidebar instead of its
+/// current folder. Without `dir`, ask for one. Returns false when the user cancelled.
+#[tauri::command]
+pub async fn switch_library_folder(
+    app: AppHandle,
+    window: WebviewWindow,
+    dir: Option<String>,
+    docs: State<'_, Docs>,
+    recent: State<'_, Recent>,
+) -> CmdResult<bool> {
+    let dir = match dir {
+        // Only folders the user opened before, so a page cannot point the sidebar
+        // (and `list_folder`) anywhere it likes.
+        Some(d) if recent.folders().contains(&d) => PathBuf::from(d),
+        Some(d) => return Err(format!("{d} is not a recent folder")),
+        None => match app
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .blocking_pick_folder()
+            .and_then(|d| d.into_path().ok())
+        {
+            Some(d) => d,
+            None => return Ok(false),
+        },
+    };
+    if !dir.is_dir() {
+        return Err(format!("{} is not a folder", dir.display()));
+    }
+    let dir = std::fs::canonicalize(&dir).unwrap_or(dir);
+    let id = docs
+        .for_window(window.label())
+        .ok_or("no document for this window")?;
+    docs.with(id, |open| open.folder = Some(dir.clone()));
+    library::remember_folder(&app, &dir);
+    Ok(true)
+}
+
+#[tauri::command]
 pub fn clear_recent(app: AppHandle, recent: State<Recent>) {
     recent.clear();
     menu::refresh_recent(&app);

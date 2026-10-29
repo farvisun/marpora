@@ -173,62 +173,91 @@ pub fn contains(root: &Path, path: &Path) -> bool {
     path.starts_with(root)
 }
 
-/// Recently opened and saved files, newest first, kept in the app config directory.
+/// Recently opened and saved files and opened folders, newest first, kept in the app
+/// config directory.
 pub struct Recent {
-    path: Option<PathBuf>,
-    files: Mutex<Vec<String>>,
+    files: RecentList,
+    folders: RecentList,
 }
 
-impl Recent {
-    pub fn load(app: &AppHandle) -> Self {
-        let path = app
-            .path()
-            .app_config_dir()
-            .ok()
-            .map(|d| d.join("recent.json"));
-        let files = path
+struct RecentList {
+    path: Option<PathBuf>,
+    items: Mutex<Vec<String>>,
+}
+
+impl RecentList {
+    fn load(path: Option<PathBuf>) -> Self {
+        let items = path
             .as_ref()
             .and_then(|p| std::fs::read_to_string(p).ok())
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
-        Recent {
+        RecentList {
             path,
-            files: Mutex::new(files),
+            items: Mutex::new(items),
+        }
+    }
+
+    fn existing(&self, keep: impl Fn(&Path) -> bool) -> Vec<String> {
+        let items = self.items.lock().unwrap();
+        items
+            .iter()
+            .filter(|p| keep(Path::new(p)))
+            .cloned()
+            .collect()
+    }
+
+    fn add(&self, item: &Path) {
+        let mut items = self.items.lock().unwrap();
+        push_recent(&mut items, item.to_string_lossy().into_owned());
+        self.save(&items);
+    }
+
+    fn clear(&self) {
+        let mut items = self.items.lock().unwrap();
+        items.clear();
+        self.save(&items);
+    }
+
+    fn save(&self, items: &[String]) {
+        let Some(path) = &self.path else { return };
+        let saved = path
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| std::fs::write(path, serde_json::to_string_pretty(items)?));
+        if let Err(e) = saved {
+            eprintln!("could not save recent items to {}: {e}", path.display());
+        }
+    }
+}
+
+impl Recent {
+    pub fn load(app: &AppHandle) -> Self {
+        let dir = app.path().app_config_dir().ok();
+        Recent {
+            files: RecentList::load(dir.as_ref().map(|d| d.join("recent.json"))),
+            folders: RecentList::load(dir.as_ref().map(|d| d.join("recent-folders.json"))),
         }
     }
 
     /// The recent files that still exist.
     pub fn files(&self) -> Vec<String> {
-        self.files
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|p| Path::new(p).is_file())
-            .cloned()
-            .collect()
+        self.files.existing(Path::is_file)
+    }
+
+    /// The recent folders that still exist (the sidebar menu's Recent Locations).
+    pub fn folders(&self) -> Vec<String> {
+        self.folders.existing(Path::is_dir)
     }
 
     pub fn add(&self, file: &Path) {
-        let mut files = self.files.lock().unwrap();
-        push_recent(&mut files, file.to_string_lossy().into_owned());
-        self.save(&files);
+        self.files.add(file);
     }
 
+    /// Clear files and folders, like Typora's "Clear Recent Folders and Files".
     pub fn clear(&self) {
-        let mut files = self.files.lock().unwrap();
-        files.clear();
-        self.save(&files);
-    }
-
-    fn save(&self, files: &[String]) {
-        let Some(path) = &self.path else { return };
-        let saved = path
-            .parent()
-            .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| std::fs::write(path, serde_json::to_string_pretty(files)?));
-        if let Err(e) = saved {
-            eprintln!("could not save recent files to {}: {e}", path.display());
-        }
+        self.files.clear();
+        self.folders.clear();
     }
 }
 
@@ -239,6 +268,42 @@ pub fn remember(app: &AppHandle, file: &Path) {
     }
     app.state::<Recent>().add(file);
     crate::menu::refresh_recent(app);
+}
+
+/// Add `dir` to the recent folders.
+pub fn remember_folder(app: &AppHandle, dir: &Path) {
+    if app.state::<crate::settings::Store>().get().record_recent {
+        app.state::<Recent>().folders.add(dir);
+    }
+}
+
+/// A free name for a new file in `dir`: `Untitled.md`, else one past the highest
+/// `Untitled N.md`, as Typora numbers them.
+pub fn untitled_name(dir: &Path) -> String {
+    let next = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            let rest = name.strip_prefix("untitled")?;
+            let number = rest.split('.').next()?;
+            if !rest.contains('.') {
+                return None;
+            }
+            match number.strip_prefix(' ') {
+                None if number.is_empty() => Some(1),
+                Some(n) => n.parse::<u32>().ok().map(|n| n + 1),
+                None => None,
+            }
+        })
+        .max()
+        .unwrap_or(0);
+    if next == 0 {
+        "Untitled.md".to_owned()
+    } else {
+        format!("Untitled {next}.md")
+    }
 }
 
 fn push_recent(files: &mut Vec<String>, file: String) {
@@ -312,6 +377,17 @@ mod tests {
         assert_eq!(docs.files.len(), 2);
         assert!(docs.oversize);
         assert_eq!(docs.files[0].summary, "");
+    }
+
+    #[test]
+    fn untitled_names_count_up() {
+        let dir = temp_dir("untitled");
+        assert_eq!(untitled_name(&dir), "Untitled.md");
+        touch(&dir.join("Untitled.md"), "");
+        assert_eq!(untitled_name(&dir), "Untitled 1.md");
+        touch(&dir.join("untitled 4.markdown"), "");
+        touch(&dir.join("Untitled notes.md"), "");
+        assert_eq!(untitled_name(&dir), "Untitled 5.md");
     }
 
     #[test]

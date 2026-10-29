@@ -31,6 +31,7 @@ pub fn open(app: &AppHandle, path: Option<PathBuf>) -> tauri::Result<()> {
 /// Open `dir` in a new window's sidebar, as Typora opens a folder, with no document.
 pub fn open_folder(app: &AppHandle, dir: PathBuf) -> tauri::Result<()> {
     let dir = std::fs::canonicalize(&dir).unwrap_or(dir);
+    library::remember_folder(app, &dir);
     let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
     load(app, &label, None, Some(dir));
     build(app, &label, "Untitled".to_owned())

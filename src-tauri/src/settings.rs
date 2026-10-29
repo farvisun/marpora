@@ -29,6 +29,13 @@ pub struct Settings {
     pub show_hidden_files: bool,
     /// Quit when the last window closes, instead of staying in the Dock as Mac apps do.
     pub quit_on_last_window_closed: bool,
+    /// Sidebar order, as Typora's sort types: 0 natural, -10 natural descending, ±1 name,
+    /// ±2 modification date, ±3 creation date (negative is descending).
+    pub list_sort: i32,
+    pub tree_sort: i32,
+    /// Sidebar "Group By Folder" turned off: one sorted list, folders mixed with files.
+    pub list_no_group: bool,
+    pub tree_no_group: bool,
 }
 
 impl Default for Settings {
@@ -42,6 +49,10 @@ impl Default for Settings {
             record_recent: true,
             show_hidden_files: false,
             quit_on_last_window_closed: false,
+            list_sort: 0,
+            tree_sort: 0,
+            list_no_group: false,
+            tree_no_group: false,
         }
     }
 }
