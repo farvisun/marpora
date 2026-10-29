@@ -86,9 +86,54 @@ const PARAGRAPH: &[Item] = &[
         Some("CmdOrCtrl+-"),
     ),
     ("-", "", None),
-    ("table", "Table", Some("CmdOrCtrl+Alt+T")),
-    ("code-fence", "Code Fences", Some("CmdOrCtrl+Alt+C")),
+];
+
+/// Paragraph › Table, with Typora's shortcuts.
+const TABLE: &[Item] = &[
+    ("table", "Insert Table", Some("CmdOrCtrl+Alt+T")),
+    ("-", "", None),
+    ("table-row-above", "Add Row Above", None),
+    ("table-row-below", "Add Row Below", Some("CmdOrCtrl+Enter")),
+    ("table-col-before", "Add Column Before", None),
+    ("table-col-after", "Add Column After", None),
+    ("-", "", None),
+    (
+        "table-row-up",
+        "Move Table Row Up",
+        Some("Ctrl+CmdOrCtrl+Up"),
+    ),
+    (
+        "table-row-down",
+        "Move Table Row Down",
+        Some("Ctrl+CmdOrCtrl+Down"),
+    ),
+    (
+        "table-col-left",
+        "Move Table Column Left",
+        Some("Ctrl+CmdOrCtrl+Left"),
+    ),
+    (
+        "table-col-right",
+        "Move Table Column Right",
+        Some("Ctrl+CmdOrCtrl+Right"),
+    ),
+    ("-", "", None),
+    (
+        "table-delete-row",
+        "Delete Row",
+        Some("CmdOrCtrl+Shift+Backspace"),
+    ),
+    ("table-delete-col", "Delete Column", None),
+    ("-", "", None),
+    ("table-copy", "Copy Table", None),
+    ("-", "", None),
+    ("table-delete", "Delete Table", None),
+];
+
+/// The rest of Paragraph, after Table.
+const PARAGRAPH_BLOCKS: &[Item] = &[
     ("math-block", "Math Block", Some("CmdOrCtrl+Alt+B")),
+    ("code-fence", "Code Fences", Some("CmdOrCtrl+Alt+C")),
     ("-", "", None),
     ("quote", "Quote", Some("CmdOrCtrl+Alt+Q")),
     ("-", "", None),
@@ -215,6 +260,10 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         items(app, FIND)?,
     )?));
 
+    let mut paragraph = items(app, PARAGRAPH)?;
+    paragraph.push(Box::new(submenu(app, "Table", items(app, TABLE)?)?));
+    paragraph.extend(items(app, PARAGRAPH_BLOCKS)?);
+
     let current = app.state::<Store>().get().theme;
     let mut theme_items: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> = Vec::new();
     let mut last_source = Source::Bundled;
@@ -274,7 +323,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
                 &file.iter().map(|b| b.as_ref()).collect::<Vec<_>>(),
             )?,
             &submenu(app, "Edit", edit)?,
-            &submenu(app, "Paragraph", items(app, PARAGRAPH)?)?,
+            &submenu(app, "Paragraph", paragraph)?,
             &submenu(app, "Format", items(app, FORMAT)?)?,
             &Submenu::with_id_and_items(
                 app,

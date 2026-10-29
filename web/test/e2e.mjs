@@ -399,6 +399,51 @@ await inline.keyboard.type(" ");
 check("html edit keeps source", (await docText()).startsWith('<div class="box"><b>Bold</b> <a href="https://x.test">link</a><script>alert(1)</script></div> \n'),
   await docText());
 
+// Tables: Paragraph › Table's commands and the toolbar over the table with the cursor.
+const tableAt = (text) => inline.evaluate(async (text) => {
+  const { view } = window.marpora;
+  let pos = -1;
+  view.state.doc.descendants((n, p) => { if (pos < 0 && n.isText && n.text === text) pos = p; });
+  view.dispatch(view.state.tr.setSelection(view.state.selection.constructor.near(view.state.doc.resolve(pos))));
+  view.focus();
+}, text);
+const tableRun = async (...ids) => {
+  for (const id of ids) await inline.evaluate((id) => window.marpora.handleMenu(id), id);
+  await inline.evaluate(() => window.marpora.sync.flush());
+  return (await docText()).trim();
+};
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nafter\n");
+  await m.sync.resync();
+});
+check("table toolbar hidden without the cursor", (await inline.locator(".ty-table-edit").count()) === 0);
+await tableAt("1");
+const bar = inline.locator("figure.md-table-fig > .ty-table-edit");
+check("table toolbar over the cursor's table", (await bar.count()) === 1 &&
+  (await bar.locator("button").evaluateAll((bs) => bs.map((b) => b.className.split(" ").pop()).join())) ===
+    "md-resize-table,md-align-left,md-align-center,md-align-right,md-delete-table");
+await bar.locator(".md-align-center").click();
+check("toolbar aligns the column", (await tableRun()).includes("| :-: |") || /\| :-+: \| -+ \|/.test(await docText()), await docText());
+check("align button shows the column's alignment", await bar.locator(".md-align-center").evaluate((b) => b.classList.contains("active")));
+let tmd = await tableRun("table-row-down");
+check("move table row down", /\| 3 +\| 4 +\|\n\| 1 +\| 2 +\|/.test(tmd), tmd);
+tmd = await tableRun("table-row-below", "table-col-after");
+check("add row and column", tmd.split("\n").filter((l) => l.startsWith("|")).length === 5 && /^\| a +\| +\| b +\|/.test(tmd), tmd);
+tmd = await tableRun("table-col-left", "table-delete-col", "table-delete-row");
+check("delete row and column", /^\| a +\| b +\|\n\| :-+: \| -+ \|\n\| 3 +\| 4 +\|\n\| 1 +\| 2 +\|\n\nafter$/.test(tmd), tmd);
+await tableAt("2");
+await bar.locator(".md-resize-table").click();
+check("resize popover shows the size", (await inline.locator(".md-table-resize-popover .md-grid-ext").count()) === 6 &&
+  (await inline.locator("#md-grid-width").inputValue()) === "2" && (await inline.locator("#md-grid-height").inputValue()) === "3");
+await inline.locator(".md-grid-board tr[row='2'] td[col='3'] a").click();
+tmd = await tableRun();
+check("resize from the grid", /^\| a +\| b +\| +\|\n\| :-+: \| -+ \| -+ \|\n\| 3 +\| 4 +\| +\|\n\nafter$/.test(tmd), tmd);
+await bar.locator(".md-delete-table").click();
+tmd = await tableRun();
+check("toolbar deletes the table", tmd === "after", JSON.stringify(tmd));
+check("toolbar gone with the table", (await inline.locator(".ty-table-edit").count()) === 0);
+
 // The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
 const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 lib.on("pageerror", (e) => errors.push(e.message));

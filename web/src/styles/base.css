@@ -1263,6 +1263,66 @@ figure.md-table-fig > table {
 
 table.md-table td { min-width: 32px; }
 
+/* The toolbar over the table holding the cursor (Typora's base-control.css). Its figure
+   is not positioned, so the figure's overflow does not clip it. */
+figure { cursor: default; }
+.ty-table-edit { width: 100%; margin-left: -4px; position: absolute; background: 0 0; z-index: 10; user-select: none; -webkit-user-select: none; }
+.ty-table-edit div { width: auto; }
+.ty-table-edit button {
+  border: 1px solid transparent;
+  background: 0 0;
+  padding: 1px 5px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: inherit;
+  border-radius: 0;
+  cursor: pointer;
+  outline-width: 0;
+}
+.ty-table-edit button.active,
+.ty-table-edit button:hover { background-color: var(--item-hover-bg-color); color: var(--item-hover-text-color, inherit); }
+.ty-table-edit .ty-icon { display: inline-flex; vertical-align: middle; }
+.ty-table-edit .btn-group { display: inline-flex; }
+.ty-table-edit .btn-group .btn + .btn { margin-left: -3px; }
+.md-th-button { display: inline-block; position: relative; }
+.md-align-gp { z-index: 50; }
+.right-th-button { float: right; }
+.md-table-resize-popover {
+  display: block;
+  position: absolute;
+  bottom: auto;
+  top: 20px;
+  left: 0;
+  margin-top: 10px;
+  margin-left: -10px;
+  min-width: 130px;
+  z-index: 60;
+  background: var(--bg-color);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+.md-table-resize-popover > .arrow,
+.md-table-resize-popover > .arrow::after { position: absolute; display: block; width: 0; height: 0; border: 0 solid transparent; }
+.md-table-resize-popover > .arrow { left: 20px; top: -11px; margin-left: -11px; border-width: 0 11px 11px; border-bottom-color: rgba(0, 0, 0, 0.25); }
+.md-table-resize-popover > .arrow::after { content: ""; top: 1px; margin-left: -10px; border-width: 0 10px 10px; border-bottom-color: var(--bg-color); }
+.md-grid-board-wrap { width: 130px; text-align: center; }
+table.md-grid-board { border-spacing: 2px; border-collapse: separate; margin: 10px auto; width: auto; }
+table.md-grid-board td { min-width: 0; padding: 0; border: 0; }
+.md-grid-board tr[row="1"] { background: #dcdcdc; }
+.md-grid-board .md-grid-ext { background: #999; }
+.md-grid-board tr[row="1"] .md-grid-ext { background: #555; }
+.md-grid-board a { display: block; border: 1px solid var(--table-border-color, #ccc); width: 13px; height: 13px; }
+.md-grid-board a.md-active,
+.md-grid-board a:hover { border-color: #a1a1a1; background: #c8caf4; }
+.md-grid-board tr[row="1"] a.md-active,
+.md-grid-board tr[row="1"] a:hover { background: #94a7b9; }
+.md-grid-board-wrap .popover-title { border-top: var(--window-border); padding: 4px 0; font-size: 13px; }
+.md-grid-board-wrap input { width: 3ch; background: inherit; border: 0; font: inherit; color: inherit; }
+.md-grid-board-wrap #md-grid-width { text-align: right; }
+.md-grid-board-wrap #md-grid-height { text-align: left; }
+#md-resize-grid { margin-left: 4px; padding: 0 6px; border: 0; border-radius: 3px; background: #007aff; color: #fff; font-size: 12px; }
+
 .md-image > img {
   max-width: 100%;
   vertical-align: middle;

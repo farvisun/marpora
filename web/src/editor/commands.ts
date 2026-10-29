@@ -6,6 +6,17 @@ import type { MarkType, Node as PMNode, NodeType } from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
 import { type Command, type EditorState, NodeSelection, TextSelection } from "prosemirror-state";
 import { schema } from "./schema";
+import {
+  addColumn,
+  addRow,
+  alignColumn,
+  deleteColumn,
+  deleteRow,
+  deleteTable,
+  moveColumn,
+  moveRow,
+  tableMarkdown,
+} from "./table";
 
 const n = schema.nodes;
 const m = schema.marks;
@@ -168,8 +179,28 @@ export const commands: Record<string, Command> = {
   table: insertBlock(() => createTable(2, 2)),
   hr: insertBlock(() => n.horizontal_rule.create()),
   toc: insertBlock(() => n.toc.create()),
+  // ⌘↩ is the menu's: outside a table it leaves a code block, as the keymap does.
+  "table-row-below": chainCommands(addRow(true), exitCode),
+  "table-row-above": addRow(false),
+  "table-col-before": addColumn(false),
+  "table-col-after": addColumn(true),
+  "table-row-up": moveRow(true),
+  "table-row-down": moveRow(false),
+  "table-col-left": moveColumn(true),
+  "table-col-right": moveColumn(false),
+  "table-delete-row": deleteRow,
+  "table-delete-col": deleteColumn,
+  "table-copy": (state, dispatch) => {
+    const md = tableMarkdown(state);
+    if (md === null) return false;
+    if (dispatch) void navigator.clipboard.writeText(md);
+    return true;
+  },
+  "table-delete": deleteTable,
+  "align-left": alignColumn("left"),
+  "align-center": alignColumn("center"),
+  "align-right": alignColumn("right"),
 };
 
 export const listEnter = splitListItem(n.list_item);
-export const exitCodeBlock = exitCode;
 export const backspace = chainCommands(backspaceBlock, joinBackward);

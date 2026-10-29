@@ -7,6 +7,7 @@ import { FenceView } from "./fence";
 import { HtmlBlockView, HtmlInlineView } from "./html";
 import { MathBlockView } from "./mathblock";
 import { InlineMathView } from "./mathinline";
+import { TableView } from "./table";
 
 export interface ViewContext {
   /** URL the webview can load for an image path written in the document. */
@@ -151,5 +152,6 @@ export function nodeViews(ctx: ViewContext): Record<string, NodeViewConstructor>
     html_block: (node, view, getPos, decorations) =>
       new HtmlBlockView(node, view, getPos, decorations, (src) => ctx.assetUrl(src)),
     html_inline: (node) => new HtmlInlineView(node, (src) => ctx.assetUrl(src)),
+    table: (node, view, _getPos, decorations) => new TableView(node, view, decorations),
   };
 }

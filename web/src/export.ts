@@ -99,6 +99,7 @@ const EXTRA_CSS: [string, string][] = [
 /** Editing-only elements: tooltips, source editors, cursor helpers. */
 const EDITING_PARTS = [
   ".md-rawblock-tooltip",
+  ".ty-table-edit",
   ".md-rawblock-control",
   ".md-mathblock-panel",
   ".code-tooltip",

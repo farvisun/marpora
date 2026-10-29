@@ -6,7 +6,7 @@ import { keymap } from "prosemirror-keymap";
 import type { Node as PMNode } from "prosemirror-model";
 import { type Command, Selection, TextSelection } from "prosemirror-state";
 import { liftListItem } from "prosemirror-schema-list";
-import { backspace, commands, createTable, exitCodeBlock, listEnter } from "./commands";
+import { backspace, commands, createTable, listEnter } from "./commands";
 import { schema } from "./schema";
 
 const n = schema.nodes;
@@ -105,7 +105,12 @@ export function typoraKeymap() {
       if (dispatch) dispatch(state.tr.replaceSelectionWith(n.soft_break.create()).scrollIntoView());
       return true;
     },
-    "Mod-Enter": exitCodeBlock,
+    "Mod-Enter": c["table-row-below"],
+    "Shift-Mod-Backspace": c["table-delete-row"],
+    "Ctrl-Mod-ArrowUp": c["table-row-up"],
+    "Ctrl-Mod-ArrowDown": c["table-row-down"],
+    "Ctrl-Mod-ArrowLeft": c["table-col-left"],
+    "Ctrl-Mod-ArrowRight": c["table-col-right"],
     Backspace: backspace,
     Tab: c.indent,
     "Shift-Tab": c.outdent,
