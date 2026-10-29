@@ -351,6 +351,8 @@ async function main() {
       case "jump-line-start":
       case "jump-line-end":
         return window.getSelection()?.modify("move", id.endsWith("start") ? "backward" : "forward", "lineboundary");
+      case "outline-popover":
+        return setUi("outlinePopover", !ui.outlinePopover);
       case "word-count-popover":
         return setUi("wordCountPopover", !ui.wordCountPopover);
       case "line-endings-crlf":

@@ -3,6 +3,7 @@
 
 import { createEffect, Show } from "solid-js";
 import type { Backend } from "../ipc";
+import { OutlinePopover } from "./OutlinePopover";
 import { QuickOpen } from "./QuickOpen";
 import type { Search } from "./search";
 import { SearchPanel } from "./SearchPanel";
@@ -45,6 +46,7 @@ export function App(props: ChromeProps) {
         selectedText={props.selectedText}
       />
       <QuickOpen backend={props.backend} onOpenFile={props.onOpenFile} />
+      <OutlinePopover onOutlineClick={props.onOutlineClick} />
       <Show when={ui.tableDialog}>
         <TableDialog onInsert={props.onInsertTable} />
       </Show>

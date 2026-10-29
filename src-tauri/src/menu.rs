@@ -423,6 +423,7 @@ const VIEW_SIDEBAR: &[Item] = &[
     ("search", "Search", Some("CmdOrCtrl+Shift+F")),
     ("-", "", None),
     ("word-count-popover", "Toggle Word Count Popover", None),
+    ("outline-popover", "Toggle Outline Popover", None),
     ("-", "", None),
     ("zoom-actual", "Actual Size", Some("CmdOrCtrl+Shift+0")),
     ("zoom-in", "Zoom In", Some("CmdOrCtrl+Shift+=")),

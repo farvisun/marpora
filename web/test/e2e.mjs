@@ -516,6 +516,20 @@ check("escape closes the popover", (await inline.locator("#footer-word-count-inf
 await inline.locator("#footer-word-count").click();
 await inline.locator("#footer-word-count-info tr[data-delimiter='0']").click();
 
+// View › Toggle Outline Popover lists the headings and goes to one.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "# One\n\ntext\n\n## Two\n\nmore\n");
+  await m.sync.resync();
+  m.handleMenu("outline-popover");
+});
+await inline.waitForTimeout(250);
+const outlineRows = await inline.locator("#ty-outline-popover .outline-label").allTextContents();
+check("outline popover lists headings", outlineRows.join() === "One,Two", outlineRows.join());
+await inline.locator("#ty-outline-popover .outline-h2 .outline-item").click();
+check("outline popover goes to the heading", (await inline.locator("#ty-outline-popover").count()) === 0 &&
+  (await inline.evaluate(() => window.marpora.view.state.selection.$head.parent.textContent)) === "Two");
+
 // Edit › Line Endings converts the text; Whitespace and Line Breaks restyles it.
 await inline.evaluate(async () => {
   const m = window.marpora;

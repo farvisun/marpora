@@ -836,6 +836,30 @@ footer.ty-footer .footer-btn.active {
 .ty-show-word-count-in-selection li.divider.footer-word-count-selection { display: block; }
 .typora-sourceview-on #footer-word-count-info { display: none; }
 
+/* View › Toggle Outline Popover (chrome/OutlinePopover.tsx). */
+#ty-outline-popover {
+  display: block;
+  position: fixed;
+  top: 36px;
+  right: 12px;
+  left: auto;
+  width: 260px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 6px 0;
+  z-index: 10;
+}
+#ty-outline-popover > li { padding: 0 12px; }
+#ty-outline-popover .outline-item { border-radius: 3px; padding-right: 6px; }
+#ty-outline-popover .outline-h1 > .outline-item { padding-left: calc(6px + 0em); }
+#ty-outline-popover .outline-h2 > .outline-item { padding-left: calc(6px + 1em); }
+#ty-outline-popover .outline-h3 > .outline-item { padding-left: calc(6px + 2em); }
+#ty-outline-popover .outline-h4 > .outline-item { padding-left: calc(6px + 3em); }
+#ty-outline-popover .outline-h5 > .outline-item { padding-left: calc(6px + 4em); }
+#ty-outline-popover .outline-h6 > .outline-item { padding-left: calc(6px + 5em); }
+#ty-outline-popover .outline-item:hover { background: var(--item-hover-bg-color); color: var(--item-hover-text-color); }
+#ty-outline-popover .ty-outline-popover-empty { padding: 3px 18px; opacity: 0.6; }
+
 /* ---- Editor ------------------------------------------------------------- */
 
 #write {

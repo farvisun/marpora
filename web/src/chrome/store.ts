@@ -74,6 +74,8 @@ export const [ui, setUi] = createStore({
   counts: { words: 0, chars: 0, lines: 0, selWords: 0, selChars: 0 } as Counts,
   /** The status bar's word count popover is showing (View › Toggle Word Count Popover). */
   wordCountPopover: false,
+  /** View › Toggle Outline Popover. */
+  outlinePopover: false,
   /** What the status bar counts: Typora's delimiter, 0 words, 1 characters, 2 lines, 3 minutes. */
   wordDelimiter: savedDelimiter(),
   focusMode: false,
