@@ -201,7 +201,18 @@ pub async fn export_path(
     docs: State<'_, Docs>,
     grants: State<'_, ExportGrants>,
 ) -> CmdResult<Option<String>> {
-    let Some(path) = ask_export_path(&app, &window, doc_id, &format, &extension, &docs)? else {
+    // Debug builds: `MARPORA_EXPORT_DIR` answers the save panel with `<dir>/export.<ext>`,
+    // so exports can be checked without a panel taking the focus.
+    #[cfg(debug_assertions)]
+    let answer = std::env::var_os("MARPORA_EXPORT_DIR")
+        .map(|dir| PathBuf::from(dir).join(format!("export.{extension}")));
+    #[cfg(not(debug_assertions))]
+    let answer = None;
+    let Some(path) = answer.map_or_else(
+        || ask_export_path(&app, &window, doc_id, &format, &extension, &docs),
+        |p| Ok(Some(p)),
+    )?
+    else {
         return Ok(None);
     };
     grants.0.lock().unwrap().insert(path.clone());
