@@ -8,6 +8,7 @@ import { basename } from "./chrome/library";
 import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { dropFiles, imageExtension } from "./editor/clipboard";
 import { createEditor, runCommand } from "./editor/editor";
+import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
 import { DocSync } from "./editor/sync";
 import { connect, inTauri, report } from "./ipc";
@@ -76,6 +77,7 @@ async function main() {
     setUi("counts", countText(docText(view.state.doc)));
   };
 
+  setClipboardWriter((text, html) => backend.writeClipboard(text, html));
   const mountEditor = (el: HTMLElement) => {
     view = createEditor(el, {
       doc,
@@ -272,6 +274,14 @@ async function main() {
         return void toggleSource();
       case "close":
         return void closeWindow();
+      case "paste-plain":
+        if (source.active) return;
+        return void backend.readClipboard().then((text) => text && view.pasteText(text), report);
+      case "replace-next":
+        return ui.search.open && ui.search.replace ? search.replace() : search.open(true);
+      case "jump-line-start":
+      case "jump-line-end":
+        return window.getSelection()?.modify("move", id.endsWith("start") ? "backward" : "forward", "lineboundary");
       case "open-link": {
         const href = linkAt(view.state)?.attrs.href;
         return void (href && openLink(view, { openLink: (h) => backend.openLink(h) }, href));

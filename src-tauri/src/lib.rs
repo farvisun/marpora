@@ -6,6 +6,8 @@ mod images;
 mod library;
 mod links;
 mod menu;
+#[cfg(target_os = "macos")]
+mod native_menu;
 mod pandoc;
 #[cfg(target_os = "macos")]
 mod pdf;
@@ -44,6 +46,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::initial_document,
             commands::open_link,
+            commands::read_clipboard,
+            commands::write_clipboard,
             commands::apply_patch,
             commands::document_text,
             commands::set_document_text,
@@ -94,6 +98,10 @@ pub fn run() {
                 std::thread::spawn(move || save::prune_drafts(&dir));
             }
             app.set_menu(menu::build(app.handle())?)?;
+            #[cfg(target_os = "macos")]
+            if let Some(mtm) = objc2_foundation::MainThreadMarker::new() {
+                native_menu::install(mtm);
+            }
 
             let paths = std::env::args().skip(1).filter(|a| !a.starts_with('-'));
             for p in paths.map(PathBuf::from) {

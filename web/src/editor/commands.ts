@@ -1,10 +1,20 @@
 // Editor commands, keyed by the ids the native menu sends (see src-tauri/src/menu.rs).
 
-import { chainCommands, exitCode, joinBackward, lift, setBlockType, toggleMark, wrapIn } from "prosemirror-commands";
+import {
+  chainCommands,
+  deleteSelection,
+  exitCode,
+  joinBackward,
+  lift,
+  setBlockType,
+  toggleMark,
+  wrapIn,
+} from "prosemirror-commands";
 import { redo, undo } from "prosemirror-history";
 import type { MarkType, Node as PMNode, NodeType } from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
 import { type Command, type EditorState, NodeSelection, TextSelection } from "prosemirror-state";
+import { editingCommands, writeClipboard } from "./editing";
 import { tagPairs } from "./html";
 import { linkAt } from "./links";
 import { schema } from "./schema";
@@ -171,7 +181,7 @@ const comment: Command = (state, dispatch) => {
 const copyLink: Command = (state, dispatch) => {
   const href = linkAt(state)?.attrs.href;
   if (!href) return false;
-  if (dispatch) void navigator.clipboard.writeText(href);
+  if (dispatch) writeClipboard(href);
   return true;
 };
 
@@ -253,13 +263,15 @@ export const commands: Record<string, Command> = {
   "table-copy": (state, dispatch) => {
     const md = tableMarkdown(state);
     if (md === null) return false;
-    if (dispatch) void navigator.clipboard.writeText(md);
+    if (dispatch) writeClipboard(md);
     return true;
   },
   "table-delete": deleteTable,
   "align-left": alignColumn("left"),
   "align-center": alignColumn("center"),
   "align-right": alignColumn("right"),
+  delete: deleteSelection,
+  ...editingCommands,
 };
 
 export const listEnter = splitListItem(n.list_item);

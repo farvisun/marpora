@@ -477,6 +477,59 @@ await inline.waitForTimeout(50);
 check("⌘-click on #anchor goes to the heading",
   (await inline.evaluate(() => window.marpora.view.state.selection.$head.parent.textContent)) === "My Heading");
 
+// Edit menu: selection, moving rows, transformations, copy as and paste as plain text.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "First **bold** word here\n\n- one\n- two\n\nLast line\n");
+  await m.sync.resync();
+});
+const caretIn = (text, offset = 1) => inline.evaluate(([text, offset]) => {
+  const { view } = window.marpora;
+  let pos = -1;
+  view.state.doc.descendants((n, p) => { if (pos < 0 && n.isText && n.text.includes(text)) pos = p + n.text.indexOf(text) + offset; });
+  const Selection = Object.getPrototypeOf(view.state.selection.constructor);
+  view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(pos))));
+}, [text, offset]);
+const selected = () => inline.evaluate(() => {
+  const { state } = window.marpora.view;
+  return state.doc.textBetween(state.selection.from, state.selection.to);
+});
+await caretIn("word");
+await tableRun("select-word");
+check("select word", (await selected()) === "word", await selected());
+await caretIn("bold");
+await tableRun("select-scope");
+check("select styled scope", (await selected()) === "bold", await selected());
+await tableRun("copy-markdown");
+check("copy as markdown", (await inline.evaluate(() => window.marpora.backend.clipboard.text)) === "**bold**");
+await tableRun("select-line");
+check("select line", (await selected()) === "First bold word here", await selected());
+await caretIn("word");
+await tableRun("select-word");
+let emd = await tableRun("upper-case");
+check("make upper case", emd.startsWith("First **bold** WORD here"), emd);
+await tableRun("select-line");
+emd = await tableRun("capitalize");
+check("capitalize keeps marks", emd.startsWith("First **Bold** Word Here"), emd);
+await caretIn("one");
+emd = await tableRun("move-row-down");
+check("move list item down", emd.includes("- two\n- one"), emd);
+await caretIn("Last");
+emd = await tableRun("move-row-up");
+check("move block up", /Here\n\nLast line\n\n- two\n- one$/.test(emd), emd);
+await caretIn("Last");
+emd = await tableRun("delete-word");
+check("delete word", emd.includes("\n\n line\n\n"), emd);
+await inline.evaluate(() => { window.marpora.backend.clipboard = { text: "*x* y" }; });
+await caretIn("two", 3);
+emd = await tableRun("paste-plain");
+await inline.waitForTimeout(50);
+emd = await tableRun();
+check("paste as plain text", emd.includes("- two\\*x\\* y"), emd);
+await caretIn("Word");
+emd = await tableRun("delete-block");
+check("delete paragraph", emd.startsWith("line\n\n- two") && !emd.includes("Word"), emd);
+
 // The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
 const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 lib.on("pageerror", (e) => errors.push(e.message));

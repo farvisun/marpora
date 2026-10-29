@@ -829,6 +829,49 @@ pub fn open_link(
     }
 }
 
+/// Put `text` (and `html`) on the pasteboard, for Edit › Copy as …: menu items are not
+/// user gestures, so the webview's own clipboard API refuses them.
+#[tauri::command]
+pub fn write_clipboard(text: String, html: Option<String>) -> CmdResult<()> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_app_kit::{NSPasteboard, NSPasteboardTypeHTML, NSPasteboardTypeString};
+        use objc2_foundation::NSString;
+        let board = NSPasteboard::generalPasteboard();
+        board.clearContents();
+        // SAFETY: AppKit's pasteboard type constants are immutable statics.
+        let (plain, rich) = unsafe { (NSPasteboardTypeString, NSPasteboardTypeHTML) };
+        if let Some(html) = html {
+            board.setString_forType(&NSString::from_str(&html), rich);
+        }
+        if !board.setString_forType(&NSString::from_str(&text), plain) {
+            return Err("could not write to the clipboard".into());
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (text, html);
+        Err("the clipboard is not available on this platform yet".into())
+    }
+}
+
+/// The pasteboard's text, for Edit › Paste as Plain Text.
+#[tauri::command]
+pub fn read_clipboard() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_app_kit::{NSPasteboard, NSPasteboardTypeString};
+        // SAFETY: as in write_clipboard.
+        let plain = unsafe { NSPasteboardTypeString };
+        NSPasteboard::generalPasteboard()
+            .stringForType(plain)
+            .map(|s| s.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    None
+}
+
 /// Open folder `dir` in the file manager, creating it first.
 fn reveal(dir: &Path) -> CmdResult<()> {
     std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;

@@ -159,6 +159,10 @@ export interface Backend {
   renameLibraryFile(path: string, name: string): Promise<string>;
   /** The window's document moved (renamed in a sidebar); `path` is where it is now. */
   onPathChanged(handler: (path: string) => void): void;
+  /** Put text (and HTML) on the system clipboard. */
+  writeClipboard(text: string, html?: string): Promise<void>;
+  /** The system clipboard's text. */
+  readClipboard(): Promise<string | null>;
   /** Open a link from the document; returns the heading a `#…` link names. */
   openLink(href: string): Promise<string | null>;
   /** Store a pasted image (`ext`: png, jpg, ...) for document `docId`; returns its path for the document. */
@@ -350,6 +354,17 @@ export class MemoryBackend implements Backend {
   }
 
   onPathChanged(_handler: (path: string) => void) {}
+
+  /** Test hook: the clipboard. */
+  clipboard: { text: string; html?: string } = { text: "" };
+
+  async writeClipboard(text: string, html?: string) {
+    this.clipboard = { text, html };
+  }
+
+  async readClipboard() {
+    return this.clipboard.text;
+  }
 
   /** Test hook: links opened. */
   links: string[] = [];

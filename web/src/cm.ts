@@ -40,6 +40,10 @@ export interface CodeMirrorEditor {
   replaceRange(text: string, from: CodeMirrorPos, to?: CodeMirrorPos, origin?: string): void;
   operation<T>(fn: () => T): T;
   off(event: string, handler: (...args: never[]) => void): void;
+  getLine(line: number): string;
+  lineCount(): number;
+  findWordAt(pos: CodeMirrorPos): { anchor: CodeMirrorPos; head: CodeMirrorPos };
+  replaceSelection(text: string, select?: "around" | "start"): void;
 }
 
 export interface CodeMirrorPos {

@@ -125,8 +125,38 @@ export class SourceMode {
   command(id: string) {
     const editor = this.editor;
     if (!editor) return;
-    if (id === "undo") editor.undo();
-    else if (id === "redo") editor.redo();
+    const cursor = editor.getCursor();
+    const line = (n: number) => editor.getLine(n);
+    const swap = (other: number) => {
+      if (other < 0 || other >= editor.lineCount()) return;
+      const [a, b] = [Math.min(cursor.line, other), Math.max(cursor.line, other)];
+      editor.replaceRange(`${line(b)}\n${line(a)}`, { line: a, ch: 0 }, { line: b, ch: line(b).length });
+      editor.setCursor(other, cursor.ch);
+    };
+    const recase = (change: (t: string) => string) => editor.replaceSelection(change(editor.getSelection()), "around");
+    // The Edit menu's items, as CodeMirror does them.
+    const actions: Record<string, () => void> = {
+      undo: () => editor.undo(),
+      redo: () => editor.redo(),
+      "jump-top": () => editor.execCommand("goDocStart"),
+      "jump-bottom": () => editor.execCommand("goDocEnd"),
+      "jump-selection": () => editor.scrollIntoView(null),
+      "select-word": () => {
+        const word = editor.findWordAt(cursor);
+        editor.setSelection(word.anchor, word.head);
+      },
+      "select-line": () => editor.setSelection({ line: cursor.line, ch: 0 }, { line: cursor.line, ch: line(cursor.line).length }),
+      "delete-line": () => editor.execCommand("deleteLine"),
+      "delete-word": () => {
+        const word = editor.findWordAt(cursor);
+        editor.replaceRange("", word.anchor, word.head);
+      },
+      "move-row-up": () => swap(cursor.line - 1),
+      "move-row-down": () => swap(cursor.line + 1),
+      "upper-case": () => recase((t) => t.toUpperCase()),
+      "lower-case": () => recase((t) => t.toLowerCase()),
+    };
+    actions[id]?.();
     editor.focus();
   }
 

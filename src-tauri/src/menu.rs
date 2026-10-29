@@ -60,13 +60,91 @@ const EDIT_TOP: &[Item] = &[
     ("redo", "Redo", Some("CmdOrCtrl+Shift+Z")),
 ];
 
-/// Edit › Find and Replace.
+/// Edit, after Cut, Copy and Paste: Typora's Copy as … and Paste as Plain Text.
+const EDIT_COPY: &[Item] = &[
+    ("-", "", None),
+    ("copy-plain", "Copy as Plain Text", None),
+    (
+        "copy-markdown",
+        "Copy as Markdown",
+        Some("CmdOrCtrl+Shift+C"),
+    ),
+    ("copy-html", "Copy as HTML Code", None),
+    ("copy-no-style", "Copy without Theme Styling", None),
+    ("-", "", None),
+    (
+        "paste-plain",
+        "Paste as Plain Text",
+        Some("CmdOrCtrl+Shift+V"),
+    ),
+    ("-", "", None),
+];
+
+/// Edit › Selection, after Select All. ⌘↑, ⌘↓, ⌃A and ⌃E stay the web view's own keys,
+/// which do the same, so text fields and source mode keep them.
+const SELECTION: &[Item] = &[
+    (
+        "select-block",
+        "Select Paragraph / Block",
+        Some("CmdOrCtrl+Alt+P"),
+    ),
+    ("select-line", "Select Line / Sentence", Some("CmdOrCtrl+L")),
+    ("select-scope", "Select Styled Scope", Some("CmdOrCtrl+E")),
+    ("select-word", "Select Word", Some("CmdOrCtrl+D")),
+    ("-", "", None),
+    ("jump-top", "Jump to Top", None),
+    ("jump-selection", "Jump to Selection", Some("CmdOrCtrl+J")),
+    ("jump-bottom", "Jump to Bottom", None),
+    ("-", "", None),
+    ("jump-line-start", "Jump to Line Start", None),
+    ("jump-line-end", "Jump to Line End", None),
+];
+
+const EDIT_MOVE: &[Item] = &[
+    ("-", "", None),
+    ("move-row-up", "Move Row Up", Some("Alt+Up")),
+    ("move-row-down", "Move Row Down", Some("Alt+Down")),
+    ("-", "", None),
+    ("delete", "Delete", None),
+];
+
+/// Edit › Delete Range.
+const DELETE_RANGE: &[Item] = &[
+    (
+        "delete-block",
+        "Delete Paragraph / Block",
+        Some("CmdOrCtrl+Alt+Shift+P"),
+    ),
+    (
+        "delete-line",
+        "Delete Line / Sentence",
+        Some("CmdOrCtrl+Alt+Shift+L"),
+    ),
+    (
+        "delete-scope",
+        "Delete Styled Scope",
+        Some("CmdOrCtrl+Alt+Shift+E"),
+    ),
+    ("delete-word", "Delete Word", Some("CmdOrCtrl+Shift+D")),
+];
+
+/// Edit › Transformations.
+const TRANSFORMATIONS: &[Item] = &[
+    ("upper-case", "Make Upper Case", None),
+    ("lower-case", "Make Lower Case", None),
+    ("capitalize", "Capitalize", None),
+];
+
+/// Edit › Find.
 const FIND: &[Item] = &[
     ("find", "Find…", Some("CmdOrCtrl+F")),
     ("find-next", "Find Next", Some("CmdOrCtrl+G")),
     ("find-previous", "Find Previous", Some("CmdOrCtrl+Shift+G")),
     ("-", "", None),
-    ("replace", "Replace…", Some("CmdOrCtrl+Alt+F")),
+    ("replace", "Find and Replace…", Some("CmdOrCtrl+Alt+F")),
+    ("replace-next", "Replace Next", Some("CmdOrCtrl+Alt+E")),
+    ("-", "", None),
+    ("jump-selection", "Jump to Selection", None),
 ];
 
 const PARAGRAPH: &[Item] = &[
@@ -267,13 +345,31 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
     edit.push(Box::new(PredefinedMenuItem::cut(app, None)?));
     edit.push(Box::new(PredefinedMenuItem::copy(app, None)?));
     edit.push(Box::new(PredefinedMenuItem::paste(app, None)?));
-    edit.push(Box::new(PredefinedMenuItem::select_all(app, None)?));
-    edit.push(Box::new(PredefinedMenuItem::separator(app)?));
+    edit.extend(items(app, EDIT_COPY)?);
+    let mut selection: Vec<Box<dyn tauri::menu::IsMenuItem<Wry>>> =
+        vec![Box::new(PredefinedMenuItem::select_all(app, None)?)];
+    selection.extend(items(app, SELECTION)?);
+    edit.push(Box::new(submenu(app, "Selection", selection)?));
+    edit.extend(items(app, EDIT_MOVE)?);
     edit.push(Box::new(submenu(
         app,
-        "Find and Replace",
-        items(app, FIND)?,
+        "Delete Range",
+        items(app, DELETE_RANGE)?,
     )?));
+    edit.push(Box::new(PredefinedMenuItem::separator(app)?));
+    // Filled with macOS's own items by native_menu.rs.
+    for title in ["Spelling and Grammar", "Substitutions"] {
+        edit.push(Box::new(submenu(app, title, Vec::new())?));
+    }
+    edit.push(Box::new(submenu(
+        app,
+        "Transformations",
+        items(app, TRANSFORMATIONS)?,
+    )?));
+    edit.push(Box::new(PredefinedMenuItem::separator(app)?));
+    edit.push(Box::new(submenu(app, "Find", items(app, FIND)?)?));
+    edit.push(Box::new(PredefinedMenuItem::separator(app)?));
+    edit.push(Box::new(submenu(app, "Speech", Vec::new())?));
 
     let mut paragraph = items(app, PARAGRAPH)?;
     paragraph.push(Box::new(submenu(app, "Table", items(app, TABLE)?)?));
