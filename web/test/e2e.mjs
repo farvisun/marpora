@@ -330,12 +330,17 @@ check("escape closes and clears", !(await inline.locator("#md-searchpanel").isVi
   (await inline.locator("#write .md-search-hit").count()) === 0);
 
 // View › Status Bar: hidden, the page takes its room.
-await inline.evaluate(() => window.marpora.backend.updateSettings({ showStatusBar: false }));
-await inline.waitForTimeout(500); // content's transition
 const pageBottom = () => inline.evaluate(() => document.querySelector("content").getBoundingClientRect().bottom);
+/** Until content's transition ends at `bottom` (slow machines take longer than it lasts). */
+const settled = (bottom) =>
+  inline
+    .waitForFunction((b) => document.querySelector("content").getBoundingClientRect().bottom === b, bottom, { timeout: 5000 })
+    .catch(() => {});
+await inline.evaluate(() => window.marpora.backend.updateSettings({ showStatusBar: false }));
+await settled(700);
 check("status bar hides", !(await inline.locator("footer.ty-footer").isVisible()) && (await pageBottom()) === 700, String(await pageBottom()));
 await inline.evaluate(() => window.marpora.backend.updateSettings({ showStatusBar: true }));
-await inline.waitForTimeout(500); // content's transition
+await settled(670);
 check("status bar shows", (await inline.locator("footer.ty-footer").isVisible()) && (await pageBottom()) === 670, String(await pageBottom()));
 
 // The same panel searches the Markdown source in source mode.
