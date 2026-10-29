@@ -46,6 +46,13 @@ Right-click in the text for the same actions, plus the ones that fit what you cl
 - **View › Typewriter Mode** (F9) keeps the current line in the middle of the window.
 - Click the word count in the status bar for words, characters, lines and reading time.
 
+## AI
+
+Choose a model in **AI › AI Settings…**: the Anthropic API or any OpenAI-compatible one (keys are kept in the macOS Keychain), or the Claude Code or Codex CLI you are already signed in to.
+
+- **AI › Ask AI…** (⇧⌘J) opens a prompt under the selection. Type what you want, or pick a preset such as *Improve Writing* or *Make Shorter*. With no selection it writes at the cursor. The answer streams into a preview: ↵ puts it in, ⌥↵ puts it below, Esc throws it away. One ⌘Z undoes it.
+- **AI › AI Chat** (⌥⌘J) opens a panel for questions about the document. Your selection goes with each question, and an answer can be inserted at the cursor or put in place of the selection.
+
 ## Agents
 
 Coding agents such as Claude Code and Codex can read and edit the documents open in Marpora. Their edits show at once, and ⌘Z takes them back. Connect one through MCP:
