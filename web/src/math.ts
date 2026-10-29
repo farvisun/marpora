@@ -173,17 +173,20 @@ function prepare(mj: MathJaxObject): MathJaxObject {
 }
 
 /**
- * Display math is converted with the metrics of the document's text, measured once
- * (as Typora does): they size text inside formulas, such as error messages.
+ * Math is converted with the metrics of the document's text, measured once (as Typora
+ * does): they size text inside formulas, such as error messages. Without them MathJax
+ * measures the page for every formula, a layout each time.
  */
-let displayMetrics: Metrics | null = null;
+const measured = new Map<boolean, Metrics>();
 
-function metrics(mj: MathJaxObject): Metrics {
-  if (!displayMetrics) {
+function metrics(mj: MathJaxObject, display: boolean): Metrics {
+  let m = measured.get(display);
+  if (!m) {
     const at = document.querySelector("#write>p") ?? document.querySelector("#write") ?? document.body;
-    displayMetrics = mj.getMetricsFor(at, true);
+    m = mj.getMetricsFor(at, display);
+    measured.set(display, m);
   }
-  return displayMetrics;
+  return m;
 }
 
 export interface Rendered {
@@ -222,7 +225,7 @@ export function renderTex(tex: string, display: boolean, start = 1): Promise<Ren
       mj.texReset(start - 1);
       mj.startup.input[0].parseOptions.tags.allLabels = labels;
     }
-    const node = await mj.tex2svgPromise(tex, display ? metrics(mj) : { display: false });
+    const node = await mj.tex2svgPromise(tex, metrics(mj, display));
     const next = numbered ? mj.startup.input[0].parseOptions.tags.counter + 1 : start;
     const out = { node, next };
     cache.set(key, out);
