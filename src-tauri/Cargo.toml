@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 marpora-core = { path = "../crates/core" }
+marpora-llm = { path = "../crates/llm" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -27,6 +28,7 @@ grep-regex = "0.1.14"
 grep-matcher = "0.1.9"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
 objc2 = "0.6"
 block2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL", "NSDictionary", "NSGeometry", "NSError", "NSObject", "NSData", "NSValue", "NSFileManager"] }

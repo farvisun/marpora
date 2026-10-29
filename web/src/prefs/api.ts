@@ -69,6 +69,9 @@ export class MemoryPrefs implements PrefsApi {
     exportAppendHead: "",
     exportAppendBody: "",
     exportImageWidth: 640,
+    aiProvider: "anthropic",
+    aiModel: "",
+    aiBaseUrl: "",
   };
   /** Actions taken, for tests. */
   log: string[] = [];

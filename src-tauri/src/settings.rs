@@ -56,6 +56,13 @@ pub struct Settings {
     pub export_append_body: String,
     /// Image export: the page width in points.
     pub export_image_width: u32,
+    /// Preferences › AI: "anthropic", "openai" (any compatible endpoint),
+    /// "claude-code" or "codex".
+    pub ai_provider: String,
+    /// The model; the provider's default when empty.
+    pub ai_model: String,
+    /// The OpenAI-compatible endpoint, up to `/v1`.
+    pub ai_base_url: String,
     /// Edit › Line Endings › Insert Final New Line On Save.
     pub insert_final_newline: bool,
     /// Edit › Whitespace and Line Breaks: Typora's `indentFirstLine`,
@@ -96,6 +103,9 @@ impl Default for Settings {
             export_append_head: String::new(),
             export_append_body: String::new(),
             export_image_width: 640,
+            ai_provider: "anthropic".to_owned(),
+            ai_model: String::new(),
+            ai_base_url: String::new(),
         }
     }
 }

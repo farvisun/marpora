@@ -1,6 +1,7 @@
 //! Marpora desktop app: windows, menus and IPC around `marpora-core`.
 
 mod agent;
+mod ai;
 mod commands;
 #[cfg(target_os = "macos")]
 mod context_menu;
@@ -35,6 +36,7 @@ pub fn run() {
         .manage(menu::WindowFlags::default())
         .manage(menu::ClosedFiles::default())
         .manage(search::Searches::default())
+        .manage(ai::Tasks::default())
         .on_menu_event(|app, event| menu::handle(app, event.id().as_ref()))
         .on_window_event(|window, event| {
             if let WindowEvent::Focused(true) = event {
@@ -84,6 +86,10 @@ pub fn run() {
             commands::clear_recent,
             commands::recent_folders,
             commands::report_selection,
+            ai::ai_start,
+            ai::ai_cancel,
+            ai::ai_set_key,
+            ai::ai_keys,
             commands::pin_recent_folder,
             commands::remove_recent_folder,
             commands::search_library,

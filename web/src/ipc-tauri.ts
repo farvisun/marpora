@@ -3,6 +3,8 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { MenuContext } from "./editor/contextmenu";
 import type {
+  AiEvent,
+  AiRequest,
   AgentSelection,
   RecentFolder,
   Backend,
@@ -199,6 +201,18 @@ export class TauriBackend implements Backend {
 
   isDirty(docId: number) {
     return invoke<boolean>("is_dirty", { docId });
+  }
+
+  aiStart(id: number, request: AiRequest) {
+    return invoke<void>("ai_start", { id, request: { effort: "", ...request } });
+  }
+
+  aiCancel(id: number) {
+    return invoke<void>("ai_cancel", { id });
+  }
+
+  onAi(handler: (event: AiEvent) => void) {
+    void getCurrentWebviewWindow().listen<AiEvent>("ai", (e) => handler(e.payload));
   }
 
   onRemotePatch(handler: (docId: number, patch: RemotePatch) => void) {

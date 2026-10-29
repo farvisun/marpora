@@ -88,6 +88,12 @@ export interface Settings {
   exportAppendBody: string;
   /** Image export: the page width. */
   exportImageWidth: number;
+  /** Preferences › AI: "anthropic", "openai" (a compatible endpoint), "claude-code" or "codex". */
+  aiProvider: string;
+  /** The model; the provider's default when empty. */
+  aiModel: string;
+  /** The OpenAI-compatible endpoint, up to `/v1`. */
+  aiBaseUrl: string;
 }
 
 /** A sidebar Search (src-tauri search.rs). */
@@ -158,6 +164,22 @@ export interface LibraryDocs {
 }
 
 export type PatchResult = { ok: true; version: number } | { ok: false; current: number };
+
+/** A request to the AI model: a system prompt (stable, so it caches) and the conversation. */
+export interface AiRequest {
+  system: string;
+  messages: { role: "user" | "assistant"; content: string }[];
+  /** "low", "medium" or "high"; the provider's default when empty. */
+  effort?: string;
+}
+
+/** A streamed piece of an AI answer: more text, the whole answer, or an error. */
+export interface AiEvent {
+  id: number;
+  text?: string;
+  done?: string;
+  error?: string;
+}
 
 export interface Backend {
   /** The document this window was opened with. */
@@ -249,6 +271,11 @@ export interface Backend {
   loadTheme(id: string): Promise<ThemeCss | null>;
   /** Switch every window to theme `id`; they hear about it through `onSettings`. */
   setTheme(id: string): Promise<void>;
+  /** Start AI request `id`; its answer arrives through `onAi`. */
+  aiStart(id: number, request: AiRequest): Promise<void>;
+  /** Stop AI request `id`. */
+  aiCancel(id: number): Promise<void>;
+  onAi(handler: (event: AiEvent) => void): void;
   onSettings(handler: (settings: Settings) => void): void;
   /** Ask where to export the document as `format` (`extension`); `null` when cancelled. */
   exportPath(docId: number, format: string, extension: string): Promise<string | null>;
@@ -310,6 +337,9 @@ export class MemoryBackend implements Backend {
     exportAppendHead: "",
     exportAppendBody: "",
     exportImageWidth: 640,
+    aiProvider: "anthropic",
+    aiModel: "",
+    aiBaseUrl: "",
   };
 
   constructor(private text = DEMO) {}
@@ -626,6 +656,27 @@ export class MemoryBackend implements Backend {
 
   async loadTheme(id: string): Promise<ThemeCss | null> {
     return id.includes("/") ? null : { css: null, dir: null, user: [] };
+  }
+
+  private aiHandlers: ((e: AiEvent) => void)[] = [];
+  private aiCancelled = new Set<number>();
+  /** Test hook: AI requests made, and the answers to give (else an echo). */
+  aiRequests: AiRequest[] = [];
+  aiReplies: string[] = [];
+  async aiStart(id: number, request: AiRequest) {
+    this.aiRequests.push(request);
+    const answer = this.aiReplies.shift() ?? `AI: ${request.messages.at(-1)?.content ?? ""}`;
+    const send = (e: AiEvent) => !this.aiCancelled.has(id) && this.aiHandlers.forEach((h) => h(e));
+    // In pieces, as a model streams.
+    const pieces = answer.match(/[\s\S]{1,8}/g) ?? [];
+    pieces.forEach((text, i) => setTimeout(() => send({ id, text }), 10 * (i + 1)));
+    setTimeout(() => send({ id, done: answer }), 10 * (pieces.length + 1));
+  }
+  async aiCancel(id: number) {
+    this.aiCancelled.add(id);
+  }
+  onAi(handler: (e: AiEvent) => void) {
+    this.aiHandlers.push(handler);
   }
 
   async setTheme(id: string) {
