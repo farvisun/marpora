@@ -1967,6 +1967,11 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
 .marp-preview-btn { border: 0; background: transparent; color: inherit; font-size: 16px; line-height: 16px; padding: 2px 6px; border-radius: 4px; opacity: 0.75; }
 .marp-preview-btn:hover { background-color: rgba(0, 0, 0, 0.07); opacity: 1; }
 .marp-preview-slides { flex: 1; overflow-y: auto; }
+.marp-preview-theme { position: relative; }
+.marp-preview-btn.marp-preview-theme-btn { font-size: 12px; }
+.marp-preview-btn:disabled { opacity: 0.4; background: transparent; }
+.marp-preview-theme > .dropdown-menu { position: absolute; top: 100%; right: 0; left: auto; width: 180px; }
+.marp-preview-theme a.state-on::after { content: "✓"; float: right; }
 
 /* View › Present Slides: the presenter view (chrome/Presenter.tsx) */
 #marp-presenter {

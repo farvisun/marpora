@@ -1235,6 +1235,32 @@ const deckExport = (id) => deck.evaluate(async (id) => {
   for (let i = 0; i < 200 && !m.backend.exports.size; i++) await new Promise((r) => setTimeout(r, 50));
   return [...m.backend.exports.values()][0] ?? "";
 }, id);
+// The theme menu: Marp's themes and the user's, and the choice goes into the front matter.
+await deck.evaluate(async () => {
+  window.marpora.backend.marpThemeCss = ["/* @theme brand */\n@import \"gaia\";\nsection { color: rgb(1, 2, 3); }", "not a theme"];
+});
+await deck.click(".marp-preview-theme-btn");
+await deck.waitForFunction(() => document.querySelectorAll(".marp-preview-theme li[data-theme]").length === 4, null, { timeout: 3000 }).catch(() => {});
+const themeItems = await deck.locator(".marp-preview-theme li[data-theme]").evaluateAll((els) => els.map((e) => e.dataset.theme));
+check("slides: theme menu lists marp's and the user's themes", themeItems.join() === "default,gaia,uncover,brand", themeItems.join());
+await deck.dispatchEvent(".marp-preview-theme li[data-theme='brand'] a", "mousedown");
+await deck.waitForFunction(() => document.querySelector(".marp-preview-theme-btn")?.textContent.startsWith("brand"), null, { timeout: 3000 }).catch(() => {});
+check("slides: choosing a theme sets theme:", (await deck.evaluate(async () => {
+  await window.marpora.sync.flush();
+  return (await window.marpora.backend.documentText(1)).text;
+})).startsWith("---\nmarp: true\ntheme: brand\n---") && (await deck.evaluate(() =>
+  getComputedStyle(document.querySelector(".marp-preview-slides").shadowRoot.querySelector("section")).color)) === "rgb(1, 2, 3)" &&
+  !(await deck.locator(".marp-preview-theme .dropdown-menu").count()));
+await deck.click(".marp-preview-theme-btn");
+await deck.dispatchEvent(".marp-preview-theme li[data-action='folder'] a", "mousedown");
+check("slides: theme menu opens the folder", (await deck.evaluate(() => window.marpora.backend.marpThemeFolderOpened)) === 1);
+// Back to Marp's default for the checks below.
+await deck.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, (await m.backend.documentText(1)).text.replace("theme: brand\n", ""));
+  await m.sync.resync();
+});
+await deck.waitForFunction(() => document.querySelector(".marp-preview-theme-btn")?.textContent.startsWith("default"));
 const deckHtml = await deckExport("export-html");
 check("slides: html export is the deck", (deckHtml.match(/<svg[^>]*data-marpit-svg/g) ?? []).length === 4 &&
   deckHtml.includes("<title>untitled</title>") === false && deckHtml.includes("<script>") && !deckHtml.includes('id="write"'), deckHtml.slice(0, 300));

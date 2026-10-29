@@ -1,9 +1,10 @@
 // View › Slide Preview: a Marp deck's slides beside the editor, kept in step with the
 // text. The slide holding the cursor is outlined and scrolled into view; a click on a
-// slide puts the cursor at its start. Marp's markup and styles live in a shadow root,
-// apart from the editor's theme.
+// slide puts the cursor at its start. The header's menu sets the deck's `theme:`, from
+// Marp's themes and the user's Marp themes folder. Marp's markup and styles live in a
+// shadow root, apart from the editor's theme.
 
-import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { localCss, marpBrowser, renderDeck } from "../marp/marp";
 import { report } from "../ipc";
 import { setUi, ui } from "./store";
@@ -15,6 +16,10 @@ export interface SlidePreviewProps {
   assetUrl(src: string): string;
   /** Put the cursor at the start of slide `index`. */
   gotoSlide(index: number): void;
+  /** Set the deck's `theme:`. */
+  setTheme(name: string): void;
+  /** Show the user's Marp themes folder. */
+  openThemeFolder(): void;
 }
 
 /** Image references in Marp's output, made to load like the editor's images. */
@@ -30,6 +35,9 @@ function resolveImages(root: ParentNode, assetUrl: (src: string) => string) {
 
 export function SlidePreview(props: SlidePreviewProps) {
   const [count, setCount] = createSignal(0);
+  const [themes, setThemes] = createSignal<string[]>([]);
+  const [theme, setTheme] = createSignal("");
+  const [menu, setMenu] = createSignal(false);
   let host: HTMLDivElement | undefined;
   let root: ShadowRoot | undefined;
   let cleanup: (() => void) | undefined;
@@ -54,6 +62,8 @@ export function SlidePreview(props: SlidePreviewProps) {
     cleanup?.();
     cleanup = await marpBrowser(root);
     setCount(deck.slides.length);
+    setThemes(deck.themes);
+    setTheme(deck.theme);
     mark(false);
   };
 
@@ -75,6 +85,56 @@ export function SlidePreview(props: SlidePreviewProps) {
         <div class="marp-preview-header">
           <span class="marp-preview-title">Slides</span>
           <span class="marp-preview-count">{count() ? `${Math.min(ui.slide + 1, count())} / ${count()}` : ""}</span>
+          <div class="marp-preview-theme">
+            <button
+              class="marp-preview-btn marp-preview-theme-btn"
+              title={ui.sourceMode ? "Leave source mode to change the theme" : "Slide theme"}
+              disabled={ui.sourceMode || !theme()}
+              onClick={() => {
+                setMenu(!menu());
+                // Themes just added to the folder show up.
+                if (menu()) void render().catch(report);
+              }}
+              onBlur={() => setMenu(false)}
+            >
+              {theme()} ▾
+            </button>
+            <Show when={menu()}>
+              <ul class="dropdown-menu context-menu show" role="menu">
+                <For each={themes()}>
+                  {(name) => (
+                    <li data-theme={name}>
+                      <a
+                        role="menuitem"
+                        classList={{ "state-on": name === theme(), "state-off": name !== theme() }}
+                        // Before the button's blur closes the menu.
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setMenu(false);
+                          if (name !== theme()) props.setTheme(name);
+                        }}
+                      >
+                        {name}
+                      </a>
+                    </li>
+                  )}
+                </For>
+                <li class="divider" />
+                <li data-action="folder">
+                  <a
+                    role="menuitem"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setMenu(false);
+                      props.openThemeFolder();
+                    }}
+                  >
+                    Open Theme Folder
+                  </a>
+                </li>
+              </ul>
+            </Show>
+          </div>
           <button class="marp-preview-btn" title="Close" onClick={() => setUi("slidePreview", false)}>
             ×
           </button>

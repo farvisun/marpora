@@ -256,6 +256,14 @@ export class TauriBackend implements Backend {
     return invoke<void>("set_theme", { id });
   }
 
+  marpThemes() {
+    return invoke<string[]>("marp_themes");
+  }
+
+  openMarpThemeFolder() {
+    return invoke<void>("open_marp_theme_folder");
+  }
+
   exportPath(docId: number, format: string, extension: string) {
     return invoke<string | null>("export_path", { docId, format, extension });
   }

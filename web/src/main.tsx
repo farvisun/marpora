@@ -18,7 +18,7 @@ import { frontMatterValue, rootedSrc, setFrontMatterValue } from "./editor/front
 import { DocSync } from "./editor/sync";
 import { remoteHighlight } from "./editor/remotehighlight";
 import { aiTarget, PRESETS } from "./editor/ai";
-import { isDeck, slideAt, slideStart } from "./marp/marp";
+import { isDeck, setMarpThemeSource, slideAt, slideStart } from "./marp/marp";
 import { deckPage } from "./marp/export";
 import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
@@ -73,6 +73,7 @@ async function main() {
   let imageRoot = frontMatterValue(doc, "typora-root-url");
   let sourceHost!: HTMLElement;
   const source = new SourceMode(backend, opened.id, sync, () => view, () => sourceHost);
+  setMarpThemeSource(() => backend.marpThemes());
   const search = new Search(() =>
     source.active && source.codeMirror ? sourceTarget(source.codeMirror, () => search.refresh()) : editorTarget(view),
   );
@@ -231,6 +232,8 @@ async function main() {
             view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(at))).scrollIntoView());
             view.focus();
           },
+          setTheme: (name) => !source.active && setFrontMatter("theme", name),
+          openThemeFolder: () => void backend.openMarpThemeFolder().catch(report),
         }}
         onOutlineClick={(pos) => {
           const tr = view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos + 1)));

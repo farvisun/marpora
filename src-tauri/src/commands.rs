@@ -1100,6 +1100,20 @@ pub fn open_theme_folder(app: AppHandle) -> CmdResult<()> {
     reveal(&themes::user_dir(&app).ok_or("no themes folder")?)
 }
 
+/// The user's Marp themes (`themes::marp_dir`), for decks to choose with `theme:`.
+#[tauri::command]
+pub fn marp_themes(app: AppHandle) -> Vec<String> {
+    themes::marp_dir(&app)
+        .map(|d| themes::marp_css(&d))
+        .unwrap_or_default()
+}
+
+/// Show the Marp themes folder in Finder (the slide preview's theme menu).
+#[tauri::command]
+pub fn open_marp_theme_folder(app: AppHandle) -> CmdResult<()> {
+    reveal(&themes::marp_dir(&app).ok_or("no themes folder")?)
+}
+
 /// Open a link from the document (see links.rs): Markdown files in a new window, other
 /// files and addresses with the system. A `#heading` link comes back for the editor to
 /// scroll to.

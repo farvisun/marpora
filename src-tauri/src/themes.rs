@@ -46,6 +46,29 @@ pub fn user_dir(app: &AppHandle) -> Option<PathBuf> {
     app.path().app_config_dir().ok().map(|d| d.join("themes"))
 }
 
+/// The user's Marp slide themes: CSS files with a `/* @theme name */` comment.
+pub fn marp_dir(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_config_dir()
+        .ok()
+        .map(|d| d.join("marp-themes"))
+}
+
+/// The CSS of each Marp theme in `dir`, by file name; files too large to be a theme
+/// are left out.
+pub fn marp_css(dir: &Path) -> Vec<String> {
+    css_stems(dir)
+        .into_iter()
+        .filter_map(|stem| {
+            let path = dir.join(format!("{stem}.css"));
+            let size = std::fs::metadata(&path).ok()?.len();
+            (size <= 2 << 20)
+                .then(|| std::fs::read_to_string(&path).ok())
+                .flatten()
+        })
+        .collect()
+}
+
 fn typora_dir(app: &AppHandle) -> Option<PathBuf> {
     let base = app.path().data_dir().ok()?;
     if cfg!(target_os = "macos") {
@@ -148,11 +171,23 @@ fn display_name(stem: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::display_name;
+    use super::{display_name, marp_css};
 
     #[test]
     fn names_like_typora() {
         assert_eq!(display_name("github"), "Github");
         assert_eq!(display_name("solarized-dark"), "Solarized Dark");
+    }
+
+    #[test]
+    fn marp_themes_are_the_css_files() {
+        let dir = std::env::temp_dir().join(format!("marpora-marp-themes-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("b.css"), "/* @theme b */").unwrap();
+        std::fs::write(dir.join("a.css"), "/* @theme a */").unwrap();
+        std::fs::write(dir.join("notes.txt"), "not a theme").unwrap();
+        let css = marp_css(&dir);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(css, ["/* @theme a */", "/* @theme b */"]);
     }
 }

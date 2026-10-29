@@ -37,6 +37,10 @@ export interface Rendered {
   slides: string[];
   /** Each slide's speaker notes (`<!-- ... -->` comments). */
   notes: string[];
+  /** The themes a deck can choose with `theme:`, Marp's own and the user's. */
+  themes: string[];
+  /** The theme the deck uses: its `theme:` when that is one of `themes`. */
+  theme: string;
 }
 
 type MarpModule = typeof import("@marp-team/marp-core");
@@ -58,17 +62,34 @@ async function loadMarp(): Promise<MarpModule> {
   }
 }
 
-/** Marp Core's renderer: HTML limited to Marp's safe list, math with MathJax. */
-/** `script`: put Marp's browser helper inline in the HTML, for a page shown on its own
- * (Safari scales inline SVG slides wrongly without it). `plain`: slides as bare
- * sections at their own size rather than scalable inline SVG, for printing. */
+let themeSource: () => Promise<string[]> = async () => [];
+
+/** Where the user's themes come from: the CSS of each, with its `@theme` name. */
+export function setMarpThemeSource(source: () => Promise<string[]>) {
+  themeSource = source;
+}
+
+/** Marp Core's renderer: HTML limited to Marp's safe list, math with MathJax, and the
+ * user's themes beside Marp's. `script`: put Marp's browser helper inline in the HTML,
+ * for a page shown on its own (Safari scales inline SVG slides wrongly without it).
+ * `plain`: slides as bare sections at their own size rather than scalable inline SVG,
+ * for printing. */
 export async function renderDeck(markdown: string, { script = false, plain = false } = {}): Promise<Rendered> {
   marpModule ??= loadMarp();
   const { Marp } = await marpModule;
   const marp = new Marp({ inlineSVG: !plain, math: "mathjax", script: script ? { source: "inline" } : false });
+  for (const theme of await themeSource().catch(() => [])) {
+    try {
+      marp.themeSet.add(theme);
+    } catch {
+      // Not a theme: Marp wants a `/* @theme name */` comment.
+    }
+  }
   const { html, css, comments } = marp.render(markdown);
   const slides = marp.render(markdown, { htmlAsArray: true }).html;
-  return { html, css, slides, notes: comments.map((c) => c.join("\n\n")) };
+  const themes = [...marp.themeSet.themes()].map((t) => t.name);
+  const theme = /\bdata-theme="([^"]+)"/.exec(html)?.[1] ?? "default";
+  return { html, css, slides, notes: comments.map((c) => c.join("\n\n")), themes, theme };
 }
 
 /** A deck's CSS for showing in the app: without `@charset` and the web font imports

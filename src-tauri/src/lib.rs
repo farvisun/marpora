@@ -126,6 +126,8 @@ pub fn run() {
             commands::export_pdf,
             commands::export_slides_pdf,
             commands::export_slides_pptx,
+            commands::marp_themes,
+            commands::open_marp_theme_folder,
             present::present_open,
             present::present_send,
             present::present_close,

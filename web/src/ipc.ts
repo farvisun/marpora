@@ -271,6 +271,10 @@ export interface Backend {
   loadTheme(id: string): Promise<ThemeCss | null>;
   /** Switch every window to theme `id`; they hear about it through `onSettings`. */
   setTheme(id: string): Promise<void>;
+  /** The CSS of the user's Marp themes (each with a `@theme` name). */
+  marpThemes(): Promise<string[]>;
+  /** Show the user's Marp themes folder. */
+  openMarpThemeFolder(): Promise<void>;
   /** Start AI request `id`; its answer arrives through `onAi`. */
   aiStart(id: number, request: AiRequest): Promise<void>;
   /** Stop AI request `id`. */
@@ -684,6 +688,18 @@ export class MemoryBackend implements Backend {
   }
   onAi(handler: (e: AiEvent) => void) {
     this.aiHandlers.push(handler);
+  }
+
+  /** Test hook: the user's Marp themes; `marpThemeFolderOpened` counts folder opens. */
+  marpThemeCss: string[] = [];
+  marpThemeFolderOpened = 0;
+
+  async marpThemes() {
+    return this.marpThemeCss;
+  }
+
+  async openMarpThemeFolder() {
+    this.marpThemeFolderOpened++;
   }
 
   async setTheme(id: string) {
