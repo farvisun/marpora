@@ -172,3 +172,63 @@ export function countText(text: string, selection = ""): Counts {
 export function docText(doc: PMNode): string {
   return doc.textBetween(0, doc.content.size, "\n", " ");
 }
+
+/** What a top-level block adds to its document's counts. */
+interface BlockCounts {
+  words: number;
+  chars: number;
+  newlines: number;
+  length: number;
+  /** It holds text (a textblock or a leaf), so `docText` puts a line break before it. */
+  text: boolean;
+}
+
+/** Blocks are immutable, so an edit counts only the blocks it replaced. */
+const blockCounts = new WeakMap<PMNode, BlockCounts>();
+
+function countBlock(block: PMNode): BlockCounts {
+  let c = blockCounts.get(block);
+  if (!c) {
+    const text = block.isLeaf ? " " : block.textBetween(0, block.content.size, "\n", " ");
+    let holdsText = block.isTextblock || block.isLeaf;
+    block.descendants((n) => {
+      if (n.isBlock && (n.isTextblock || n.isLeaf)) holdsText = true;
+      return !holdsText;
+    });
+    c = {
+      words: countWords(text),
+      chars: text.replace(/\s/g, "").length,
+      newlines: text.split("\n").length - 1,
+      length: text.length,
+      text: holdsText,
+    };
+    blockCounts.set(block, c);
+  }
+  return c;
+}
+
+/** `countText(docText(doc), selection)`, counting only the blocks that changed since the
+ * last call. */
+export function countDoc(doc: PMNode, selection = ""): Counts {
+  let words = 0;
+  let chars = 0;
+  let newlines = 0;
+  let length = 0;
+  let parts = 0;
+  doc.forEach((block) => {
+    const c = countBlock(block);
+    words += c.words;
+    chars += c.chars;
+    newlines += c.newlines;
+    length += c.length;
+    if (c.text) parts++;
+  });
+  const breaks = Math.max(0, parts - 1);
+  return {
+    words,
+    chars,
+    lines: length + breaks ? newlines + breaks + 1 : 0,
+    selWords: countWords(selection),
+    selChars: selection.length,
+  };
+}

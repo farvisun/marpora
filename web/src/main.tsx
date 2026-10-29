@@ -5,7 +5,7 @@ import { TextSelection } from "prosemirror-state";
 import { render } from "solid-js/web";
 import { App } from "./chrome/App";
 import { basename, dirname } from "./chrome/library";
-import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
+import { countDoc, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { dropFiles, imageExtension, insertImages } from "./editor/clipboard";
 import { insertTable } from "./editor/commands";
 import { createEditor, redraw, runCommand } from "./editor/editor";
@@ -88,7 +88,7 @@ async function main() {
     setUi("outline", outlineOf(view.state.doc));
     const { from, to, empty } = view.state.selection;
     const selected = empty ? "" : view.state.doc.textBetween(from, to, "\n", " ");
-    setUi("counts", countText(docText(view.state.doc), selected));
+    setUi("counts", countDoc(view.state.doc, selected));
     setUi("deck", isDeck(view.state.doc));
     setUi("docSeq", (n) => n + 1);
   };
