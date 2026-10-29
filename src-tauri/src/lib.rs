@@ -2,6 +2,7 @@
 
 mod agent;
 mod ai;
+mod ai_folder;
 mod commands;
 #[cfg(target_os = "macos")]
 mod context_menu;

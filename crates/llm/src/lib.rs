@@ -5,6 +5,9 @@ mod anthropic;
 mod cli;
 mod openai;
 pub mod sse;
+mod tools;
+
+pub use tools::{FolderTools, ToolSpec, folder_tools, string_arg};
 
 use serde::{Deserialize, Serialize};
 
@@ -71,28 +74,49 @@ impl From<reqwest::Error> for Error {
 }
 
 /// Run `request` on `provider`, calling `on_text` with each piece of the answer as it
-/// arrives. Returns the whole answer. Dropping the future stops the request (and
-/// kills a CLI it started).
+/// arrives. With `folder`, the model may search and read the files in it. Returns the
+/// whole answer. Dropping the future stops the request (and kills a CLI it started).
 pub async fn stream(
     provider: &Provider,
     request: &Request,
+    folder: Option<&dyn FolderTools>,
     on_text: &mut (dyn FnMut(&str) + Send),
 ) -> Result<String, Error> {
+    let with_note;
+    let request = match folder {
+        Some(_) => {
+            with_note = Request {
+                system: format!("{}\n\n{}", request.system, tools::FOLDER_NOTE)
+                    .trim_start()
+                    .to_owned(),
+                ..request.clone()
+            };
+            &with_note
+        }
+        None => request,
+    };
     match provider {
         Provider::Anthropic {
             api_key,
             model,
             base_url,
-        } => anthropic::stream(api_key, model, base_url, request, on_text).await,
+        } => anthropic::stream(api_key, model, base_url, request, folder, on_text).await,
         Provider::OpenAi {
             api_key,
             model,
             base_url,
-        } => openai::stream(api_key, model, base_url, request, on_text).await,
-        Provider::ClaudeCode { model } => cli::claude(model, request, on_text).await,
-        Provider::Codex { model } => cli::codex(model, request, on_text).await,
+        } => openai::stream(api_key, model, base_url, request, folder, on_text).await,
+        Provider::ClaudeCode { model } => {
+            cli::claude(model, request, folder.map(|f| f.root()), on_text).await
+        }
+        Provider::Codex { model } => {
+            cli::codex(model, request, folder.map(|f| f.root()), on_text).await
+        }
     }
 }
+
+/// Tool calls a single answer may make before it has to stop.
+const MAX_TOOL_ROUNDS: usize = 16;
 
 /// The text of an error response: its `error.message` when JSON, else the body.
 fn error_text(status: reqwest::StatusCode, body: &str) -> String {

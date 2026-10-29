@@ -1,7 +1,7 @@
 //! The user's Claude Code and Codex CLIs as models, signed in as the user: the prompt
 //! goes in on stdin and JSON events come out, one a line.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use serde_json::Value;
@@ -140,6 +140,7 @@ pub(crate) fn claude_line(
 pub(crate) async fn claude(
     model: &str,
     request: &Request,
+    folder: Option<&Path>,
     on_text: &mut (dyn FnMut(&str) + Send),
 ) -> Result<String, Error> {
     let mut cmd = command("claude")?;
@@ -149,13 +150,20 @@ pub(crate) async fn claude(
         "stream-json",
         "--verbose",
         "--include-partial-messages",
-        // A plain text task: no tools, and none of the user's hooks, CLAUDE.md or
-        // MCP servers.
+        // None of the user's hooks, CLAUDE.md or MCP servers. A plain text task gets
+        // no tools; a chat about the folder runs in it and may only read.
         "--tools",
-        "",
+        if folder.is_some() {
+            "Read,Grep,Glob"
+        } else {
+            ""
+        },
         "--safe-mode",
         "--no-session-persistence",
     ]);
+    if let Some(dir) = folder {
+        cmd.current_dir(dir);
+    }
     if !request.system.is_empty() {
         cmd.args(["--system-prompt", &request.system]);
     }
@@ -196,6 +204,7 @@ pub(crate) fn codex_line(
 pub(crate) async fn codex(
     model: &str,
     request: &Request,
+    folder: Option<&Path>,
     on_text: &mut (dyn FnMut(&str) + Send),
 ) -> Result<String, Error> {
     let mut cmd = command("codex")?;
@@ -207,6 +216,10 @@ pub(crate) async fn codex(
         "--sandbox",
         "read-only",
     ]);
+    // A chat about the folder works in it (still read-only).
+    if let Some(dir) = folder {
+        cmd.arg("--cd").arg(dir);
+    }
     if !model.is_empty() {
         cmd.args(["--model", model]);
     }

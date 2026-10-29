@@ -1225,6 +1225,20 @@ await chat.waitFor();
 check("chat: kept across a reload", (await chat.locator(".md-ai-chat-msg").count()) === 4);
 await chat.getByText("New Chat").click();
 check("chat: new chat clears", (await chat.locator(".md-ai-chat-msg").count()) === 0);
+// Folder: the model may search and read the folder's files; the chat shows what it reads.
+await chat.locator(".md-ai-chat-folder").click();
+await ai.evaluate(() => window.marpora.backend.aiReplies.push("The plan is in plan.md. ".repeat(12)));
+await chat.locator("textarea").fill("Where is the plan?");
+await chat.locator("textarea").press("Enter");
+await chat.locator(".md-ai-chat-tool").waitFor({ timeout: 2000 }).catch(() => {});
+check("chat: folder questions say what the model reads", (await chat.locator(".md-ai-chat-tool").textContent().catch(() => "")) === "Listing files…" &&
+  (await ai.evaluate(() => window.marpora.backend.aiFolders.at(-1))) === true &&
+  (await chat.locator("textarea").getAttribute("placeholder")) === "Ask about this document or folder…");
+await chat.locator(".md-ai-chat-actions").first().waitFor();
+await ai.reload();
+await ai.waitForSelector("#write");
+await ai.evaluate(() => window.marpora.handleMenu("ai-chat"));
+check("chat: folder setting kept across a reload", (await chat.locator(".md-ai-chat-folder").getAttribute("aria-pressed")) === "true");
 await ai.close();
 
 // View › Slide Preview: a Marp deck's slides beside the editor, in step with the text.

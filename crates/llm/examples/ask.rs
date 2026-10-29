@@ -41,7 +41,7 @@ async fn main() {
         effort: "low".into(),
     };
     let mut pieces = 0;
-    let result = stream(&provider, &request, &mut |t| {
+    let result = stream(&provider, &request, None, &mut |t| {
         pieces += 1;
         print!("{t}");
         let _ = std::io::stdout().flush();

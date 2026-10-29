@@ -512,7 +512,7 @@ pub fn reload_document(app: AppHandle, window: WebviewWindow, doc_id: u64) -> Cm
 }
 
 /// The folder the sidebar's Files tab shows: an opened folder, else the document's.
-fn library_root(window: &WebviewWindow, docs: &Docs) -> Option<PathBuf> {
+pub(crate) fn library_root(window: &WebviewWindow, docs: &Docs) -> Option<PathBuf> {
     let id = docs.for_window(window.label())?;
     let (path, folder) = docs.with(id, |open| (open.path.clone(), open.folder.clone()))?;
     if folder.is_some() {

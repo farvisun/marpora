@@ -1944,6 +1944,8 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
 .md-ai-chat-btn:hover:not(:disabled) { background-color: rgba(0, 0, 0, 0.07); opacity: 1; }
 .md-ai-chat-btn:disabled { opacity: 0.35; }
 .md-ai-chat-close { font-size: 16px; line-height: 16px; }
+.md-ai-chat-btn.active { opacity: 1; color: var(--primary-color, #4078c0); background-color: rgba(64, 120, 192, 0.12); }
+.md-ai-chat-tool { font-size: 12px; opacity: 0.6; margin-bottom: 4px; }
 .md-ai-chat-list { flex: 1; overflow-y: auto; padding: 4px 12px 12px; }
 .md-ai-chat-empty { opacity: 0.6; line-height: 1.5; padding-top: 8px; }
 .md-ai-chat-msg { margin-top: 10px; }

@@ -1,6 +1,8 @@
 // AI › AI Chat (⌥⌘J): a panel on the right for talking with the model about the
 // document. Each question carries the document as it is now, and the selection when
-// there is one; answers can be put in at the cursor or in place of the selection.
+// there is one; answers can be put in at the cursor or in place of the selection. With
+// Folder on, the model may also search and read the other files in the sidebar's folder
+// (or the document's), and the chat shows what it looks at.
 
 import { DOMSerializer } from "prosemirror-model";
 import type { EditorView } from "prosemirror-view";
@@ -13,6 +15,7 @@ import { parseMarkdown } from "../md";
 import { setUi, ui } from "./store";
 
 const KEY = "marpora.aiChat";
+const FOLDER_KEY = "marpora.aiChatFolder";
 
 /** An answer as formatted text, through the editor's schema (no math or diagrams). */
 function rendered(markdown: string): Node {
@@ -20,6 +23,14 @@ function rendered(markdown: string): Node {
     return DOMSerializer.fromSchema(schema).serializeFragment(parseMarkdown(markdown).doc.content);
   } catch {
     return document.createTextNode(markdown);
+  }
+}
+
+function stored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
   }
 }
 
@@ -38,6 +49,9 @@ export function AiChat(props: { backend: Backend; view: () => EditorView }) {
   const [streaming, setStreaming] = createSignal<string | null>(null);
   const [error, setError] = createSignal("");
   const [draft, setDraft] = createSignal("");
+  const [folder, setFolder] = createSignal(stored(FOLDER_KEY) === "1");
+  /** What the model is doing in the folder, while it answers. */
+  const [tool, setTool] = createSignal("");
   let running = 0;
   let list: HTMLDivElement | undefined;
   let field: HTMLTextAreaElement | undefined;
@@ -71,9 +85,10 @@ export function AiChat(props: { backend: Backend; view: () => EditorView }) {
     setDraft("");
     setError("");
     setStreaming("");
+    setTool("");
     const id = (running = newRequestId());
     scrollDown();
-    props.backend.aiStart(id, request).catch((e) => {
+    props.backend.aiStart(id, request, folder()).catch((e) => {
       if (id !== running) return;
       running = 0;
       setStreaming(null);
@@ -83,7 +98,10 @@ export function AiChat(props: { backend: Backend; view: () => EditorView }) {
 
   props.backend.onAi((e) => {
     if (e.id !== running || !running) return;
-    if (e.text) {
+    if (e.tool) {
+      setTool(e.tool);
+      scrollDown();
+    } else if (e.text) {
       setStreaming((s) => (s ?? "") + e.text);
       scrollDown();
     } else if (e.done !== undefined) {
@@ -118,6 +136,22 @@ export function AiChat(props: { backend: Backend; view: () => EditorView }) {
       <div id="md-ai-chat">
         <div class="md-ai-chat-header">
           <span class="md-ai-chat-title">AI Chat</span>
+          <button
+            class="md-ai-chat-btn md-ai-chat-folder"
+            classList={{ active: folder() }}
+            aria-pressed={folder()}
+            title="Let the AI search and read the files in this folder"
+            onClick={() => {
+              setFolder(!folder());
+              try {
+                localStorage.setItem(FOLDER_KEY, folder() ? "1" : "0");
+              } catch {
+                // Not remembered across a reload.
+              }
+            }}
+          >
+            Folder
+          </button>
           <button class="md-ai-chat-btn" title="New Chat" onClick={() => (stop(), save([]), setError(""))}>
             New Chat
           </button>
@@ -127,7 +161,11 @@ export function AiChat(props: { backend: Backend; view: () => EditorView }) {
         </div>
         <div class="md-ai-chat-list" ref={list}>
           <Show when={!messages().length && streaming() === null}>
-            <div class="md-ai-chat-empty">Ask about this document, or ask for text to put in it. A selection goes with your question.</div>
+            <div class="md-ai-chat-empty">
+              {folder()
+                ? "Ask about this document or the other files in its folder, or ask for text to put in it. A selection goes with your question."
+                : "Ask about this document, or ask for text to put in it. A selection goes with your question."}
+            </div>
           </Show>
           <For each={messages()}>
             {(m) => (
@@ -153,6 +191,9 @@ export function AiChat(props: { backend: Backend; view: () => EditorView }) {
           </For>
           <Show when={streaming() !== null}>
             <div class="md-ai-chat-msg md-ai-chat-assistant md-ai-chat-streaming">
+              <Show when={tool()}>
+                <div class="md-ai-chat-tool">{tool()}…</div>
+              </Show>
               <div class="md-ai-chat-text">{streaming() || "…"}</div>
             </div>
           </Show>
@@ -164,7 +205,7 @@ export function AiChat(props: { backend: Backend; view: () => EditorView }) {
           <textarea
             ref={field}
             rows={3}
-            placeholder="Ask about this document…"
+            placeholder={folder() ? "Ask about this document or folder…" : "Ask about this document…"}
             value={draft()}
             onInput={(e) => setDraft(e.currentTarget.value)}
             onKeyDown={(e) => {

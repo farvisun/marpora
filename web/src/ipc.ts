@@ -195,6 +195,8 @@ export interface AiEvent {
   text?: string;
   done?: string;
   error?: string;
+  /** What the model is doing in the folder ("Reading notes.md"). */
+  tool?: string;
 }
 
 export interface Backend {
@@ -299,7 +301,7 @@ export interface Backend {
   /** Show the user's Marp themes folder. */
   openMarpThemeFolder(): Promise<void>;
   /** Start AI request `id`; its answer arrives through `onAi`. */
-  aiStart(id: number, request: AiRequest): Promise<void>;
+  aiStart(id: number, request: AiRequest, folder?: boolean): Promise<void>;
   /** Stop AI request `id`. */
   aiCancel(id: number): Promise<void>;
   /** The user's own prompts (AI › Custom Prompts), from their prompts folder. */
@@ -719,11 +721,15 @@ export class MemoryBackend implements Backend {
    * starting `error:` fails with the rest. */
   aiRequests: AiRequest[] = [];
   aiReplies: string[] = [];
-  async aiStart(id: number, request: AiRequest) {
+  /** Test hook: whether each request could use the folder. */
+  aiFolders: boolean[] = [];
+  async aiStart(id: number, request: AiRequest, folder = false) {
     this.aiRequests.push(request);
+    this.aiFolders.push(folder);
     const answer = this.aiReplies.shift() ?? `AI: ${request.messages.at(-1)?.content ?? ""}`;
     const send = (e: AiEvent) => !this.aiCancelled.has(id) && this.aiHandlers.forEach((h) => h(e));
     if (answer.startsWith("error:")) return void setTimeout(() => send({ id, error: answer.slice(6) }), 10);
+    if (folder) setTimeout(() => send({ id, tool: "Listing files" }), 5);
     // In pieces, as a model streams.
     const pieces = answer.match(/[\s\S]{1,8}/g) ?? [];
     pieces.forEach((text, i) => setTimeout(() => send({ id, text }), 10 * (i + 1)));

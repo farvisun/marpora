@@ -84,20 +84,44 @@ struct AiEvent {
     done: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+    /// What the model is doing in the folder ("Reading notes.md").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool: Option<String>,
 }
 
-/// Start request `id` for the window; its answer arrives as "ai" events.
+/// Start request `id` for the window; its answer arrives as "ai" events. With `folder`,
+/// the model may search and read the sidebar's folder (or the document's).
 #[tauri::command]
 pub fn ai_start(
     window: WebviewWindow,
     id: u64,
     request: Request,
+    folder: Option<bool>,
     store: State<Store>,
     tasks: State<Tasks>,
+    docs: State<crate::docs::Docs>,
 ) -> CmdResult<()> {
     let provider = provider(&store.get())?;
     let label = window.label().to_owned();
     let target = window.clone();
+    let tools = folder
+        .unwrap_or(false)
+        .then(|| crate::commands::library_root(&window, &docs))
+        .flatten()
+        .map(|root| {
+            let window = window.clone();
+            crate::ai_folder::Folder::new(root, move |what| {
+                let _ = window.emit_to(
+                    window.label(),
+                    "ai",
+                    AiEvent {
+                        id,
+                        tool: Some(what),
+                        ..AiEvent::default()
+                    },
+                );
+            })
+        });
     let handle = tauri::async_runtime::spawn(async move {
         let send = |event: AiEvent| {
             let _ = target.emit_to(target.label(), "ai", event);
@@ -109,7 +133,8 @@ pub fn ai_start(
                 ..AiEvent::default()
             });
         };
-        let event = match marpora_llm::stream(&provider, &request, &mut on_text).await {
+        let folder = tools.as_ref().map(|f| f as &dyn marpora_llm::FolderTools);
+        let event = match marpora_llm::stream(&provider, &request, folder, &mut on_text).await {
             Ok(answer) => AiEvent {
                 id,
                 done: Some(answer),

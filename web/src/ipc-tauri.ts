@@ -204,8 +204,8 @@ export class TauriBackend implements Backend {
     return invoke<boolean>("is_dirty", { docId });
   }
 
-  aiStart(id: number, request: AiRequest) {
-    return invoke<void>("ai_start", { id, request: { effort: "", ...request } });
+  aiStart(id: number, request: AiRequest, folder = false) {
+    return invoke<void>("ai_start", { id, request: { effort: "", ...request }, folder });
   }
 
   aiCancel(id: number) {
