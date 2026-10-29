@@ -212,15 +212,45 @@ const TABLE: &[Item] = &[
 const PARAGRAPH_BLOCKS: &[Item] = &[
     ("math-block", "Math Block", Some("CmdOrCtrl+Alt+B")),
     ("code-fence", "Code Fences", Some("CmdOrCtrl+Alt+C")),
+];
+
+/// Paragraph › Code Tools.
+const CODE_TOOLS: &[Item] = &[("copy-code", "Copy Code Content", None)];
+
+const PARAGRAPH_LISTS: &[Item] = &[
     ("-", "", None),
     ("quote", "Quote", Some("CmdOrCtrl+Alt+Q")),
     ("-", "", None),
     ("ordered-list", "Ordered List", Some("CmdOrCtrl+Alt+O")),
     ("bullet-list", "Unordered List", Some("CmdOrCtrl+Alt+U")),
     ("task-list", "Task List", Some("CmdOrCtrl+Alt+X")),
+];
+
+/// Paragraph › Task Status.
+const TASK_STATUS: &[Item] = &[
+    ("task-toggle", "Toggle Task Status", Some("Ctrl+X")),
+    ("-", "", None),
+    ("task-complete", "Mark as Complete", None),
+    ("task-incomplete", "Mark as Incomplete", None),
+];
+
+/// Paragraph › List Indentation.
+const LIST_INDENTATION: &[Item] = &[
+    ("indent", "Indent", Some("CmdOrCtrl+]")),
+    ("outdent", "Outdent", Some("CmdOrCtrl+[")),
+];
+
+const PARAGRAPH_END: &[Item] = &[
+    ("-", "", None),
+    ("paragraph-before", "Insert Paragraph Before", None),
+    ("paragraph-after", "Insert Paragraph After", None),
+    ("-", "", None),
+    ("link-reference", "Link Reference", Some("CmdOrCtrl+Alt+L")),
+    ("footnote", "Footnotes", Some("CmdOrCtrl+Alt+R")),
     ("-", "", None),
     ("hr", "Horizontal Line", Some("CmdOrCtrl+Alt+-")),
     ("toc", "Table of Contents", None),
+    ("front-matter", "YAML Front Matter", None),
 ];
 
 const FORMAT: &[Item] = &[
@@ -374,6 +404,23 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
     let mut paragraph = items(app, PARAGRAPH)?;
     paragraph.push(Box::new(submenu(app, "Table", items(app, TABLE)?)?));
     paragraph.extend(items(app, PARAGRAPH_BLOCKS)?);
+    paragraph.push(Box::new(submenu(
+        app,
+        "Code Tools",
+        items(app, CODE_TOOLS)?,
+    )?));
+    paragraph.extend(items(app, PARAGRAPH_LISTS)?);
+    paragraph.push(Box::new(submenu(
+        app,
+        "Task Status",
+        items(app, TASK_STATUS)?,
+    )?));
+    paragraph.push(Box::new(submenu(
+        app,
+        "List Indentation",
+        items(app, LIST_INDENTATION)?,
+    )?));
+    paragraph.extend(items(app, PARAGRAPH_END)?);
 
     let mut format = items(app, FORMAT)?;
     format.push(Box::new(submenu(

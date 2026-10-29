@@ -530,6 +530,37 @@ await caretIn("Word");
 emd = await tableRun("delete-block");
 check("delete paragraph", emd.startsWith("line\n\n- two") && !emd.includes("Word"), emd);
 
+// Paragraph menu: task status, paragraphs around blocks, footnotes, references, front matter.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "- [ ] task\n\nText here\n");
+  await m.sync.resync();
+});
+await caretIn("task");
+let pmd = await tableRun("task-toggle");
+check("toggle task status", pmd.startsWith("- [x] task"), pmd);
+pmd = await tableRun("task-incomplete");
+check("mark as incomplete", pmd.startsWith("- [ ] task"), pmd);
+await caretIn("Text");
+pmd = await tableRun("paragraph-before");
+await inline.keyboard.type("Before");
+pmd = await tableRun();
+check("insert paragraph before", /task\n\nBefore\n\nText here$/.test(pmd), pmd);
+await caretIn("Text", 4);
+await tableRun("footnote");
+await inline.keyboard.type("The note");
+pmd = await tableRun();
+check("footnote reference and definition", /Text\[\^1\] here\n\n\[\^1\]: The note$/.test(pmd), pmd);
+await tableRun("front-matter");
+await inline.keyboard.type("title: x");
+pmd = await tableRun();
+check("yaml front matter", pmd.startsWith("---\ntitle: x\n---\n"), pmd);
+await caretIn("Before");
+await tableRun("link-reference");
+await inline.keyboard.type("ref");
+pmd = await tableRun();
+check("link reference", pmd.includes("Before\n\n[ref]: \n"), JSON.stringify(pmd));
+
 // The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
 const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 lib.on("pageerror", (e) => errors.push(e.message));

@@ -185,6 +185,94 @@ const copyLink: Command = (state, dispatch) => {
   return true;
 };
 
+/** Paragraph › Task Status: check (`true`), uncheck (`false`) or toggle the task. */
+function setTask(to: boolean | null): Command {
+  return (state, dispatch) => {
+    const depth = inNode(state, n.list_item);
+    if (depth === null) return false;
+    const { $from } = state.selection;
+    const checked = $from.node(depth).attrs.checked;
+    if (checked === null) return false;
+    if (dispatch) dispatch(state.tr.setNodeAttribute($from.before(depth), "checked", to ?? !checked));
+    return true;
+  };
+}
+
+/** The block Insert Paragraph Before/After goes around: the table, fence or math block
+ * holding the cursor, else its paragraph or heading. */
+function blockDepth(state: EditorState): number {
+  const { $from } = state.selection;
+  for (let d = 1; d <= $from.depth; d++) {
+    const type = $from.node(d).type;
+    if (type === n.table || type.spec.code) return d;
+  }
+  return $from.parent.isTextblock ? $from.depth : $from.depth + 1;
+}
+
+function insertParagraph(after: boolean): Command {
+  return (state, dispatch) => {
+    const { $from } = state.selection;
+    const depth = blockDepth(state);
+    if (depth < 1 || depth > $from.depth) return false;
+    if (dispatch) {
+      const pos = after ? $from.after(depth) : $from.before(depth);
+      const tr = state.tr.insert(pos, n.paragraph.create());
+      dispatch(tr.setSelection(TextSelection.create(tr.doc, pos + 1)).scrollIntoView());
+    }
+    return true;
+  };
+}
+
+/** Paragraph › Link Reference: a `[]: ` definition to fill in, after the block. */
+const linkReference: Command = (state, dispatch) => {
+  const { $from } = state.selection;
+  const depth = blockDepth(state);
+  if (depth < 1 || depth > $from.depth) return false;
+  if (dispatch) {
+    const pos = $from.after(depth);
+    const tr = state.tr.insert(pos, n.raw_block.create(null, schema.text("[]: ")));
+    dispatch(tr.setSelection(TextSelection.create(tr.doc, pos + 2)).scrollIntoView());
+  }
+  return true;
+};
+
+/** Paragraph › Footnotes: a reference at the cursor numbered after the others, and its
+ * definition at the end of the document to type it in. */
+const footnote: Command = (state, dispatch) => {
+  const { $from, to } = state.selection;
+  if (!$from.parent.inlineContent || $from.parent.type.spec.code) return false;
+  const used = new Set<string>();
+  state.doc.descendants((node) => {
+    if (node.type === n.footnote_ref || node.type === n.footnote_def) used.add(node.attrs.label);
+  });
+  let label = 1;
+  while (used.has(String(label))) label++;
+  if (dispatch) {
+    const tr = state.tr.replaceWith($from.pos, to, n.footnote_ref.create({ label: String(label) }));
+    const end = tr.doc.content.size;
+    tr.insert(end, n.footnote_def.create({ label: String(label) }, n.paragraph.create()));
+    dispatch(tr.setSelection(TextSelection.create(tr.doc, end + 2)).scrollIntoView());
+  }
+  return true;
+};
+
+/** Paragraph › YAML Front Matter: into the document's front matter, adding it if none. */
+const frontMatter: Command = (state, dispatch) => {
+  if (dispatch) {
+    const tr = state.doc.firstChild?.type === n.front_matter ? state.tr : state.tr.insert(0, n.front_matter.create());
+    dispatch(tr.setSelection(TextSelection.create(tr.doc, 1 + tr.doc.firstChild!.content.size)).scrollIntoView());
+  }
+  return true;
+};
+
+/** Paragraph › Code Tools › Copy Code Content. */
+const copyCode: Command = (state, dispatch) => {
+  const parent = state.selection.$from.parent;
+  if (parent.type !== n.code_block) return false;
+  if (dispatch) writeClipboard(parent.textContent);
+  return true;
+};
+
 /** ⌘\: remove all inline formatting from the selection. */
 const clearFormat: Command = (state, dispatch) => {
   const { from, to, empty } = state.selection;
@@ -271,6 +359,15 @@ export const commands: Record<string, Command> = {
   "align-center": alignColumn("center"),
   "align-right": alignColumn("right"),
   delete: deleteSelection,
+  "task-toggle": setTask(null),
+  "task-complete": setTask(true),
+  "task-incomplete": setTask(false),
+  "paragraph-before": insertParagraph(false),
+  "paragraph-after": insertParagraph(true),
+  "link-reference": linkReference,
+  footnote,
+  "front-matter": frontMatter,
+  "copy-code": copyCode,
   ...editingCommands,
 };
 
