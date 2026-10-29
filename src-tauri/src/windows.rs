@@ -25,7 +25,14 @@ pub fn open(app: &AppHandle, path: Option<PathBuf>) -> tauri::Result<()> {
 
     let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
     load(app, &label, path.clone(), None);
-    build(app, &label, title_for(path.as_deref()))
+    build(app, &label, title_for(path.as_deref())).map(drop)
+}
+
+/// Open a new untitled document in a window of its own.
+fn open_untitled(app: &AppHandle) -> tauri::Result<WebviewWindow> {
+    let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
+    load(app, &label, None, None);
+    build(app, &label, title_for(None))
 }
 
 /// Open `dir` in a new window's sidebar, as Typora opens a folder, with no document.
@@ -34,7 +41,7 @@ pub fn open_folder(app: &AppHandle, dir: PathBuf) -> tauri::Result<()> {
     library::remember_folder(app, &dir);
     let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::Relaxed));
     load(app, &label, None, Some(dir));
-    build(app, &label, "Untitled".to_owned())
+    build(app, &label, "Untitled".to_owned()).map(drop)
 }
 
 /// Show the Preferences window, opening it the first time.
@@ -58,7 +65,7 @@ pub fn open_preferences(app: &AppHandle) -> tauri::Result<()> {
     builder.build()?.set_focus()
 }
 
-fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<()> {
+fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<WebviewWindow> {
     let (width, height) = window_size();
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title(title)
@@ -84,7 +91,62 @@ fn build(app: &AppHandle, label: &str, title: String) -> tauri::Result<()> {
         window.open_devtools();
     }
     window.set_focus()?;
-    Ok(())
+    #[cfg(target_os = "macos")]
+    tab_button::install(app);
+    Ok(window)
+}
+
+/// The "+" in the macOS tab bar, which AppKit shows when the window answers
+/// `newWindowForTab:`: it opens an untitled document in a new tab, as in Typora.
+#[cfg(target_os = "macos")]
+mod tab_button {
+    use std::sync::{Once, OnceLock};
+
+    use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
+    use objc2::{ffi, sel};
+    use objc2_app_kit::{NSWindow, NSWindowOrderingMode};
+    use tauri::AppHandle;
+
+    static APP: OnceLock<AppHandle> = OnceLock::new();
+
+    /// Add the method to tao's window class, which exists once a window does.
+    pub fn install(app: &AppHandle) {
+        static ONCE: Once = Once::new();
+        ONCE.call_once(|| {
+            let _ = APP.set(app.clone());
+            let Some(class) = AnyClass::get(c"TaoWindow") else {
+                return;
+            };
+            let imp: unsafe extern "C-unwind" fn(&NSWindow, Sel, *mut AnyObject) =
+                new_window_for_tab;
+            // SAFETY: the function takes what the "v@:@" encoding says: the window,
+            // the selector and the sender, and returns nothing.
+            unsafe {
+                ffi::class_addMethod(
+                    class as *const AnyClass as *mut AnyClass,
+                    sel!(newWindowForTab:),
+                    std::mem::transmute::<
+                        unsafe extern "C-unwind" fn(&NSWindow, Sel, *mut AnyObject),
+                        Imp,
+                    >(imp),
+                    c"v@:@".as_ptr(),
+                );
+            }
+        });
+    }
+
+    unsafe extern "C-unwind" fn new_window_for_tab(this: &NSWindow, _: Sel, _: *mut AnyObject) {
+        let Some(app) = APP.get() else { return };
+        let Ok(window) = super::open_untitled(app) else {
+            return;
+        };
+        let Ok(ns) = window.ns_window() else { return };
+        // SAFETY: `ns_window` is the new window's NSWindow, alive while `window` is,
+        // and AppKit calls this on the main thread.
+        let ns = unsafe { &*(ns as *const NSWindow) };
+        this.addTabbedWindow_ordered(ns, NSWindowOrderingMode::Above);
+        ns.makeKeyAndOrderFront(None);
+    }
 }
 
 /// Show `path` in `window` in place of its document, unless another window shows it
