@@ -62,6 +62,8 @@ pub fn run() {
             commands::read_clipboard,
             commands::write_clipboard,
             commands::set_context_menu,
+            commands::image_file_action,
+            commands::relocate_image,
             commands::apply_patch,
             commands::document_text,
             commands::set_document_text,

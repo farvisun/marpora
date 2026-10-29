@@ -13,6 +13,7 @@ import { setWhitespace } from "./editor/whitespace";
 import { trackContextMenu } from "./editor/contextmenu";
 import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
+import { imageAt, removeImage, setImageSrc, setImageZoom, switchImageSyntax } from "./editor/imagetools";
 import { DocSync } from "./editor/sync";
 import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
@@ -246,6 +247,32 @@ async function main() {
     if (paths.length) insertImages(view, paths.map(fileSrc));
     view.focus();
   };
+  /** Format › Image's file items, on the image at the cursor. */
+  const imageFile = async (id: string) => {
+    const at = imageAt(view.state);
+    if (!at) return;
+    if (id === "image-copy-to" || id === "image-move-to") {
+      const src = await backend.relocateImage(at.src, id === "image-copy-to");
+      // The document may have changed while the dialog was up.
+      const now = imageAt(view.state);
+      if (src !== null && id === "image-move-to" && now?.src === at.src) setImageSrc(view, now, src);
+      return;
+    }
+    if (id === "image-delete") {
+      if (!(await confirmDialog(`Move “${basename(at.src)}” to the Trash?`, "Move to Trash"))) return;
+      await backend.imageFileAction(at.src, "trash");
+      const now = imageAt(view.state);
+      if (now?.src === at.src) removeImage(view, now);
+      return;
+    }
+    await backend.imageFileAction(at.src, id === "image-reveal" ? "reveal" : "copy");
+  };
+  /** Format › Image › Reload All Images: fetch each image again, then draw it anew. */
+  const reloadImages = async () => {
+    const urls = [...view.dom.querySelectorAll("img")].map((img) => img.src).filter((u) => u && !u.startsWith("data:"));
+    await Promise.allSettled([...new Set(urls)].map((u) => fetch(u, { cache: "reload" })));
+    redraw(view);
+  };
   backend.onDiskChanged((id) => {
     if (id === opened.id)
       void reloadFromDisk("File content is changed by external applications. Reload content from disk ?").catch(report);
@@ -361,6 +388,20 @@ async function main() {
       case "refresh-math":
         clearMathCache();
         return redraw(view);
+      case "image-reveal":
+      case "image-copy":
+      case "image-delete":
+      case "image-copy-to":
+      case "image-move-to":
+        if (source.active) return;
+        return void imageFile(id).catch(report);
+      case "image-syntax-markdown":
+      case "image-syntax-html":
+        if (source.active) return;
+        return void switchImageSyntax(view, id === "image-syntax-html");
+      case "images-reload":
+        if (source.active) return;
+        return void reloadImages().catch(report);
       case "open-link": {
         const href = linkAt(view.state)?.attrs.href;
         return void (href && openLink(view, { openLink: (h) => backend.openLink(h) }, href));
@@ -375,6 +416,7 @@ async function main() {
         return search.step(-1);
       default:
         if (id.startsWith("theme:")) return void backend.setTheme(id.slice(6));
+        if (id.startsWith("image-zoom:")) return void (!source.active && setImageZoom(view, Number(id.slice(11))));
         // The other export formats go through Pandoc, from the core's text.
         if (id.startsWith("export-")) {
           return void Promise.all([source.flush(), sync.flush()])

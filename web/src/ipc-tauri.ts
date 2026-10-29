@@ -96,6 +96,14 @@ export class TauriBackend implements Backend {
     return invoke<void>("reveal_document");
   }
 
+  imageFileAction(src: string, action: "reveal" | "copy" | "trash") {
+    return invoke<void>("image_file_action", { src, action });
+  }
+
+  relocateImage(src: string, keep: boolean) {
+    return invoke<string | null>("relocate_image", { src, keep });
+  }
+
   trashDocument() {
     return invoke<void>("trash_document");
   }

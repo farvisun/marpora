@@ -172,6 +172,10 @@ export interface Backend {
   revealDocument(): Promise<void>;
   /** Move the window's document to the Trash. */
   trashDocument(): Promise<void>;
+  /** Show (`reveal`), copy as image data (`copy`) or trash (`trash`) the local image file `src` names. */
+  imageFileAction(src: string, action: "reveal" | "copy" | "trash"): Promise<void>;
+  /** Copy (`keep`) or move the image file `src` names where the user picks; its new src, or null if cancelled. */
+  relocateImage(src: string, keep: boolean): Promise<string | null>;
   /** Put text (and HTML) on the system clipboard. */
   writeClipboard(text: string, html?: string): Promise<void>;
   /** The system clipboard's text. */
@@ -375,6 +379,16 @@ export class MemoryBackend implements Backend {
   onPathChanged(_handler: (path: string) => void) {}
 
   async revealDocument() {}
+  imageLog: string[] = [];
+  async imageFileAction(src: string, action: "reveal" | "copy" | "trash") {
+    this.imageLog.push(`${action} ${src}`);
+  }
+  /** What the next relocateImage returns (the mock has no dialog). */
+  relocateTo: string | null = null;
+  async relocateImage(src: string, keep: boolean) {
+    this.imageLog.push(`${keep ? "copy" : "move"} ${src}`);
+    return this.relocateTo;
+  }
 
   /** Test hook: whether the document went to the Trash. */
   trashed = false;

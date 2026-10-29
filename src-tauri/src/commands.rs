@@ -650,6 +650,117 @@ fn document_path(window: &WebviewWindow, docs: &Docs) -> CmdResult<PathBuf> {
         .ok_or_else(|| "the document is not saved yet".into())
 }
 
+/// The local file an image's `src` names, from the window's document's folder.
+fn image_file(window: &WebviewWindow, docs: &Docs, src: &str) -> CmdResult<PathBuf> {
+    let doc = docs
+        .for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.path.clone()))
+        .flatten();
+    match links::resolve(src, doc.as_deref())? {
+        Target::File(path) if path.is_file() => Ok(path),
+        Target::File(path) => Err(format!("{} was not found", path.display())),
+        _ => Err(format!("{src} is not a local image")),
+    }
+}
+
+/// Format › Image › Open Image Location, Copy Image Content and Delete Image File:
+/// `action` ("reveal", "copy" or "trash") on the file `src` names.
+#[tauri::command]
+pub fn image_file_action(
+    window: WebviewWindow,
+    src: String,
+    action: String,
+    docs: State<Docs>,
+) -> CmdResult<()> {
+    let path = image_file(&window, &docs, &src)?;
+    match action.as_str() {
+        "reveal" => show_in_finder(&path),
+        "trash" => trash(&path),
+        "copy" => copy_image(&path),
+        _ => Err(format!("unknown image action {action}")),
+    }
+}
+
+/// Put the image file at `path` on the pasteboard, as image data.
+#[cfg(target_os = "macos")]
+fn copy_image(path: &Path) -> CmdResult<()> {
+    use objc2::AnyThread;
+    use objc2_app_kit::{NSImage, NSPasteboard, NSPasteboardTypePNG, NSPasteboardTypeTIFF};
+    use objc2_foundation::{NSData, NSString};
+    let image = NSImage::initWithContentsOfFile(
+        NSImage::alloc(),
+        &NSString::from_str(&path.to_string_lossy()),
+    )
+    .ok_or_else(|| format!("{} is not an image", path.display()))?;
+    let pasteboard = NSPasteboard::generalPasteboard();
+    pasteboard.clearContents();
+    // SAFETY: the pasteboard type constants are AppKit's statics.
+    unsafe {
+        if path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("png"))
+            && let Ok(bytes) = std::fs::read(path)
+        {
+            pasteboard.setData_forType(Some(&NSData::with_bytes(&bytes)), NSPasteboardTypePNG);
+        }
+        if let Some(tiff) = image.TIFFRepresentation() {
+            pasteboard.setData_forType(Some(&tiff), NSPasteboardTypeTIFF);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn copy_image(_path: &Path) -> CmdResult<()> {
+    Err("copying images is not available on this platform yet".into())
+}
+
+/// Format › Image › Copy Image to… and Rename or Move Image to…: the file `src` names,
+/// copied (`keep`) or moved where the user picks. Returns the new `src`, or nothing
+/// when the user cancelled.
+#[tauri::command]
+pub async fn relocate_image(
+    app: AppHandle,
+    window: WebviewWindow,
+    src: String,
+    keep: bool,
+    docs: State<'_, Docs>,
+    store: State<'_, Store>,
+) -> CmdResult<Option<String>> {
+    let path = image_file(&window, &docs, &src)?;
+    let mut dialog = app.dialog().file().set_parent(&window);
+    if let Some(dir) = path.parent() {
+        dialog = dialog.set_directory(dir);
+    }
+    if let Some(name) = path.file_name() {
+        dialog = dialog.set_file_name(name.to_string_lossy());
+    }
+    let Some(target) = dialog.blocking_save_file() else {
+        return Ok(None);
+    };
+    let target = target.into_path().map_err(|e| e.to_string())?;
+    if target != path {
+        let moved = if keep {
+            std::fs::copy(&path, &target).map(drop)
+        } else {
+            // A rename fails across volumes; copy and remove then.
+            std::fs::rename(&path, &target).or_else(|_| {
+                std::fs::copy(&path, &target).and_then(|_| std::fs::remove_file(&path))
+            })
+        };
+        moved.map_err(|e| format!("could not write {}: {e}", target.display()))?;
+    }
+    let doc = docs
+        .for_window(window.label())
+        .and_then(|id| docs.with(id, |open| open.path.clone()))
+        .flatten();
+    Ok(Some(images::src_for(
+        &target,
+        doc.as_deref(),
+        store.get().use_relative_image_path,
+    )))
+}
+
 /// File › Open File Location: the document selected in Finder.
 #[tauri::command]
 pub fn reveal_document(window: WebviewWindow, docs: State<Docs>) -> CmdResult<()> {

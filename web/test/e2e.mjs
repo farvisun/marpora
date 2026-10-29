@@ -530,6 +530,39 @@ await inline.locator("#ty-outline-popover .outline-h2 .outline-item").click();
 check("outline popover goes to the heading", (await inline.locator("#ty-outline-popover").count()) === 0 &&
   (await inline.evaluate(() => window.marpora.view.state.selection.$head.parent.textContent)) === "Two");
 
+// Format › Image: zoom, syntax switching and moving the file of the image at the cursor.
+const imageText = async (id) => inline.evaluate(async (id) => {
+  const m = window.marpora;
+  if (id) m.handleMenu(id);
+  await new Promise((r) => setTimeout(r, 50));
+  await m.sync.flush();
+  return (await m.backend.documentText(1)).text;
+}, id);
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "Pic ![cat](a.png) end\n");
+  await m.sync.resync();
+  const { view } = m;
+  const TextSelection = Object.getPrototypeOf(view.state.selection.constructor).near(view.state.doc.resolve(1)).constructor;
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 5)));
+});
+let imgText = await imageText("image-zoom:100");
+check("100% leaves a markdown image", imgText === "Pic ![cat](a.png) end\n", imgText);
+imgText = await imageText("image-zoom:50");
+check("zoom writes an img tag", imgText === 'Pic <img src="a.png" alt="cat" style="zoom:50%;" /> end\n', imgText);
+imgText = await imageText("image-zoom:200");
+check("zoom again replaces it", imgText === 'Pic <img src="a.png" alt="cat" style="zoom:200%;" /> end\n', imgText);
+imgText = await imageText("image-syntax-markdown");
+check("switch to markdown syntax", imgText === "Pic ![cat](a.png) end\n", imgText);
+imgText = await imageText("image-syntax-html");
+check("switch to html syntax", imgText === 'Pic <img src="a.png" alt="cat" /> end\n', imgText);
+await inline.evaluate(() => (window.marpora.backend.relocateTo = "img/b.png"));
+imgText = await imageText("image-move-to");
+check("move image updates its src", imgText === 'Pic <img src="img/b.png" alt="cat" /> end\n', imgText);
+await inline.evaluate(() => window.marpora.handleMenu("image-copy"));
+const imgLog = await inline.evaluate(() => window.marpora.backend.imageLog.join());
+check("image file actions reach the backend", imgLog === "move a.png,copy img/b.png", imgLog);
+
 // Edit › Line Endings converts the text; Whitespace and Line Breaks restyles it.
 await inline.evaluate(async () => {
   const m = window.marpora;

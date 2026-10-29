@@ -392,10 +392,43 @@ const LINK_ACTIONS: &[Item] = &[
     ("copy-link", "Copy Link Address", None),
 ];
 
-/// Format › Image.
+/// Format › Image, in Typora's order; Zoom Image and Switch Image Syntax go after.
 const IMAGE: &[Item] = &[
     ("insert-image", "Insert Image", Some("Ctrl+CmdOrCtrl+I")),
     ("insert-local-images", "Insert Local Images…", None),
+    ("-", "", None),
+    ("image-reveal", "Open Image Location…", None),
+    ("image-copy", "Copy Image Content", None),
+];
+
+/// Format › Image › Zoom Image.
+const IMAGE_ZOOM: &[Item] = &[
+    ("image-zoom:25", "25%", None),
+    ("image-zoom:33", "33%", None),
+    ("image-zoom:50", "50%", None),
+    ("image-zoom:67", "67%", None),
+    ("image-zoom:80", "80%", None),
+    ("-", "", None),
+    ("image-zoom:100", "100%", None),
+    ("-", "", None),
+    ("image-zoom:150", "150%", None),
+    ("image-zoom:200", "200%", None),
+];
+
+/// Format › Image › Switch Image Syntax.
+const IMAGE_SYNTAX: &[Item] = &[
+    ("image-syntax-markdown", "Markdown Style", None),
+    ("image-syntax-html", "HTML Style", None),
+];
+
+const IMAGE_END: &[Item] = &[
+    ("-", "", None),
+    ("image-delete", "Delete Image File", None),
+    ("-", "", None),
+    ("image-copy-to", "Copy Image to…", None),
+    ("image-move-to", "Rename or Move Image to…", None),
+    ("-", "", None),
+    ("images-reload", "Reload All Images", None),
 ];
 
 const FORMAT_END: &[Item] = &[
@@ -729,7 +762,19 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         "Hyperlink Actions",
         items(app, LINK_ACTIONS)?,
     )?));
-    format.push(Box::new(submenu(app, "Image", items(app, IMAGE)?)?));
+    let mut image = items(app, IMAGE)?;
+    image.push(Box::new(submenu(
+        app,
+        "Zoom Image",
+        items(app, IMAGE_ZOOM)?,
+    )?));
+    image.push(Box::new(submenu(
+        app,
+        "Switch Image Syntax",
+        items(app, IMAGE_SYNTAX)?,
+    )?));
+    image.extend(items(app, IMAGE_END)?);
+    format.push(Box::new(submenu(app, "Image", image)?));
     format.extend(items(app, FORMAT_END)?);
 
     let current = app.state::<Store>().get().theme;
