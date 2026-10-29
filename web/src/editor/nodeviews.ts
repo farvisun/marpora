@@ -21,11 +21,25 @@ interface Heading {
   pos: number;
 }
 
-function headings(doc: PMNode): Heading[] {
-  const out: Heading[] = [];
-  doc.forEach((node, pos) => {
-    if (node.type.name === "heading") out.push({ level: node.attrs.level, text: node.textContent, pos });
-  });
+interface Outline {
+  list: Heading[];
+  /** What a `[TOC]` shows: levels and texts, not positions. */
+  signature: string;
+}
+
+const outlines = new WeakMap<PMNode, Outline>();
+
+/** The headings of `doc`, found once for all its `[TOC]` blocks. */
+function outline(doc: PMNode): Outline {
+  let out = outlines.get(doc);
+  if (!out) {
+    const list: Heading[] = [];
+    doc.forEach((node, pos) => {
+      if (node.type.name === "heading") list.push({ level: node.attrs.level, text: node.textContent, pos });
+    });
+    out = { list, signature: list.map((h) => `${h.level}${h.text}`).join("\n") };
+    outlines.set(doc, out);
+  }
   return out;
 }
 
@@ -43,14 +57,13 @@ class TocView implements NodeView {
   }
 
   render() {
-    const list = headings(this.view.state.doc);
-    const signature = list.map((h) => `${h.level}${h.text}`).join("\n");
+    const { list, signature } = outline(this.view.state.doc);
     if (signature === this.signature) return;
     this.signature = signature;
     const content = document.createElement("p");
     content.className = "md-toc-content";
     content.setAttribute("role", "list");
-    for (const h of list) {
+    for (const [i, h] of list.entries()) {
       const item = document.createElement("span");
       item.className = `md-toc-item md-toc-h${h.level}`;
       item.setAttribute("role", "listitem");
@@ -59,7 +72,9 @@ class TocView implements NodeView {
       a.textContent = h.text;
       a.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        const dom = this.view.nodeDOM(h.pos) as HTMLElement | null;
+        // Positions move as the document changes; the order of headings is what's shown.
+        const at = outline(this.view.state.doc).list[i];
+        const dom = at && (this.view.nodeDOM(at.pos) as HTMLElement | null);
         dom?.scrollIntoView({ block: "start" });
       });
       item.append(a);
