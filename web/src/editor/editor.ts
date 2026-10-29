@@ -8,6 +8,7 @@ import { EditorState, type Plugin } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { commands } from "./commands";
 import { focusPlugin } from "./focus";
+import { alertPlugin } from "./alert";
 import { type ClipboardOptions, clipboardPlugin } from "./clipboard";
 import { type LinkOptions, linksPlugin } from "./links";
 import { highlightPlugin } from "./highlight";
@@ -48,6 +49,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       htmlPlugin,
       searchPlugin,
       tablePlugin,
+      alertPlugin,
       clipboardPlugin(opts),
       linksPlugin(opts),
       ...(opts.plugins ?? []),

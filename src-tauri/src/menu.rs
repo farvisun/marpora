@@ -214,6 +214,15 @@ const PARAGRAPH_BLOCKS: &[Item] = &[
     ("code-fence", "Code Fences", Some("CmdOrCtrl+Alt+C")),
 ];
 
+/// Paragraph › Alert: GitHub's alert blocks.
+const ALERT: &[Item] = &[
+    ("alert-note", "Note Block", None),
+    ("alert-tip", "Tip Block", None),
+    ("alert-important", "Important Block", None),
+    ("alert-warning", "Warning Block", None),
+    ("alert-caution", "Caution Block", None),
+];
+
 /// Paragraph › Code Tools.
 const CODE_TOOLS: &[Item] = &[("copy-code", "Copy Code Content", None)];
 
@@ -409,6 +418,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         "Code Tools",
         items(app, CODE_TOOLS)?,
     )?));
+    paragraph.push(Box::new(submenu(app, "Alert", items(app, ALERT)?)?));
     paragraph.extend(items(app, PARAGRAPH_LISTS)?);
     paragraph.push(Box::new(submenu(
         app,

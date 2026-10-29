@@ -14,6 +14,7 @@ import { redo, undo } from "prosemirror-history";
 import type { MarkType, Node as PMNode, NodeType } from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
 import { type Command, type EditorState, NodeSelection, TextSelection } from "prosemirror-state";
+import { ALERTS, setAlert } from "./alert";
 import { editingCommands, writeClipboard } from "./editing";
 import { tagPairs } from "./html";
 import { linkAt } from "./links";
@@ -369,6 +370,7 @@ export const commands: Record<string, Command> = {
   "front-matter": frontMatter,
   "copy-code": copyCode,
   ...editingCommands,
+  ...Object.fromEntries(ALERTS.map((type) => [`alert-${type}`, setAlert(type)])),
 };
 
 export const listEnter = splitListItem(n.list_item);

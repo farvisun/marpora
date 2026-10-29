@@ -735,6 +735,10 @@ impl Inline<'_> {
                         && !(prev.is_some() && ws(prev) && next.is_some() && ws(next))
                 }
                 // `[^` starts a footnote reference; markup may follow the end of the node.
+                // A GitHub alert's `[!NOTE]` line stays as written.
+                '[' if i == 0 && before.is_none_or(|b| b == '\n') && is_alert_marker(chars) => {
+                    false
+                }
                 '[' => self.hazards.close_bracket || next.is_none_or(|n| n == '^'),
                 '<' => {
                     next.is_some_and(|n| n.is_ascii_alphabetic() || matches!(n, '/' | '!' | '?'))
@@ -860,6 +864,15 @@ fn longest_run(s: &str, ch: char) -> usize {
         }
     }
     best
+}
+
+/// `[!NOTE]` and GitHub's other alert markers, alone apart from trailing spaces.
+fn is_alert_marker(chars: &[char]) -> bool {
+    let text: String = chars.iter().collect();
+    let marker = text.trim_end_matches([' ', '\t']).to_ascii_lowercase();
+    ["note", "tip", "important", "warning", "caution"]
+        .iter()
+        .any(|kind| marker == format!("[!{kind}]"))
 }
 
 fn escape_brackets(s: &str) -> String {

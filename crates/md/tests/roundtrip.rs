@@ -279,3 +279,19 @@ fn closing_and_opening_runs_stay_apart() {
     let md = serialize_doc(&parse(src).doc);
     assert!(!md.contains("***"), "{md}");
 }
+
+#[test]
+fn alert_markers_are_not_escaped() {
+    for src in [
+        "> [!NOTE]\n> Useful\n",
+        "> [!warning]  \n> Careful\n",
+        "> [!TIP]\n",
+    ] {
+        assert_eq!(serialize_doc(&parse(src).doc), src);
+    }
+    // Elsewhere brackets keep their escapes.
+    assert_eq!(
+        serialize_doc(&parse("> \\[!NOTE] text\n").doc),
+        "> \\[!NOTE] text\n"
+    );
+}

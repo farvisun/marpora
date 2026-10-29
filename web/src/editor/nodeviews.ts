@@ -3,6 +3,7 @@
 import type { Node as PMNode } from "prosemirror-model";
 import { Plugin, PluginKey } from "prosemirror-state";
 import type { EditorView, NodeView, NodeViewConstructor } from "prosemirror-view";
+import { QuoteView } from "./alert";
 import { FenceView } from "./fence";
 import { HtmlBlockView, HtmlInlineView } from "./html";
 import { MathBlockView } from "./mathblock";
@@ -153,5 +154,6 @@ export function nodeViews(ctx: ViewContext): Record<string, NodeViewConstructor>
       new HtmlBlockView(node, view, getPos, decorations, (src) => ctx.assetUrl(src)),
     html_inline: (node) => new HtmlInlineView(node, (src) => ctx.assetUrl(src)),
     table: (node, view, _getPos, decorations) => new TableView(node, view, decorations),
+    blockquote: (node) => new QuoteView(node),
   };
 }

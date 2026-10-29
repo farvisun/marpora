@@ -561,6 +561,34 @@ await inline.keyboard.type("ref");
 pmd = await tableRun();
 check("link reference", pmd.includes("Before\n\n[ref]: \n"), JSON.stringify(pmd));
 
+// GitHub alerts: Typora's markup, the marker's source at the cursor, Paragraph › Alert.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "> [!NOTE]\n> Useful info\n\n> plain quote\n\nPara text\n");
+  await m.sync.resync();
+});
+await caretIn("Para");
+const note = inline.locator("#write div.md-alert.md-alert-note");
+check("alert renders as typora's div", (await note.count()) === 1 && (await inline.locator("#write blockquote").count()) === 1);
+check("alert label", (await note.locator(".md-alert-text-container").getAttribute("data-text")) === "note" &&
+  !(await note.locator(".md-alert-src").isVisible()));
+await caretIn("Useful", 6);
+await inline.keyboard.type(" and more");
+let amd = await tableRun();
+check("editing an alert keeps its marker", amd.startsWith("> [!NOTE]\n> Useful and more info"), amd);
+await caretIn("[!NOTE]", 3);
+await inline.waitForTimeout(30);
+check("marker source shown at the cursor", await note.locator(".md-alert-src").isVisible());
+amd = await tableRun("alert-caution");
+check("change the alert's type", amd.startsWith("> [!CAUTION]\n> Useful"), amd);
+await caretIn("plain");
+amd = await tableRun("alert-tip");
+check("quote becomes an alert", amd.includes("> [!TIP]\n> plain quote"), amd);
+await caretIn("Para", 4);
+amd = await tableRun("alert-warning");
+check("paragraph becomes an alert", amd.endsWith("> [!WARNING]\n> Para text"), amd);
+check("alerts render after the change", (await inline.locator("#write div.md-alert").count()) === 3);
+
 // The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
 const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 lib.on("pageerror", (e) => errors.push(e.message));

@@ -1263,6 +1263,24 @@ figure.md-table-fig > table {
 
 table.md-table td { min-width: 32px; }
 
+/* GitHub alerts (Typora's base.css). The marker's source shows while the cursor is on it. */
+.md-alert { padding: 0 1em; margin-bottom: 16px; color: inherit; border-left: 0.25em solid #000; }
+.md-alert.md-alert-note { border-left-color: #0969da; }
+.md-alert.md-alert-important { border-left-color: #8250df; }
+.md-alert.md-alert-warning { border-left-color: #9a6700; }
+.md-alert.md-alert-tip { border-left-color: #1f883d; }
+.md-alert.md-alert-caution { border-left-color: #cf222e; }
+.md-alert-text { font-size: 0.9rem; font-weight: 700; }
+.md-alert-text-note { color: #0969da; }
+.md-alert-text-important { color: #8250df; }
+.md-alert-text-warning { color: #9a6700; }
+.md-alert-text-tip { color: #1f883d; }
+.md-alert-text-caution { color: #cf222e; }
+.md-alert-text svg { fill: none; position: relative; top: 0.125em; margin-right: 1ch; overflow: visible; }
+.md-alert-text-container::after { content: attr(data-text); text-transform: capitalize; pointer-events: none; margin-right: 1ch; }
+.md-alert-src:not(.md-expand) { display: none; }
+.md-alert-src.md-expand { color: var(--meta-content-color); font-family: var(--monospace); font-size: 0.9rem; }
+
 /* The toolbar over the table holding the cursor (Typora's base-control.css). Its figure
    is not positioned, so the figure's overflow does not clip it. */
 figure { cursor: default; }

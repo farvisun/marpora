@@ -107,7 +107,8 @@ const EDITING_PARTS = [
   ".md-diagram .CodeMirror",
   ".md-inline-math script",
   ".md-meta",
-  ".ProseMirror-widget:not(input)",
+  ".ProseMirror-widget:not(input):not(.md-alert-text)",
+  ".md-alert-src",
   "img.ProseMirror-separator",
   '[mdtype="meta_block"]',
 ].join(",");
