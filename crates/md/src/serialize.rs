@@ -325,6 +325,8 @@ struct Inline<'n> {
     hazards: Hazards,
     /// Output offsets where a line begins with text (not markup).
     text_line_starts: Vec<usize>,
+    /// Output length right after the last closing delimiter.
+    closed_at: Option<usize>,
 }
 
 pub(crate) fn inlines(nodes: &[Node], in_table: bool) -> String {
@@ -336,6 +338,7 @@ pub(crate) fn inlines(nodes: &[Node], in_table: bool) -> String {
         in_table,
         hazards: Hazards::scan(nodes),
         text_line_starts: Vec::new(),
+        closed_at: None,
     };
     for i in 0..nodes.len() {
         w.node(i);
@@ -495,10 +498,17 @@ impl Inline<'_> {
                     || self
                         .char_after_run(mark, at)
                         .is_some_and(char::is_alphanumeric);
-                if markup.starts_with('_') && intraword {
+                let markup = if markup.starts_with('_') && intraword {
                     markup.replace('_', "*")
                 } else {
                     markup.to_owned()
+                };
+                // A run just closed with the same character would merge with this one
+                // (`*a***b**` closes twice); the other character keeps them apart.
+                match markup.chars().next() {
+                    Some('*') if self.after_closer('*') && !intraword => markup.replace('*', "_"),
+                    Some('_') if self.after_closer('_') => markup.replace('_', "*"),
+                    _ => markup,
                 }
             }
             "strike" => "~~".to_owned(),
@@ -573,14 +583,16 @@ impl Inline<'_> {
         let opens = left(prev, first) && (delim != '_' || !right(prev, first) || punct(prev));
         let closes = right(last, after) && (delim != '_' || !left(last, after) || punct(after));
         // `~`, `^` and `=` runs touching a delimiter of the same character merge into
-        // one run (`~a~~~b~~`), unlike `*` and `_`.
+        // one run (`~a~~~b~~`), unlike nested `*` and `_` runs; but those merge too
+        // when one closes right where the next opens.
         let merges = matches!(delim, '~' | '^' | '=')
             && (prev == Some(delim) && !self.out.ends_with(&format!("\\{delim}"))
                 || [first_node, last_node].iter().any(|n| {
                     n.marks
                         .iter()
                         .any(|m| mark_rank(m) > rank && delim_char(&m.kind) == Some(delim))
-                }));
+                }))
+            || matches!(delim, '*' | '_') && self.after_closer(delim);
         opens && closes && !merges
     }
 
@@ -649,6 +661,11 @@ impl Inline<'_> {
         }
     }
 
+    /// Whether the output ends with a closing delimiter run of `delim`.
+    fn after_closer(&self, delim: char) -> bool {
+        self.closed_at == Some(self.out.len()) && self.out.ends_with(delim)
+    }
+
     fn close_to(&mut self, keep: usize) {
         while self.open.len() > keep {
             let (mark, delim) = self.open.pop().unwrap();
@@ -664,7 +681,10 @@ impl Inline<'_> {
                 },
                 _ => delim,
             };
-            self.out.push_str(&closer);
+            if !closer.is_empty() {
+                self.out.push_str(&closer);
+                self.closed_at = Some(self.out.len());
+            }
         }
         self.flush_ws();
     }

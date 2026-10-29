@@ -264,3 +264,12 @@ fn whitespace_stays_inside_links() {
     let doc = parse("&[ ](u) and [ x ](u) or *x* ").doc;
     assert_eq!(serialize_doc(&doc), "&[ ](u) and [ x ](u) or *x*\n");
 }
+
+#[test]
+fn closing_and_opening_runs_stay_apart() {
+    // Emphasis closing where strong opens would write `*a***b**`, one run of three.
+    let src = "\\**word*==**$**==";
+    assert_round_trip(src);
+    let md = serialize_doc(&parse(src).doc);
+    assert!(!md.contains("***"), "{md}");
+}
