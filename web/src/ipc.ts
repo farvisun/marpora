@@ -51,6 +51,8 @@ export interface Settings {
   fileSearchCaseSensitive: boolean;
   fileSearchWholeWord: boolean;
   fileSearchUseRegexp: boolean;
+  /** View › Status Bar. */
+  showStatusBar: boolean;
 }
 
 /** A sidebar Search (src-tauri search.rs). */
@@ -217,6 +219,7 @@ export class MemoryBackend implements Backend {
     fileSearchCaseSensitive: false,
     fileSearchWholeWord: false,
     fileSearchUseRegexp: false,
+    showStatusBar: true,
   };
 
   constructor(private text = DEMO) {}

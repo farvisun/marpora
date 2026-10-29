@@ -127,7 +127,6 @@ const VIEW: &[Item] = &[
     ("focus-mode", "Focus Mode", Some("F8")),
     ("typewriter-mode", "Typewriter Mode", Some("F9")),
     ("-", "", None),
-    ("word-count", "Show Status Bar", None),
 ];
 
 fn items<R: Runtime>(
@@ -241,6 +240,16 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         )?));
     }
 
+    let mut view = items(app, VIEW)?;
+    view.push(Box::new(CheckMenuItem::with_id(
+        app,
+        "status-bar",
+        "Status Bar",
+        true,
+        app.state::<Store>().get().show_status_bar,
+        None::<&str>,
+    )?));
+
     let window = submenu(
         app,
         "Window",
@@ -266,7 +275,13 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             &submenu(app, "Edit", edit)?,
             &submenu(app, "Paragraph", items(app, PARAGRAPH)?)?,
             &submenu(app, "Format", items(app, FORMAT)?)?,
-            &submenu(app, "View", items(app, VIEW)?)?,
+            &Submenu::with_id_and_items(
+                app,
+                "view",
+                "View",
+                true,
+                &view.iter().map(|b| b.as_ref()).collect::<Vec<_>>(),
+            )?,
             &Submenu::with_id_and_items(
                 app,
                 "themes",
@@ -360,6 +375,17 @@ pub fn handle(app: &AppHandle, id: &str) {
                 });
         }
         _ if id.starts_with("theme:") => set_theme(app, &id["theme:".len()..]),
+        "status-bar" => {
+            let shown = app
+                .state::<Store>()
+                .update(app, |s| s.show_status_bar = !s.show_status_bar)
+                .show_status_bar;
+            if let Some(MenuItemKind::Submenu(view)) = app.menu().and_then(|m| m.get("view"))
+                && let Some(MenuItemKind::Check(check)) = view.get("status-bar")
+            {
+                let _ = check.set_checked(shown);
+            }
+        }
         _ => {
             let focused = app
                 .webview_windows()

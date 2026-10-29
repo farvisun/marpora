@@ -37,7 +37,14 @@ async function main() {
   await showTheme(settings.theme);
   setUi("librarySort", librarySortOf(settings));
   setUi("fileSearch", "options", fileSearchOptionsOf(settings));
+  // Typora's classes: `hide-footer` takes the status bar away and lets the page fill its room.
+  const showStatusBar = (shown: boolean) => {
+    document.body.classList.toggle("show-footer", shown);
+    document.body.classList.toggle("hide-footer", !shown);
+  };
+  showStatusBar(settings.showStatusBar);
   backend.onSettings((s) => {
+    showStatusBar(s.showStatusBar);
     if (s.showHiddenFiles !== settings.showHiddenFiles) setUi("libraryVersion", (v) => v + 1);
     setUi("librarySort", librarySortOf(s));
     setUi("fileSearch", "options", fileSearchOptionsOf(s));

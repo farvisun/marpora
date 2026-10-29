@@ -57,6 +57,7 @@ export class MemoryPrefs implements PrefsApi {
     fileSearchCaseSensitive: false,
     fileSearchWholeWord: false,
     fileSearchUseRegexp: false,
+    showStatusBar: true,
   };
   /** Actions taken, for tests. */
   log: string[] = [];

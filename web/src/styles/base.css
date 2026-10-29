@@ -733,6 +733,9 @@ footer.ty-footer {
   z-index: 3;
 }
 
+.hide-footer footer.ty-footer { display: none; }
+.hide-footer content { bottom: 0 !important; }
+
 /* The status bar's own buttons; the sidebar footer has Typora's `.footer-btn` rules. */
 footer.ty-footer .footer-btn {
   border: 0;

@@ -40,6 +40,8 @@ pub struct Settings {
     pub file_search_case_sensitive: bool,
     pub file_search_whole_word: bool,
     pub file_search_use_regexp: bool,
+    /// View › Status Bar: the word count and the buttons at the bottom of each window.
+    pub show_status_bar: bool,
 }
 
 impl Default for Settings {
@@ -60,6 +62,7 @@ impl Default for Settings {
             file_search_case_sensitive: false,
             file_search_whole_word: false,
             file_search_use_regexp: false,
+            show_status_bar: true,
         }
     }
 }

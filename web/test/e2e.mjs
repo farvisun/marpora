@@ -292,6 +292,15 @@ await inline.keyboard.press("Escape");
 check("escape closes and clears", !(await inline.locator("#md-searchpanel").isVisible()) &&
   (await inline.locator("#write .md-search-hit").count()) === 0);
 
+// View › Status Bar: hidden, the page takes its room.
+await inline.evaluate(() => window.marpora.backend.updateSettings({ showStatusBar: false }));
+await inline.waitForTimeout(500); // content's transition
+const pageBottom = () => inline.evaluate(() => document.querySelector("content").getBoundingClientRect().bottom);
+check("status bar hides", !(await inline.locator("footer.ty-footer").isVisible()) && (await pageBottom()) === 700, String(await pageBottom()));
+await inline.evaluate(() => window.marpora.backend.updateSettings({ showStatusBar: true }));
+await inline.waitForTimeout(500); // content's transition
+check("status bar shows", (await inline.locator("footer.ty-footer").isVisible()) && (await pageBottom()) === 670, String(await pageBottom()));
+
 // The same panel searches the Markdown source in source mode.
 await inline.evaluate(() => window.marpora.handleMenu("source-mode"));
 await inline.waitForSelector("#typora-source .CodeMirror");
