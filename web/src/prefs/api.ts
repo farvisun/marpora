@@ -19,6 +19,15 @@ export interface PrefsApi {
   clearRecent(): Promise<void>;
   openDraftsFolder(): Promise<void>;
   openThemeFolder(): Promise<void>;
+  /** Which providers have an API key in the Keychain (keys never come back). */
+  aiKeys(): Promise<AiKeys>;
+  /** Store `provider`'s API key in the Keychain; an empty key removes it. */
+  aiSetKey(provider: keyof AiKeys, key: string): Promise<void>;
+}
+
+export interface AiKeys {
+  anthropic: boolean;
+  openai: boolean;
 }
 
 export async function connectPrefs(): Promise<PrefsApi> {
@@ -36,6 +45,8 @@ export async function connectPrefs(): Promise<PrefsApi> {
     clearRecent: () => invoke<void>("clear_recent"),
     openDraftsFolder: () => invoke<void>("open_drafts_folder"),
     openThemeFolder: () => invoke<void>("open_theme_folder"),
+    aiKeys: () => invoke<AiKeys>("ai_keys"),
+    aiSetKey: (provider, key) => invoke<void>("ai_set_key", { provider, key }),
   };
 }
 
@@ -113,5 +124,16 @@ export class MemoryPrefs implements PrefsApi {
 
   async openThemeFolder() {
     this.log.push("openThemeFolder");
+  }
+
+  keys: AiKeys = { anthropic: false, openai: false };
+
+  async aiKeys() {
+    return { ...this.keys };
+  }
+
+  async aiSetKey(provider: keyof AiKeys, key: string) {
+    this.keys[provider] = key !== "";
+    this.log.push(`aiSetKey ${provider} ${key ? "set" : "removed"}`);
   }
 }

@@ -3,7 +3,7 @@
 
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import type { Settings } from "../ipc";
-import type { PrefsApi, ThemeInfo } from "./api";
+import type { AiKeys, PrefsApi, ThemeInfo } from "./api";
 
 type Item =
   | {
@@ -22,7 +22,7 @@ type Item =
   | {
       kind: "text";
       label: string;
-      placeholder?: string;
+      placeholder?: string | ((s: Settings) => string);
       /** A textarea, for HTML. */
       multiline?: boolean;
       value(s: Settings): string;
@@ -36,6 +36,13 @@ type Item =
       max: number;
       value(s: Settings): number;
       change(value: number): void;
+    }
+  | {
+      /** A password field for a secret the app keeps but never shows again. */
+      kind: "secret";
+      label: string;
+      saved(): boolean;
+      change(value: string): void;
     }
   | { kind: "buttons"; buttons: { label: string; run(): void }[]; spaced?: boolean };
 
@@ -56,6 +63,9 @@ interface Panel {
 /** Typora's search: a case-insensitive substring of the label. */
 const matches = (query: string, text: string) => query !== "" && text.toLowerCase().includes(query.toLowerCase());
 
+const placeholder = (item: { placeholder?: string | ((s: Settings) => string) }, s: Settings) =>
+  typeof item.placeholder === "function" ? item.placeholder(s) : item.placeholder;
+
 const itemTexts = (item: Item) =>
   item.kind === "buttons" ? item.buttons.map((b) => b.label) : item.kind === "select" ? [item.label, ...item.options().map((o) => o[1])] : [item.label];
 
@@ -64,7 +74,10 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
   const [themes, setThemes] = createSignal(props.themes);
   const [active, setActive] = createSignal(0);
   const [query, setQuery] = createSignal("");
+  const [keys, setKeys] = createSignal<AiKeys>({ anthropic: false, openai: false });
   let search!: HTMLInputElement;
+  const loadKeys = () => void props.api.aiKeys().then(setKeys, () => {});
+  loadKeys();
 
   props.api.onSettings((s) => {
     setSettings(s);
@@ -78,7 +91,7 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
     checked: (s) => s[key] as boolean,
     change: (on) => update({ [key]: on }),
   });
-  const text = (key: "exportAppendHead" | "exportAppendBody") => ({
+  const text = (key: "exportAppendHead" | "exportAppendBody" | "aiModel" | "aiBaseUrl") => ({
     value: (s: Settings) => s[key],
     change: (v: string) => update({ [key]: v }),
   });
@@ -251,6 +264,54 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
         },
       ],
     },
+    {
+      name: "AI",
+      icon: AiIcon,
+      groups: [
+        {
+          title: "Model",
+          hint: "Claude Code and Codex run the CLI you are signed in to, on your plan; the APIs bill your account.",
+          items: [
+            {
+              kind: "select",
+              label: "Provider",
+              options: () => [
+                ["anthropic", "Anthropic API"],
+                ["openai", "OpenAI-compatible API"],
+                ["claude-code", "Claude Code"],
+                ["codex", "Codex"],
+              ],
+              value: (s) => s.aiProvider,
+              change: (v) => update({ aiProvider: v }),
+            },
+            {
+              kind: "text",
+              label: "Model",
+              placeholder: (s) => (s.aiProvider === "anthropic" ? "claude-opus-5-5" : s.aiProvider === "openai" ? "Required" : "The CLI's default"),
+              ...text("aiModel"),
+            },
+            {
+              kind: "text",
+              label: "Endpoint",
+              placeholder: (s) => (s.aiProvider === "openai" ? "https://api.openai.com/v1" : "https://api.anthropic.com"),
+              ...text("aiBaseUrl"),
+            },
+          ],
+        },
+        {
+          title: "API Keys",
+          hint: "Kept in the macOS Keychain.",
+          items: (["anthropic", "openai"] as const).map(
+            (provider): Item => ({
+              kind: "secret",
+              label: provider === "anthropic" ? "Anthropic" : "OpenAI-compatible",
+              saved: () => keys()[provider],
+              change: (key) => void props.api.aiSetKey(provider, key.trim()).then(loadKeys, loadKeys),
+            }),
+          ),
+        },
+      ],
+    },
   ];
   // `#image` opens that panel (Format › Image › Global Image Settings…).
   const showHash = () => {
@@ -323,7 +384,7 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
                       <textarea
                         rows={3}
                         aria-label={it().label}
-                        placeholder={it().placeholder}
+                        placeholder={placeholder(it(), settings())}
                         value={it().value(settings())}
                         onChange={(e) => it().change(e.currentTarget.value)}
                       />
@@ -331,7 +392,7 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
                       <input
                         type="text"
                         aria-label={it().label}
-                        placeholder={it().placeholder}
+                        placeholder={placeholder(it(), settings())}
                         value={it().value(settings())}
                         onChange={(e) => it().change(e.currentTarget.value)}
                       />
@@ -366,6 +427,39 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
                       }}
                     />{" "}
                     <span>{it().unit}</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </Match>
+      <Match when={item.kind === "secret" && item}>
+        {(it) => (
+          <table class="label-input-group">
+            <tbody>
+              <tr classList={{ "search-hit": itemHit(it()) }}>
+                <td>
+                  <span>{it().label}</span>
+                </td>
+                <td>
+                  <div class="row">
+                    <input
+                      type="password"
+                      autocomplete="off"
+                      aria-label={`${it().label} API key`}
+                      placeholder={it().saved() ? "Saved in Keychain" : "Not set"}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        e.currentTarget.value = "";
+                        if (value.trim()) it().change(value);
+                      }}
+                    />{" "}
+                    <Show when={it().saved()}>
+                      <button class="btn btn-default" aria-label={`Remove ${it().label} API key`} onClick={() => it().change("")}>
+                        Remove
+                      </button>
+                    </Show>
                   </div>
                 </td>
               </tr>
@@ -443,7 +537,7 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
             </div>
             <For each={panels}>
               {(p, i) => (
-                <div class="content" classList={{ "display-none": nothingFound() || active() !== i() }} data-index={i()}>
+                <div class="content" classList={{ "display-none": nothingFound() || active() !== i() }} data-index={i()} data-panel={p.name.toLowerCase()}>
                   <Show when={p.note}>
                     <div class="panel-content-hint row" style={{ "margin-left": "0px" }}>
                       {p.note}
@@ -527,6 +621,15 @@ function ExportIcon() {
     <svg viewBox="0 0 19 18">
       <path d="M3 1.5h8l4 4v11H3z" fill="none" stroke="currentColor" stroke-width="1.4" />
       <path d="M9 7v7M6 11l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" />
+    </svg>
+  );
+}
+
+function AiIcon() {
+  return (
+    <svg viewBox="0 0 19 18">
+      <path d="M8 1.5 9.6 6l4.4 1.6-4.4 1.6L8 13.7 6.4 9.2 2 7.6 6.4 6z" />
+      <path d="M14.5 10.5l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8z" />
     </svg>
   );
 }

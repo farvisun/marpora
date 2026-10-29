@@ -1160,7 +1160,7 @@ prefs.on("pageerror", (e) => errors.push(e.message));
 await prefs.goto((process.env.URL ?? "http://localhost:1420/") + "preferences.html");
 await prefs.waitForSelector(".nav-group-item");
 const prefsLog = () => prefs.evaluate(() => window.marporaPrefs.log);
-check("prefs: categories", (await prefs.locator(".nav-group-item").allTextContents()).join(",") === "Files,Image,Markdown,Appearance,General,Export");
+check("prefs: categories", (await prefs.locator(".nav-group-item").allTextContents()).join(",") === "Files,Image,Markdown,Appearance,General,Export,AI");
 check("prefs: Files shown first", await prefs.locator(".content[data-index='0'] .input-group-header-title").first().textContent() === "Save & Recover" &&
   (await prefs.locator(".content:not(.display-none)").count()) === 1);
 await prefs.getByLabel("Auto Save").check();
@@ -1192,9 +1192,27 @@ const exportSettings = await prefs.evaluate(() => {
   return [c.exportTheme, c.exportPageBreak, c.exportAppendHead, c.exportImageWidth].join("|");
 });
 check("prefs: export settings", exportSettings === "marpora-night|true|<meta name='x'>|4000", exportSettings);
+await prefs.click(".nav-group-item:text('AI')");
+const aiPanel = prefs.locator(".content[data-index='6']");
+check("prefs: ai model placeholder", (await aiPanel.getByLabel("Model").getAttribute("placeholder")) === "claude-opus-5-5");
+await aiPanel.locator("select").selectOption("openai");
+await aiPanel.getByLabel("Model").fill("gpt-test");
+await aiPanel.getByLabel("Model").blur();
+check("prefs: ai provider and model", (await prefs.evaluate(() => [window.marporaPrefs.current.aiProvider, window.marporaPrefs.current.aiModel].join())) === "openai,gpt-test" &&
+  (await aiPanel.getByLabel("Endpoint").getAttribute("placeholder")) === "https://api.openai.com/v1");
+const anthropicKey = aiPanel.getByLabel("Anthropic API key", { exact: true });
+check("prefs: no key yet", (await anthropicKey.getAttribute("placeholder")) === "Not set");
+await anthropicKey.fill("sk-test");
+await anthropicKey.press("Enter");
+await prefs.waitForFunction(() => document.querySelector("input[aria-label='Anthropic API key']")?.placeholder === "Saved in Keychain");
+check("prefs: key saved and not shown", (await anthropicKey.inputValue()) === "" &&
+  (await prefs.evaluate(() => window.marporaPrefs.log.at(-1))) === "aiSetKey anthropic set");
+await aiPanel.getByLabel("Remove Anthropic API key").click();
+await prefs.waitForFunction(() => document.querySelector("input[aria-label='Anthropic API key']")?.placeholder === "Not set");
+check("prefs: key removed", (await prefs.evaluate(() => window.marporaPrefs.log.at(-1))) === "aiSetKey anthropic removed");
 await prefs.fill(".search-input", "recent");
 check("prefs: search marks matches", (await prefs.locator(".input-group.search-hit .input-group-header-title").allTextContents()).join() === "Recent Locations" &&
-  (await prefs.locator(".nav-group-item.no-search-hit").allTextContents()).join() === "Image,Markdown,Appearance,General,Export");
+  (await prefs.locator(".nav-group-item.no-search-hit").allTextContents()).join() === "Image,Markdown,Appearance,General,Export,AI");
 await prefs.fill(".search-input", "zzz");
 check("prefs: no results", (await prefs.locator(".no-results:not(.display-none)").textContent()) === 'No results found for "zzz"');
 await prefs.click(".clear-btn-icon");

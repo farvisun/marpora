@@ -386,6 +386,7 @@ select:focus {
 
 /* Typora's text fields (Export's settings). */
 input[type="text"],
+input[type="password"],
 input[type="number"],
 textarea {
   -webkit-user-select: text;
@@ -398,6 +399,7 @@ textarea {
 }
 
 .row input[type="text"],
+.row input[type="password"],
 .row textarea {
   width: 95%;
   box-sizing: border-box;
@@ -435,6 +437,18 @@ textarea {
 
 .label-input-group .row {
   min-height: 0;
+}
+
+/* AI: one column of fields across the groups. */
+.content[data-panel="ai"] .label-input-group {
+  width: 100%;
+}
+.content[data-panel="ai"] .label-input-group td:first-child {
+  width: 150px;
+}
+.content[data-panel="ai"] .row input[type="password"] {
+  width: 60%;
+  margin-right: 6px;
 }
 
 /* Buttons */
@@ -498,7 +512,8 @@ input[type="text"] {
 }
 
 input[type="search"]:focus,
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="password"]:focus {
   border-radius: 1px;
   box-shadow: 0 0 0 1px rgba(116, 180, 255, 0.7);
   animation: 0.3s showFocus;
