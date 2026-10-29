@@ -178,6 +178,18 @@ const comment: Command = (state, dispatch) => {
   return true;
 };
 
+/** Format › Image › Insert Image: an empty image whose Markdown opens to type into. */
+const insertImage: Command = (state, dispatch) => {
+  const { $from } = state.selection;
+  if (!$from.parent.inlineContent || $from.parent.type.spec.code) return false;
+  if (dispatch) {
+    const tr = state.tr.replaceSelectionWith(n.image.create({ src: "", alt: "" }), false);
+    const pos = tr.selection.from - 1;
+    dispatch(tr.setSelection(NodeSelection.create(tr.doc, pos)).scrollIntoView());
+  }
+  return true;
+};
+
 /** Format › Hyperlink Actions › Copy Link Address. */
 const copyLink: Command = (state, dispatch) => {
   const href = linkAt(state)?.attrs.href;
@@ -316,6 +328,7 @@ export const commands: Record<string, Command> = {
   sub: toggleMarkCmd(m.sub),
   comment,
   "copy-link": copyLink,
+  "insert-image": insertImage,
   "clear-format": clearFormat,
   link: toggleMarkCmd(m.link, { href: "" }),
   paragraph: setBlockType(n.paragraph),

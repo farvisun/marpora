@@ -6,7 +6,7 @@ import { render } from "solid-js/web";
 import { App } from "./chrome/App";
 import { basename } from "./chrome/library";
 import { countText, docText, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
-import { dropFiles, imageExtension } from "./editor/clipboard";
+import { dropFiles, imageExtension, insertImages } from "./editor/clipboard";
 import { createEditor, runCommand } from "./editor/editor";
 import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
@@ -190,12 +190,27 @@ async function main() {
     }
     await backend.reloadDocument(opened.id);
   };
+  /** How the document refers to file `p`: relative to its folder when inside it. */
+  const fileSrc = (p: string) => {
+    const dir = ui.path ? ui.path.slice(0, ui.path.lastIndexOf("/") + 1) : null;
+    return settings.useRelativeImagePath && dir && p.startsWith(dir) ? p.slice(dir.length) : p;
+  };
   backend.onFileDrop((paths, x, y) => {
     if (source.active) return;
-    const dir = ui.path ? ui.path.slice(0, ui.path.lastIndexOf("/") + 1) : null;
-    const src = (p: string) => (settings.useRelativeImagePath && dir && p.startsWith(dir) ? p.slice(dir.length) : p);
-    dropFiles(view, paths, x, y, src, (p) => void openFile(p).catch(report));
+    dropFiles(view, paths, x, y, fileSrc, (p) => void openFile(p).catch(report));
   });
+  /** Format › Image › Insert Local Images…: images picked in a dialog, at the cursor. */
+  const insertLocalImages = async () => {
+    if (!inTauri || source.active) return;
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const picked = await open({
+      multiple: true,
+      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tiff", "svg"] }],
+    });
+    const paths = picked === null ? [] : Array.isArray(picked) ? picked : [picked];
+    if (paths.length) insertImages(view, paths.map(fileSrc));
+    view.focus();
+  };
   backend.onDiskChanged((id) => {
     if (id === opened.id)
       void reloadFromDisk("File content is changed by external applications. Reload content from disk ?").catch(report);
@@ -248,6 +263,8 @@ async function main() {
         return void save(false);
       case "save-as":
         return void save(true);
+      case "insert-local-images":
+        return void insertLocalImages().catch(report);
       case "open-location":
         return void backend.revealDocument().catch(report);
       case "reveal-sidebar":

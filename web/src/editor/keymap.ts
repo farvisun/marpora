@@ -126,6 +126,7 @@ export function typoraKeymap() {
     "Mod-Shift-h": c.highlight,
     "Mod-u": c.underline,
     "Ctrl-m": c["inline-math"],
+    "Ctrl-Mod-i": c["insert-image"],
     "Ctrl-x": c["task-toggle"],
     "Mod-Alt-l": c["link-reference"],
     "Mod-Alt-r": c.footnote,

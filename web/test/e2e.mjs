@@ -589,6 +589,32 @@ amd = await tableRun("alert-warning");
 check("paragraph becomes an alert", amd.endsWith("> [!WARNING]\n> Para text"), amd);
 check("alerts render after the change", (await inline.locator("#write div.md-alert").count()) === 3);
 
+// Images: their Markdown shows to edit while selected; Format › Image › Insert Image.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "A ![pic](a.png) b\n");
+  await m.sync.resync();
+});
+const imgSrc = inline.locator("#write .md-image > .md-image-src");
+check("image markdown in its source", (await imgSrc.textContent()) === "![pic](a.png)");
+await inline.evaluate(() => {
+  const el = document.querySelector("#write .md-image > .md-image-src");
+  el.textContent = '![new](<b c.png> "T")';
+  el.dispatchEvent(new Event("input"));
+});
+let imd = await tableRun();
+check("editing the source changes the image", imd === 'A ![new](<b c.png> "T") b', imd);
+await caretIn("b", 1);
+await tableRun("insert-image");
+await inline.waitForTimeout(50);
+await inline.keyboard.type("alt");
+imd = await tableRun();
+check("insert image types its alt", imd === 'A ![new](<b c.png> "T") b![alt]()', imd);
+await inline.keyboard.press("Enter");
+await inline.keyboard.type("!");
+imd = await tableRun();
+check("enter leaves the image source", imd.endsWith("![alt]()!"), imd);
+
 // The sidebar (outline, article list, file tree) and Quick Open, on a fake folder.
 const lib = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 lib.on("pageerror", (e) => errors.push(e.message));

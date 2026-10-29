@@ -319,6 +319,12 @@ const LINK_ACTIONS: &[Item] = &[
     ("copy-link", "Copy Link Address", None),
 ];
 
+/// Format › Image.
+const IMAGE: &[Item] = &[
+    ("insert-image", "Insert Image", Some("Ctrl+CmdOrCtrl+I")),
+    ("insert-local-images", "Insert Local Images…", None),
+];
+
 const FORMAT_END: &[Item] = &[
     ("-", "", None),
     ("clear-format", "Clear Format", Some("CmdOrCtrl+\\")),
@@ -567,6 +573,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         "Hyperlink Actions",
         items(app, LINK_ACTIONS)?,
     )?));
+    format.push(Box::new(submenu(app, "Image", items(app, IMAGE)?)?));
     format.extend(items(app, FORMAT_END)?);
 
     let current = app.state::<Store>().get().theme;
