@@ -422,6 +422,8 @@ const VIEW_SIDEBAR: &[Item] = &[
     ("file-tree", "File Tree", Some("Ctrl+Cmd+3")),
     ("search", "Search", Some("CmdOrCtrl+Shift+F")),
     ("-", "", None),
+    ("word-count-popover", "Toggle Word Count Popover", None),
+    ("-", "", None),
     ("zoom-actual", "Actual Size", Some("CmdOrCtrl+Shift+0")),
     ("zoom-in", "Zoom In", Some("CmdOrCtrl+Shift+=")),
     ("zoom-out", "Zoom Out", Some("CmdOrCtrl+Shift+-")),

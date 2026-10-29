@@ -792,7 +792,49 @@ footer.ty-footer .footer-btn.active {
 
 #footer-word-count {
   padding: 0 6px;
+  border-radius: 4px;
+  cursor: pointer;
 }
+#footer-word-count:hover,
+#footer-word-count.active { background: var(--item-hover-bg-color); color: var(--item-hover-text-color); }
+
+/* The word count popover (chrome/WordCount.tsx), with Typora's rules. */
+#footer-word-count-info {
+  display: block;
+  position: fixed;
+  right: 4px;
+  bottom: 32px;
+  left: auto;
+  top: auto;
+  min-width: 160px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  z-index: 10;
+}
+#footer-word-count-info table { cursor: default; border-collapse: collapse; }
+#footer-word-count-info .ty-footer-word-count-all tr:hover {
+  background-color: var(--item-hover-bg-color) !important;
+  color: var(--item-hover-text-color) !important;
+}
+#footer-word-count-info li { list-style-type: none !important; }
+#footer-word-count-info table,
+#footer-word-count-info td,
+#footer-word-count-info tr {
+  border: none !important;
+  background: 0 0 !important;
+  font-size: 13.5px !important;
+  text-align: left !important;
+  padding: 0;
+  margin: 0 !important;
+  line-height: 1.8;
+}
+#footer-word-count-info td:nth-child(1) { padding-left: 20px; padding-right: 20px; text-align: right !important; }
+#footer-word-count-info .footer-word-count-info-line { padding: 2px 20px; font-size: 13px; }
+.ty-footer-word-count-all { padding-top: 4px; }
+.footer-word-count-selection { display: none; }
+.ty-show-word-count-in-selection li.footer-word-count-selection { display: list-item; }
+.ty-show-word-count-in-selection li.divider.footer-word-count-selection { display: block; }
+.typora-sourceview-on #footer-word-count-info { display: none; }
 
 /* ---- Editor ------------------------------------------------------------- */
 

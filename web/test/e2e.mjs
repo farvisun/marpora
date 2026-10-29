@@ -488,6 +488,34 @@ await inline.mouse.click(3, 3, { button: "right" });
 cx = await inline.evaluate(() => JSON.stringify(window.marpora.backend.contextMenu));
 check("context menu outside the editor", cx === JSON.stringify({ editor: false }), cx);
 
+// The status bar's word count popover, and what the status bar counts.
+await inline.evaluate(async () => {
+  const m = window.marpora;
+  await m.backend.setText(1, "One two three four.\n\nFive six.\n");
+  await m.sync.resync();
+});
+await inline.waitForTimeout(250);
+const wcLabel = () => inline.locator("#footer-word-count-label").textContent();
+check("word count label", (await wcLabel()) === "6 Words", await wcLabel());
+await inline.locator("#footer-word-count").click();
+const wcRows = await inline.locator("#footer-word-count-info tr").evaluateAll((rows) => rows.map((r) => r.textContent).join("|"));
+check("word count popover rows", wcRows === "6Words|24Characters|2Lines|≤ 1Minutes", wcRows);
+await inline.locator("#footer-word-count-info tr[data-delimiter='1']").click();
+check("popover picks characters", (await wcLabel()) === "24 Characters" && (await inline.locator("#footer-word-count-info").count()) === 0, await wcLabel());
+await inline.evaluate(() => {
+  const { view } = window.marpora;
+  const TextSelection = Object.getPrototypeOf(view.state.selection.constructor).near(view.state.doc.resolve(1)).constructor;
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 5, 14)));
+});
+await inline.waitForTimeout(250);
+check("selection counted", (await wcLabel()) === "9 / 24 Characters", await wcLabel());
+await inline.evaluate(() => window.marpora.handleMenu("word-count-popover"));
+check("menu toggles the popover", (await inline.locator("#footer-word-count-info .footer-word-count-info-line").textContent()).includes("2 Words"));
+await inline.keyboard.press("Escape");
+check("escape closes the popover", (await inline.locator("#footer-word-count-info").count()) === 0);
+await inline.locator("#footer-word-count").click();
+await inline.locator("#footer-word-count-info tr[data-delimiter='0']").click();
+
 // Edit › Line Endings converts the text; Whitespace and Line Breaks restyles it.
 await inline.evaluate(async () => {
   const m = window.marpora;

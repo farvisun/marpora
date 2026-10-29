@@ -9,6 +9,7 @@ import { SearchPanel } from "./SearchPanel";
 import { Sidebar } from "./Sidebar";
 import { setUi, ui } from "./store";
 import { TableDialog } from "./TableDialog";
+import { WordCount } from "./WordCount";
 
 export interface ChromeProps {
   backend: Backend;
@@ -70,9 +71,7 @@ export function App(props: ChromeProps) {
           {"</>"}
         </button>
         <span class="footer-spacer" />
-        <span id="footer-word-count" class="footer-item" title={`${ui.counts.chars} characters, ${ui.counts.lines} lines`}>
-          {ui.counts.words} {ui.counts.words === 1 ? "word" : "words"}
-        </span>
+        <WordCount />
       </footer>
     </>
   );

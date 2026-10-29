@@ -14,6 +14,18 @@ interface SidebarState {
 
 const SIDEBAR_KEY = "marpora.sidebar";
 
+export const DELIMITER_KEY = "marpora.wordCountDelimiter";
+
+/** The status bar's count (chrome/WordCount.tsx), as last picked in this app. */
+function savedDelimiter(): number {
+  try {
+    const d = Number(localStorage.getItem(DELIMITER_KEY));
+    return d >= 0 && d <= 3 ? d : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function savedSidebar(): SidebarState {
   const defaults: SidebarState = { sidebar: false, sidebarTab: "outline", fileTree: false };
   try {
@@ -50,13 +62,20 @@ export interface Counts {
   words: number;
   chars: number;
   lines: number;
+  /** Words and characters in the selection. */
+  selWords: number;
+  selChars: number;
 }
 
 export const [ui, setUi] = createStore({
   ...savedSidebar(),
   outline: [] as OutlineItem[],
   activeHeading: -1,
-  counts: { words: 0, chars: 0, lines: 0 } as Counts,
+  counts: { words: 0, chars: 0, lines: 0, selWords: 0, selChars: 0 } as Counts,
+  /** The status bar's word count popover is showing (View › Toggle Word Count Popover). */
+  wordCountPopover: false,
+  /** What the status bar counts: Typora's delimiter, 0 words, 1 characters, 2 lines, 3 minutes. */
+  wordDelimiter: savedDelimiter(),
   focusMode: false,
   typewriterMode: false,
   sourceMode: false,
@@ -117,13 +136,19 @@ export function outlineOf(doc: PMNode): OutlineItem[] {
 const CJK = /[぀-ヿ㐀-䶿一-鿿豈-﫿가-힯]/g;
 const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
 
-export function countText(text: string): Counts {
+export function countWords(text: string): number {
   const cjk = text.match(CJK)?.length ?? 0;
-  const latin = text.replace(CJK, " ").match(WORD)?.length ?? 0;
+  return cjk + (text.replace(CJK, " ").match(WORD)?.length ?? 0);
+}
+
+/** Counts of `text`, and of `selection` in it. */
+export function countText(text: string, selection = ""): Counts {
   return {
-    words: cjk + latin,
+    words: countWords(text),
     chars: text.replace(/\s/g, "").length,
     lines: text ? text.split("\n").length : 0,
+    selWords: countWords(selection),
+    selChars: selection.length,
   };
 }
 

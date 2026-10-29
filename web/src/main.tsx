@@ -78,7 +78,9 @@ async function main() {
   const refresh = () => {
     refreshTimer = null;
     setUi("outline", outlineOf(view.state.doc));
-    setUi("counts", countText(docText(view.state.doc)));
+    const { from, to, empty } = view.state.selection;
+    const selected = empty ? "" : view.state.doc.textBetween(from, to, "\n", " ");
+    setUi("counts", countText(docText(view.state.doc), selected));
   };
 
   setClipboardWriter((text, html) => backend.writeClipboard(text, html));
@@ -349,6 +351,8 @@ async function main() {
       case "jump-line-start":
       case "jump-line-end":
         return window.getSelection()?.modify("move", id.endsWith("start") ? "backward" : "forward", "lineboundary");
+      case "word-count-popover":
+        return setUi("wordCountPopover", !ui.wordCountPopover);
       case "line-endings-crlf":
       case "line-endings-lf":
         return void setLineEndings(id === "line-endings-crlf").catch(report);
