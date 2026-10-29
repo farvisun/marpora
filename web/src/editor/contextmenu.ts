@@ -3,14 +3,17 @@
 // link, a table, a code, math or HTML block, and the styles to show checked.
 
 import type { ResolvedPos } from "prosemirror-model";
-import type { EditorState } from "prosemirror-state";
+import { NodeSelection, type EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
+import { imageNode } from "./imagetools";
 import { linkAt } from "./links";
 import { schema } from "./schema";
 
 export interface MenuContext {
   editor: boolean;
   link?: boolean;
+  /** On an image, Markdown or `<img>`. */
+  image?: boolean;
   table?: boolean;
   block?: "code" | "math" | "html" | null;
   /** Menu ids of the styles at the cursor. */
@@ -38,6 +41,18 @@ export function activeStyles(state: EditorState, $from: ResolvedPos = state.sele
   return [...new Set(active)];
 }
 
+/** The position of the image `element` is in, if it is in one. */
+function imagePos(view: EditorView, element: Element | null | undefined): number | null {
+  const dom = element?.closest(".md-image, .md-html-inline");
+  if (!dom || !view.dom.contains(dom)) return null;
+  const pos = view.posAtDOM(dom, 0);
+  for (const p of [pos, pos - 1]) {
+    const node = p >= 0 ? view.state.doc.nodeAt(p) : null;
+    if (node && imageNode(node, p)) return p;
+  }
+  return null;
+}
+
 /** The context of a right click on `target` at (`x`, `y`). */
 export function menuContext(view: EditorView, target: EventTarget | null, x: number, y: number): MenuContext {
   if (!(target instanceof Node) || !view.dom.contains(target) || !view.editable) return { editor: false };
@@ -61,13 +76,23 @@ export function menuContext(view: EditorView, target: EventTarget | null, x: num
   else if (element?.closest(".md-math-block")) block = "math";
   else if (element?.closest(".md-htmlblock")) block = "html";
   const link = !!element?.closest("a[href], .md-link") || !!linkAt(state, pos)?.attrs.href;
-  return { editor: true, link, table, block, active: activeStyles(state, $pos) };
+  const image = imagePos(view, element) !== null;
+  return { editor: true, link, image, table, block, active: activeStyles(state, $pos) };
 }
 
 /** Tell `send` the context of each right click in `view`: on the mouse down, so it is
  * there before the menu opens, and again as the menu is asked for. */
 export function trackContextMenu(view: () => EditorView, enabled: () => boolean, send: (cx: MenuContext) => void) {
-  const report = (e: MouseEvent) => send(enabled() ? menuContext(view(), e.target, e.clientX, e.clientY) : { editor: false });
+  const report = (e: MouseEvent) => {
+    if (!enabled()) return send({ editor: false });
+    // The image's menu items act on the selected image, so select the one clicked.
+    const v = view();
+    const element = e.target instanceof Element ? e.target : null;
+    const image = v.editable && v.dom.contains(element) ? imagePos(v, element) : null;
+    if (image !== null && !(v.state.selection instanceof NodeSelection && v.state.selection.from === image))
+      v.dispatch(v.state.tr.setSelection(NodeSelection.create(v.state.doc, image)));
+    send(menuContext(v, e.target, e.clientX, e.clientY));
+  };
   document.addEventListener("mousedown", (e) => (e.button === 2 || (e.button === 0 && e.ctrlKey)) && report(e), true);
   document.addEventListener("contextmenu", report, true);
 }

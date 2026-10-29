@@ -476,7 +476,7 @@ const contextOf = async (locator) => {
   return inline.evaluate(() => JSON.stringify(window.marpora.backend.contextMenu));
 };
 let cx = await contextOf(inline.locator("#write h2"));
-check("context menu on a heading", cx === JSON.stringify({ editor: true, link: false, table: false, block: null, active: ["heading-2"] }), cx);
+check("context menu on a heading", cx === JSON.stringify({ editor: true, link: false, image: false, table: false, block: null, active: ["heading-2"] }), cx);
 cx = await contextOf(inline.locator("#write a").first());
 check("context menu on a link", /"link":true/.test(cx) &&
   JSON.parse(cx).active.sort().join() === "link,paragraph,quote,strong", cx);
@@ -546,6 +546,9 @@ await inline.evaluate(async () => {
   const TextSelection = Object.getPrototypeOf(view.state.selection.constructor).near(view.state.doc.resolve(1)).constructor;
   view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 5)));
 });
+const imgCx = await contextOf(inline.locator("#write .md-image").first());
+check("context menu on an image", /"image":true/.test(imgCx) &&
+  (await inline.evaluate(() => window.marpora.view.state.selection.node?.type.name)) === "image", imgCx);
 let imgText = await imageText("image-zoom:100");
 check("100% leaves a markdown image", imgText === "Pic ![cat](a.png) end\n", imgText);
 imgText = await imageText("image-zoom:50");

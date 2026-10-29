@@ -34,6 +34,8 @@ pub struct Context {
     #[serde(default)]
     link: bool,
     #[serde(default)]
+    image: bool,
+    #[serde(default)]
     table: bool,
     /// The block clicked when it is a code block, math block or HTML block.
     #[serde(default)]
@@ -116,6 +118,24 @@ const TABLE: &[Entry] = &[
     Item("table-delete", "Delete Table", "Paragraph"),
 ];
 
+const IMAGE_ZOOM: &[Entry] = &[
+    Item("image-zoom:25", "25%", "Format"),
+    Item("image-zoom:33", "33%", "Format"),
+    Item("image-zoom:50", "50%", "Format"),
+    Item("image-zoom:67", "67%", "Format"),
+    Item("image-zoom:80", "80%", "Format"),
+    Separator,
+    Item("image-zoom:100", "100%", "Format"),
+    Separator,
+    Item("image-zoom:150", "150%", "Format"),
+    Item("image-zoom:200", "200%", "Format"),
+];
+
+const IMAGE_SYNTAX: &[Entry] = &[
+    Item("image-syntax-markdown", "Markdown Style", "Format"),
+    Item("image-syntax-html", "HTML Style", "Format"),
+];
+
 /// The items for `cx`: those before WebKit's, and those after its Cut, Copy and Paste.
 fn entries(cx: &Context) -> (Vec<Entry>, Vec<Entry>) {
     let mut before = Vec::new();
@@ -123,6 +143,20 @@ fn entries(cx: &Context) -> (Vec<Entry>, Vec<Entry>) {
         before.extend([
             Item("open-link", "Open Link", "Format"),
             Item("copy-link", "Copy Link Address", "Format"),
+            Separator,
+        ]);
+    }
+    if cx.image {
+        before.extend([
+            Item("image-copy", "Copy Image", "Format"),
+            Item("image-reveal", "Open Image Location", "Format"),
+            Separator,
+            Sub("Zoom Image", IMAGE_ZOOM),
+            Sub("Switch Image Syntax", IMAGE_SYNTAX),
+            Separator,
+            Item("image-copy-to", "Copy Image to…", "Format"),
+            Item("image-move-to", "Move Image to…", "Format"),
+            Item("image-delete", "Delete Image File", "Format"),
             Separator,
         ]);
     }

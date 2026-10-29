@@ -26,7 +26,8 @@ function parseImg(html: string): HTMLImageElement | null {
   return img instanceof HTMLImageElement && img.hasAttribute("src") ? img : null;
 }
 
-function describe(node: PMNode, pos: number): ImageAt | null {
+/** `node`, at `pos`, as an image, if it is one. */
+export function imageNode(node: PMNode, pos: number): ImageAt | null {
   if (node.type === schema.nodes.image) {
     const { src, alt, title } = node.attrs;
     return { pos, node, src, alt, title, zoom: null, html: false };
@@ -48,11 +49,11 @@ function describe(node: PMNode, pos: number): ImageAt | null {
 /** The selected image, or the one beside the cursor. */
 export function imageAt(state: EditorState): ImageAt | null {
   const sel = state.selection;
-  if (sel instanceof NodeSelection) return describe(sel.node, sel.from);
+  if (sel instanceof NodeSelection) return imageNode(sel.node, sel.from);
   const $pos = sel.$from;
-  const after = $pos.nodeAfter && describe($pos.nodeAfter, $pos.pos);
+  const after = $pos.nodeAfter && imageNode($pos.nodeAfter, $pos.pos);
   if (after) return after;
-  return $pos.nodeBefore ? describe($pos.nodeBefore, $pos.pos - $pos.nodeBefore.nodeSize) : null;
+  return $pos.nodeBefore ? imageNode($pos.nodeBefore, $pos.pos - $pos.nodeBefore.nodeSize) : null;
 }
 
 const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
