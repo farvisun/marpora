@@ -2,7 +2,9 @@
 // that style the sidebar and footer apply.
 
 import { createEffect, Show } from "solid-js";
+import type { EditorView } from "prosemirror-view";
 import type { Backend } from "../ipc";
+import { InlineAi } from "./InlineAi";
 import { OutlinePopover } from "./OutlinePopover";
 import { QuickOpen } from "./QuickOpen";
 import type { Search } from "./search";
@@ -27,6 +29,7 @@ export interface ChromeProps {
   search: Search;
   /** Insert a table of `cols` columns and `rows` rows, the header included. */
   onInsertTable(cols: number, rows: number): void;
+  view(): EditorView;
 }
 
 export function App(props: ChromeProps) {
@@ -47,6 +50,7 @@ export function App(props: ChromeProps) {
       />
       <QuickOpen backend={props.backend} onOpenFile={props.onOpenFile} />
       <OutlinePopover onOutlineClick={props.onOutlineClick} />
+      <InlineAi backend={props.backend} view={props.view} />
       <Show when={ui.tableDialog}>
         <TableDialog onInsert={props.onInsertTable} />
       </Show>

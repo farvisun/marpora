@@ -464,6 +464,25 @@ const FORMAT_END: &[Item] = &[
     ("clear-format", "Clear Format", Some("CmdOrCtrl+\\")),
 ];
 
+/// AI: edits of the selection (or writing at the cursor), and the chat panel. Typora has
+/// no such menu; `ai:<preset>` runs a preset on the selection (web/src/editor/ai.ts).
+const AI: &[Item] = &[
+    ("ai-ask", "Ask AI…", Some("CmdOrCtrl+Shift+J")),
+    ("-", "", None),
+    ("ai:improve", "Improve Writing", None),
+    ("ai:fix", "Fix Spelling and Grammar", None),
+    ("ai:shorter", "Make Shorter", None),
+    ("ai:longer", "Make Longer", None),
+    ("ai:simplify", "Simplify Language", None),
+    ("ai:summarize", "Summarize", None),
+    ("ai:translate", "Translate…", None),
+    ("ai:continue", "Continue Writing", None),
+    ("-", "", None),
+    ("ai-chat", "AI Chat", Some("CmdOrCtrl+Alt+J")),
+    ("-", "", None),
+    ("ai-settings", "AI Settings…", None),
+];
+
 const VIEW_MODES: &[Item] = &[
     ("-", "", None),
     ("focus-mode", "Focus Mode", Some("F8")),
@@ -923,6 +942,7 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
             &submenu(app, "Edit", edit)?,
             &submenu(app, "Paragraph", paragraph)?,
             &submenu(app, "Format", format)?,
+            &submenu(app, "AI", items(app, AI)?)?,
             &Submenu::with_id_and_items(
                 app,
                 "view",
@@ -1114,6 +1134,9 @@ pub fn handle(app: &AppHandle, id: &str) {
         }
         "image-settings" => {
             let _ = windows::open_preferences(app, Some("image"));
+        }
+        "ai-settings" => {
+            let _ = windows::open_preferences(app, Some("ai"));
         }
         "open-folder" => {
             let handle = app.clone();

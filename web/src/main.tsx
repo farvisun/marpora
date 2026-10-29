@@ -17,6 +17,7 @@ import { imageAt, imageNode, removeImage, setImageSrc, setImageZoom, switchImage
 import { frontMatterValue, rootedSrc, setFrontMatterValue } from "./editor/frontmatter";
 import { DocSync } from "./editor/sync";
 import { remoteHighlight } from "./editor/remotehighlight";
+import { aiTarget, PRESETS } from "./editor/ai";
 import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
 import { blockOfLine, SourceMode } from "./chrome/source";
@@ -119,7 +120,7 @@ async function main() {
   const mountEditor = (el: HTMLElement) => {
     view = createEditor(el, {
       doc,
-      plugins: [sync.plugin(), remoteHighlight()],
+      plugins: [sync.plugin(), remoteHighlight(), aiTarget()],
       assetUrl: (src) => backend.assetUrl(ui.path, rootedSrc(src, imageRoot)),
       openLink: (href) => backend.openLink(href),
       saveImage: async (image) =>
@@ -213,6 +214,7 @@ async function main() {
           view.focus();
         }}
         mountSource={(el) => (sourceHost = el)}
+        view={() => view}
         onOutlineClick={(pos) => {
           const tr = view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos + 1)));
           view.dispatch(tr);
@@ -416,6 +418,9 @@ async function main() {
       case "table":
         if (source.active) return;
         return setUi("tableDialog", true);
+      case "ai-ask":
+        if (source.active) return;
+        return setUi("inlineAi", { instruction: "", run: false, seq: (ui.inlineAi?.seq ?? 0) + 1 });
       case "insert-local-images":
         return void insertLocalImages().catch(report);
       case "open-location":
@@ -512,6 +517,13 @@ async function main() {
       case "find-previous":
         return search.step(-1);
       default:
+        if (id.startsWith("ai:")) {
+          const preset = PRESETS.find((p) => p.id === id.slice(3));
+          if (!preset || source.active) return;
+          // Translate waits for the language; the others run at once.
+          const run = preset.id !== "translate";
+          return setUi("inlineAi", { instruction: preset.instruction, run, seq: (ui.inlineAi?.seq ?? 0) + 1 });
+        }
         if (id.startsWith("theme:")) return void backend.setTheme(id.slice(6));
         if (id.startsWith("image-zoom:")) return void (!source.active && setImageZoom(view, Number(id.slice(11))));
         if (id.startsWith("image-insert:"))

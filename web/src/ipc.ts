@@ -660,13 +660,15 @@ export class MemoryBackend implements Backend {
 
   private aiHandlers: ((e: AiEvent) => void)[] = [];
   private aiCancelled = new Set<number>();
-  /** Test hook: AI requests made, and the answers to give (else an echo). */
+  /** Test hook: AI requests made, and the answers to give (else an echo); an answer
+   * starting `error:` fails with the rest. */
   aiRequests: AiRequest[] = [];
   aiReplies: string[] = [];
   async aiStart(id: number, request: AiRequest) {
     this.aiRequests.push(request);
     const answer = this.aiReplies.shift() ?? `AI: ${request.messages.at(-1)?.content ?? ""}`;
     const send = (e: AiEvent) => !this.aiCancelled.has(id) && this.aiHandlers.forEach((h) => h(e));
+    if (answer.startsWith("error:")) return void setTimeout(() => send({ id, error: answer.slice(6) }), 10);
     // In pieces, as a model streams.
     const pieces = answer.match(/[\s\S]{1,8}/g) ?? [];
     pieces.forEach((text, i) => setTimeout(() => send({ id, text }), 10 * (i + 1)));

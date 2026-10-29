@@ -1819,3 +1819,53 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
   to { background-color: transparent; }
 }
 #write .md-remote-edit { animation: md-remote-fade 1.6s ease-out; border-radius: 2px; }
+
+/* AI › Ask AI… (chrome/InlineAi.tsx) */
+.md-ai-target { background-color: rgba(64, 120, 192, 0.18); border-radius: 2px; }
+.md-ai-caret { display: inline-block; width: 2px; height: 1.1em; margin-right: -2px; vertical-align: text-bottom; background-color: var(--primary-color, #4078c0); }
+#md-ai-inline {
+  position: fixed;
+  z-index: 9999;
+  width: 520px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  font-size: 13px;
+  color: var(--text-color);
+  background-color: var(--side-bar-bg-color, #fafafa);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.md-ai-input { display: flex; gap: 6px; align-items: center; }
+.md-ai-input input {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 25px;
+  padding: 0 6px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: var(--bg-color, #fff);
+  color: inherit;
+}
+.md-ai-input input:focus { outline: 0; border-color: var(--primary-color, #4078c0); }
+.md-ai-stop { font-size: 12px; padding: 2px 8px; }
+.md-ai-presets { list-style: none; margin: 4px 0 0; padding: 0; cursor: default; }
+.md-ai-presets li { padding: 3px 8px; border-radius: 3px; line-height: 20px; }
+.md-ai-presets li.active { background-color: var(--active-file-bg-color, rgba(0, 0, 0, 0.06)); color: var(--active-file-text-color, inherit); }
+.md-ai-preview {
+  margin-top: 6px;
+  padding: 6px 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg-color, #fff);
+  border-radius: 3px;
+}
+.md-ai-error { margin-top: 6px; padding: 6px 8px; color: #c33; }
+.md-ai-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.md-ai-actions .btn { font-size: 12px; padding: 2px 10px; }
+.md-ai-actions kbd { margin-left: 6px; font-family: inherit; font-size: 11px; opacity: 0.6; }

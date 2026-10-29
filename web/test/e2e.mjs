@@ -1081,6 +1081,79 @@ await disk.evaluate(() => window.marpora.backend.changeOnDisk("# From disk\n\nTh
 await disk.waitForTimeout(300);
 check("source mode shows the change", (await disk.evaluate(() => window.marpora.source.codeMirror.getValue())) === "# From disk\n\nThree\n");
 
+// AI › Ask AI…: a prompt under the selection; the answer streams into a preview and
+// replaces the selection on Enter, as one undo step.
+const ai = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+ai.on("pageerror", (e) => errors.push(e.message));
+await ai.goto(process.env.URL ?? "http://localhost:1420/");
+await ai.waitForSelector("#write");
+const aiText = () => ai.evaluate(async () => {
+  await window.marpora.sync.flush();
+  return (await window.marpora.backend.documentText(1)).text;
+});
+const aiSelect = (word) => ai.evaluate((word) => {
+  const { view } = window.marpora;
+  let pos = -1;
+  view.state.doc.descendants((n, p) => { if (pos < 0 && n.isText && n.text.includes(word)) pos = p + n.text.indexOf(word); });
+  const Sel = view.state.selection.constructor;
+  view.dispatch(view.state.tr.setSelection(word ? Sel.create(view.state.doc, pos, pos + word.length) : Sel.atEnd(view.state.doc)));
+  view.focus();
+}, word);
+await ai.evaluate(async () => {
+  await window.marpora.backend.setText(1, "One two three.\n\nSecond para.\n");
+  await window.marpora.sync.resync();
+});
+const aiBox = ai.locator("#md-ai-inline");
+await aiSelect("two");
+await ai.evaluate(() => window.marpora.handleMenu("ai-ask"));
+await aiBox.waitFor();
+check("ai: prompt opens with presets", (await ai.locator(".md-ai-presets li").allTextContents()).includes("Improve Writing") &&
+  !(await ai.locator(".md-ai-presets li").allTextContents()).includes("Continue Writing") &&
+  (await ai.evaluate(() => document.activeElement?.closest("#md-ai-inline") !== null)));
+check("ai: target stays marked", (await ai.locator("#write .md-ai-target").textContent()) === "two");
+await ai.evaluate(() => window.marpora.backend.aiReplies.push("**TWO**"));
+await ai.keyboard.type("shout it");
+await ai.keyboard.press("Enter");
+await ai.locator(".md-ai-actions .btn-primary").waitFor();
+const aiAsked = await ai.evaluate(() => window.marpora.backend.aiRequests.at(-1));
+check("ai: request has the document and the passage", aiAsked.system.includes("<document>\nOne two three.") &&
+  aiAsked.messages[0].content.includes("<passage>\ntwo\n</passage>") && aiAsked.messages[0].content.endsWith("shout it"),
+  JSON.stringify(aiAsked));
+check("ai: answer previewed", (await ai.locator(".md-ai-preview").textContent()) === "**TWO**");
+await ai.keyboard.press("Enter");
+check("ai: enter replaces the selection", (await aiText()) === "One **TWO** three.\n\nSecond para.\n" &&
+  (await aiBox.count()) === 0 && (await ai.locator("#write .md-ai-target").count()) === 0, await aiText());
+await ai.keyboard.press("Meta+z");
+check("ai: one undo step", (await aiText()) === "One two three.\n\nSecond para.\n", await aiText());
+await aiSelect("Second");
+await ai.evaluate(() => window.marpora.backend.aiReplies.push("```markdown\n- a\n- b\n```"));
+await ai.evaluate(() => window.marpora.handleMenu("ai:summarize"));
+await ai.locator(".md-ai-actions .btn-primary").waitFor();
+check("ai: preset runs at once", (await ai.evaluate(() => window.marpora.backend.aiRequests.at(-1).messages[0].content)).endsWith("Summarize it in a few sentences."));
+await ai.keyboard.press("Alt+Enter");
+check("ai: insert below, unfenced", (await aiText()) === "One two three.\n\nSecond para.\n\n- a\n- b\n", await aiText());
+await aiSelect("");
+await ai.evaluate(() => window.marpora.backend.aiReplies.push("More."));
+await ai.evaluate(() => window.marpora.handleMenu("ai:continue"));
+await ai.locator(".md-ai-actions .btn-primary").waitFor();
+check("ai: continue writes at the cursor", (await ai.evaluate(() => window.marpora.backend.aiRequests.at(-1).messages[0].content)).includes("<before-cursor>") &&
+  (await ai.locator(".md-ai-actions .btn-primary").textContent()).startsWith("Insert"));
+await ai.keyboard.press("Escape");
+check("ai: escape discards", (await aiBox.count()) === 0 && (await aiText()).endsWith("- b\n"), await aiText());
+await aiSelect("two");
+await ai.evaluate(() => window.marpora.backend.aiReplies.push("error:no Anthropic API key"));
+await ai.evaluate(() => window.marpora.handleMenu("ai:fix"));
+await ai.locator(".md-ai-error").waitFor();
+check("ai: errors show", (await ai.locator(".md-ai-error").textContent()) === "no Anthropic API key");
+await ai.mouse.click(900, 650);
+check("ai: a click outside closes", (await aiBox.count()) === 0);
+await ai.evaluate(() => window.marpora.handleMenu("ai:translate"));
+await aiBox.waitFor();
+check("ai: translate asks for the language", (await ai.locator(".md-ai-input input").inputValue()) === "Translate it to " &&
+  (await ai.evaluate(() => window.marpora.backend.aiRequests.length)) === 4);
+await ai.keyboard.press("Escape");
+await ai.close();
+
 // Preferences: Typora's markup; changes go to the app, and search marks matches.
 const prefs = await browser.newPage({ viewport: { width: 800, height: 600 } });
 prefs.on("pageerror", (e) => errors.push(e.message));
