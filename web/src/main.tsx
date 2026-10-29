@@ -18,6 +18,7 @@ import { frontMatterValue, rootedSrc, setFrontMatterValue } from "./editor/front
 import { DocSync } from "./editor/sync";
 import { remoteHighlight } from "./editor/remotehighlight";
 import { aiTarget, PRESETS } from "./editor/ai";
+import { isDeck, slideAt, slideStart } from "./marp/marp";
 import { connect, inTauri, report, type Settings } from "./ipc";
 import { Search, editorTarget, sourceTarget } from "./chrome/search";
 import { blockOfLine, SourceMode } from "./chrome/source";
@@ -86,6 +87,8 @@ async function main() {
     const { from, to, empty } = view.state.selection;
     const selected = empty ? "" : view.state.doc.textBetween(from, to, "\n", " ");
     setUi("counts", countText(docText(view.state.doc), selected));
+    setUi("deck", isDeck(view.state.doc));
+    setUi("docSeq", (n) => n + 1);
   };
 
   setClipboardWriter((text, html) => backend.writeClipboard(text, html));
@@ -134,6 +137,7 @@ async function main() {
         }
         const head = v.state.selection.head;
         setUi("activeHeading", ui.outline.findLastIndex((h) => h.pos <= head));
+        if (ui.slidePreview) setUi("slide", slideAt(v.state.doc, head));
         if (!refreshTimer) refreshTimer = setTimeout(refresh, 150);
         search.refresh();
         clearTimeout(selectionTimer);
@@ -215,6 +219,18 @@ async function main() {
         }}
         mountSource={(el) => (sourceHost = el)}
         view={() => view}
+        slides={{
+          markdown: async () => {
+            await sync.flush();
+            return (await backend.documentText(opened.id)).text;
+          },
+          assetUrl: (src) => backend.assetUrl(ui.path, rootedSrc(src, imageRoot)),
+          gotoSlide: (index) => {
+            const at = slideStart(view.state.doc, index);
+            view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(at))).scrollIntoView());
+            view.focus();
+          },
+        }}
         onOutlineClick={(pos) => {
           const tr = view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos + 1)));
           view.dispatch(tr);
@@ -228,6 +244,11 @@ async function main() {
     document.body,
   );
   refresh();
+  // A Marp deck opens with its slides showing.
+  if (ui.deck) {
+    setUi("slide", slideAt(view.state.doc, view.state.selection.head));
+    setUi("slidePreview", true);
+  }
   view.focus();
   try {
     const pending = JSON.parse(sessionStorage.getItem(GOTO_KEY) ?? "null");
@@ -419,7 +440,10 @@ async function main() {
         if (source.active) return;
         return setUi("tableDialog", true);
       case "ai-chat":
-        return setUi("aiChat", !ui.aiChat);
+        return setUi({ aiChat: !ui.aiChat, slidePreview: false });
+      case "slide-preview":
+        if (!ui.slidePreview) setUi("slide", slideAt(view.state.doc, view.state.selection.head));
+        return setUi({ slidePreview: !ui.slidePreview, aiChat: false });
       case "ai-ask":
         if (source.active) return;
         return setUi("inlineAi", { instruction: "", run: false, seq: (ui.inlineAi?.seq ?? 0) + 1 });

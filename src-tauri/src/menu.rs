@@ -488,6 +488,9 @@ const VIEW_MODES: &[Item] = &[
     ("focus-mode", "Focus Mode", Some("F8")),
     ("typewriter-mode", "Typewriter Mode", Some("F9")),
     ("-", "", None),
+    // Marp decks (`marp: true` in the front matter): web/src/chrome/SlidePreview.tsx.
+    ("slide-preview", "Slide Preview", Some("CmdOrCtrl+Alt+M")),
+    ("-", "", None),
 ];
 
 const VIEW_SIDEBAR: &[Item] = &[

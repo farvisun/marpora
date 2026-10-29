@@ -93,6 +93,14 @@ export const [ui, setUi] = createStore({
   inlineAi: null as { instruction: string; run: boolean; seq: number } | null,
   /** AI › AI Chat's panel is showing (chrome/AiChat.tsx). */
   aiChat: false,
+  /** View › Slide Preview is showing (chrome/SlidePreview.tsx). */
+  slidePreview: false,
+  /** The document is a Marp deck (`marp: true`). */
+  deck: false,
+  /** The slide holding the cursor, in a deck. */
+  slide: 0,
+  /** Bumped (debounced) when the document changes. */
+  docSeq: 0,
   /** Bumped when the sidebar should list its folder again (Show hidden files changed). */
   libraryVersion: 0,
   /** The sidebar file being renamed in place. */

@@ -6,6 +6,7 @@ import type { EditorView } from "prosemirror-view";
 import type { Backend } from "../ipc";
 import { AiChat } from "./AiChat";
 import { InlineAi } from "./InlineAi";
+import { SlidePreview, type SlidePreviewProps } from "./SlidePreview";
 import { OutlinePopover } from "./OutlinePopover";
 import { QuickOpen } from "./QuickOpen";
 import type { Search } from "./search";
@@ -31,6 +32,7 @@ export interface ChromeProps {
   /** Insert a table of `cols` columns and `rows` rows, the header included. */
   onInsertTable(cols: number, rows: number): void;
   view(): EditorView;
+  slides: SlidePreviewProps;
 }
 
 export function App(props: ChromeProps) {
@@ -53,6 +55,7 @@ export function App(props: ChromeProps) {
       <OutlinePopover onOutlineClick={props.onOutlineClick} />
       <InlineAi backend={props.backend} view={props.view} />
       <AiChat backend={props.backend} view={props.view} />
+      <SlidePreview {...props.slides} />
       <Show when={ui.tableDialog}>
         <TableDialog onInsert={props.onInsertTable} />
       </Show>

@@ -1940,3 +1940,30 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
 .md-ai-chat-md pre { white-space: pre-wrap; padding: 6px 8px; border-radius: 4px; background: rgba(0, 0, 0, 0.05); }
 .md-ai-chat-md table { border-collapse: collapse; }
 .md-ai-chat-md th, .md-ai-chat-md td { border: 1px solid rgba(0, 0, 0, 0.15); padding: 2px 6px; }
+
+/* View › Slide Preview (chrome/SlidePreview.tsx) */
+:root { --slide-preview-width: 38%; }
+.slide-preview-open content,
+.slide-preview-open footer.ty-footer,
+.slide-preview-open #md-searchpanel { right: var(--slide-preview-width); }
+#marp-preview {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--slide-preview-width);
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--text-color);
+  background-color: var(--side-bar-bg-color, #f3f3f3);
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 8;
+}
+.marp-preview-header { display: flex; align-items: center; gap: 8px; padding: 30px 8px 8px 14px; }
+.marp-preview-title { font-weight: 600; }
+.marp-preview-count { flex: 1; opacity: 0.6; font-variant-numeric: tabular-nums; }
+.marp-preview-btn { border: 0; background: transparent; color: inherit; font-size: 16px; line-height: 16px; padding: 2px 6px; border-radius: 4px; opacity: 0.75; }
+.marp-preview-btn:hover { background-color: rgba(0, 0, 0, 0.07); opacity: 1; }
+.marp-preview-slides { flex: 1; overflow-y: auto; }

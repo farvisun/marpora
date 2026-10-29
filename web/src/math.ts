@@ -84,6 +84,11 @@ const macros: Record<string, string | [string, number]> = {
 
 let loading: Promise<MathJaxObject> | null = null;
 
+/** Load the editor's MathJax, if it is not yet; settles either way. */
+export function mathJaxSettled(): Promise<unknown> {
+  return load().catch(() => {});
+}
+
 function load(): Promise<MathJaxObject> {
   loading ??= new Promise<MathJaxObject>((resolve, reject) => {
     const base = `${import.meta.env.BASE_URL}vendor`;

@@ -1187,6 +1187,49 @@ await chat.getByText("New Chat").click();
 check("chat: new chat clears", (await chat.locator(".md-ai-chat-msg").count()) === 0);
 await ai.close();
 
+// View › Slide Preview: a Marp deck's slides beside the editor, in step with the text.
+const deck = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+deck.on("pageerror", (e) => errors.push(e.message));
+await deck.goto(process.env.URL ?? "http://localhost:1420/");
+await deck.waitForSelector("#write");
+await deck.evaluate(async () => {
+  await window.marpora.backend.setText(1, "---\nmarp: true\n---\n\n# One\n\n$$\nx^2\n$$\n\n---\n\n## Two\n\n$e^{i\\pi}$\n\n---\n\n## Three\n");
+  await window.marpora.sync.resync();
+});
+// The editor's MathJax 4 first: Marp's bundled MathJax 3 must load beside it.
+await deck.waitForSelector("#write mjx-container", { timeout: 10000 });
+await deck.evaluate(() => window.marpora.handleMenu("slide-preview"));
+const deckSlides = () => deck.evaluate(() => [...(document.querySelector(".marp-preview-slides")?.shadowRoot?.querySelectorAll("svg[data-marpit-svg]") ?? [])].length);
+await deck.waitForFunction(() => document.querySelector(".marp-preview-slides")?.shadowRoot?.querySelectorAll("svg[data-marpit-svg]").length === 3);
+check("slides: preview shows the deck", (await deckSlides()) === 3 && (await deck.evaluate(() => document.body.classList.contains("slide-preview-open"))));
+check("slides: math from the saved text", await deck.evaluate(() => !!document.querySelector(".marp-preview-slides").shadowRoot.querySelectorAll("svg[data-marpit-svg]")[1].querySelector("mjx-container, .MathJax, svg svg")));
+await deck.evaluate(() => {
+  const svg = document.querySelector(".marp-preview-slides").shadowRoot.querySelectorAll("svg[data-marpit-svg]")[1];
+  svg.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
+});
+await deck.waitForTimeout(100);
+check("slides: a click goes to the slide", (await deck.evaluate(() => {
+  const { view } = window.marpora;
+  return view.state.doc.resolve(view.state.selection.head).parent.textContent;
+})) === "Two" && (await deck.locator(".marp-preview-count").textContent()) === "2 / 3");
+await deck.evaluate(() => {
+  const { view } = window.marpora;
+  view.dispatch(view.state.tr.setSelection(view.state.selection.constructor.atEnd(view.state.doc)));
+});
+await deck.waitForFunction(() => document.querySelector(".marp-preview-count")?.textContent === "3 / 3");
+check("slides: the cursor's slide is marked", await deck.evaluate(() => document.querySelector(".marp-preview-slides").shadowRoot.querySelectorAll("svg[data-marpit-svg]")[2].classList.contains("current")));
+await deck.evaluate(async () => {
+  const { view } = window.marpora;
+  const md = "\n\n---\n\n## Four\n";
+  await window.marpora.backend.setText(1, (await window.marpora.backend.documentText(1)).text + md);
+  await window.marpora.sync.resync();
+});
+await deck.waitForFunction(() => document.querySelector(".marp-preview-slides")?.shadowRoot?.querySelectorAll("svg[data-marpit-svg]").length === 4, null, { timeout: 3000 }).catch(() => {});
+check("slides: edits show", (await deckSlides()) === 4, String(await deckSlides()));
+await deck.evaluate(() => window.marpora.handleMenu("ai-chat"));
+check("slides: chat takes the place of the preview", (await deck.locator("#marp-preview").count()) === 0 && (await deck.locator("#md-ai-chat").count()) === 1);
+await deck.close();
+
 // Preferences: Typora's markup; changes go to the app, and search marks matches.
 const prefs = await browser.newPage({ viewport: { width: 800, height: 600 } });
 prefs.on("pageerror", (e) => errors.push(e.message));
