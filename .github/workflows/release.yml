@@ -17,6 +17,9 @@ concurrency:
 jobs:
   macos:
     runs-on: macos-latest
+    outputs:
+      version: ${{ steps.cask.outputs.version }}
+      sha256: ${{ steps.cask.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,3 +77,33 @@ jobs:
           cp "$dmg" Marpora.dmg
           gh release upload "$GITHUB_REF_NAME" Marpora.dmg --clobber
           gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+
+      - name: Values for the Homebrew cask
+        id: cask
+        run: |
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(shasum -a 256 Marpora.dmg | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+  cask:
+    needs: macos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update the cask in farvisun/homebrew-tap
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
+          VERSION: ${{ needs.macos.outputs.version }}
+          SHA256: ${{ needs.macos.outputs.sha256 }}
+        run: |
+          mkdir -p ~/.ssh && echo "$TAP_DEPLOY_KEY" > ~/.ssh/tap && chmod 600 ~/.ssh/tap
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap -o StrictHostKeyChecking=accept-new"
+          git clone git@github.com:farvisun/homebrew-tap.git tap
+          mkdir -p tap/Casks
+          sed -e "s/@VERSION@/$VERSION/" -e "s/@SHA256@/$SHA256/" packaging/marpora.rb > tap/Casks/marpora.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/marpora.rb
+          git diff --cached --quiet && exit 0
+          git commit -m "marpora $VERSION"
+          git push
