@@ -25,7 +25,7 @@ in the manner of Typora, with AI built in and Marp slide decks.
 
 ## Install
 
-Download [Marpora.dmg](https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg)
+With [Homebrew](https://brew.sh): `brew install --cask farvisun/tap/marpora`. Or download [Marpora.dmg](https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg)
 (macOS 12 or later, Apple Silicon and Intel), open it and drag Marpora to Applications.
 
 Marpora is ad-hoc signed, not notarized, so macOS blocks its first launch. Open
@@ -87,7 +87,8 @@ pnpm exec vite & pnpm test:e2e    # the editor in Playwright WebKit, with an in-
 
 ## Releasing
 
-Bump `version` in `Cargo.toml` and `web/package.json`, commit, then push a tag:
+Bump `version` in `Cargo.toml` and `web/package.json`, add the version's section to
+[CHANGELOG.md](CHANGELOG.md), commit, then push a tag:
 
 ```sh
 git tag v1.0.1 && git push origin v1.0.1

@@ -1,0 +1,29 @@
+name: Bug report
+description: Something in Marpora is wrong or missing
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options: [Editor, Slides (Marp), Export, AI and agents, Updates, Other]
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Marpora version (Marpora › About Marpora), macOS version, Mac model
+      placeholder: "1.0.2, macOS 15.4, MacBook Air M2"
+  - type: textarea
+    id: sample
+    attributes:
+      label: A Markdown sample that shows it
+      description: The smallest document that reproduces the problem, if it's about rendering or export.
+      render: markdown
