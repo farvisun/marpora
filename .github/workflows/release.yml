@@ -21,7 +21,7 @@ jobs:
       version: ${{ steps.cask.outputs.version }}
       sha256: ${{ steps.cask.outputs.sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -30,10 +30,10 @@ jobs:
       # Must match the wasm-bindgen version in Cargo.lock.
       - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -46,7 +46,7 @@ jobs:
           version=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
           test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME but Cargo.toml has $version"; exit 1; }
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Signs the update archives; the public key is in tauri.conf.json.
@@ -65,7 +65,7 @@ jobs:
 
             Marpora is ad-hoc signed, not notarized, so macOS blocks its first launch. Open **System Settings › Privacy & Security** and click **Open Anyway**, or run `xattr -dr com.apple.quarantine /Applications/Marpora.app`. Later versions install from inside the app (**Marpora › Check for Updates…**).
           releaseDraft: true
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
 
       # A name without the version, so https://github.com/farvisun/marpora/releases/latest/download/Marpora.dmg
       # always gets the newest app.
@@ -88,7 +88,7 @@ jobs:
     needs: macos
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Update the cask in farvisun/homebrew-tap
         env:
           TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
