@@ -18,6 +18,10 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # CodeMirror 6 is a different library (the editor is built on v5's API).
+      - dependency-name: codemirror
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
