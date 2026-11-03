@@ -29,8 +29,41 @@ mod watch;
 mod windows;
 
 use std::path::PathBuf;
+#[cfg(target_os = "macos")]
+use std::sync::Mutex;
 
 use tauri::{Manager, RunEvent, WindowEvent};
+
+/// Files macOS hands over while the app is launching. Its open-documents event arrives
+/// before `setup` has run, when no window can open yet, so they wait for `RunEvent::Ready`.
+#[cfg(target_os = "macos")]
+struct LaunchFiles(Mutex<Option<Vec<PathBuf>>>);
+
+#[cfg(target_os = "macos")]
+impl Default for LaunchFiles {
+    fn default() -> Self {
+        LaunchFiles(Mutex::new(Some(Vec::new())))
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl LaunchFiles {
+    /// Keep `paths` while launching; once that is over, hand them back to open now.
+    fn hold(&self, paths: Vec<PathBuf>) -> Vec<PathBuf> {
+        match self.0.lock().unwrap().as_mut() {
+            Some(held) => {
+                held.extend(paths);
+                Vec::new()
+            }
+            None => paths,
+        }
+    }
+
+    /// End the launch and return the files that waited for it.
+    fn finish(&self) -> Vec<PathBuf> {
+        self.0.lock().unwrap().take().unwrap_or_default()
+    }
+}
 
 pub fn run() {
     let builder = tauri::Builder::default();
@@ -39,6 +72,8 @@ pub fn run() {
     #[cfg(all(debug_assertions, target_os = "macos"))]
     let builder =
         builder.activate_ignoring_other_apps(std::env::var_os("MARPORA_BACKGROUND").is_none());
+    #[cfg(target_os = "macos")]
+    let builder = builder.manage(LaunchFiles::default());
     let app = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -189,13 +224,16 @@ pub fn run() {
         // Files opened from Finder or `open -a Marpora file.md`.
         #[cfg(target_os = "macos")]
         RunEvent::Opened { urls } => {
-            for url in urls {
-                if let Ok(path) = url.to_file_path() {
-                    let _ = open_path(app, path);
-                }
+            let paths = urls.iter().filter_map(|u| u.to_file_path().ok()).collect();
+            for path in app.state::<LaunchFiles>().hold(paths) {
+                let _ = open_path(app, path);
             }
         }
         RunEvent::Ready => {
+            #[cfg(target_os = "macos")]
+            for path in app.state::<LaunchFiles>().finish() {
+                let _ = open_path(app, path);
+            }
             // Without a file to open, start with an untitled document.
             if app.state::<docs::Docs>().is_empty() {
                 let _ = windows::open(app, None);
@@ -245,5 +283,23 @@ fn open_path(app: &tauri::AppHandle, path: PathBuf) -> tauri::Result<()> {
         windows::open(app, Some(path))
     } else {
         Ok(())
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn files_wait_for_the_launch_and_later_ones_open_at_once() {
+        let files = LaunchFiles::default();
+        assert!(files.hold(vec!["a.md".into()]).is_empty());
+        assert!(files.hold(vec!["b.md".into()]).is_empty());
+        assert_eq!(
+            files.finish(),
+            [PathBuf::from("a.md"), PathBuf::from("b.md")]
+        );
+        assert_eq!(files.hold(vec!["c.md".into()]), [PathBuf::from("c.md")]);
+        assert!(files.finish().is_empty());
     }
 }
