@@ -32,12 +32,12 @@
     "prosemirror-inputrules": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",
     "prosemirror-model": "^1.25.12",
-    "prosemirror-schema-list": "^1.5.1",
+    "prosemirror-schema-list": "^1.6.0",
     "prosemirror-state": "^1.4.4",
     "prosemirror-transform": "^1.12.4",
-    "prosemirror-view": "^1.42.8",
+    "prosemirror-view": "^1.42.9",
     "raphael": "2.3.0",
-    "solid-js": "^1.9.17"
+    "solid-js": "^1.9.18"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",
@@ -45,7 +45,7 @@
     "playwright": "^1.64.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
-    "vite-plugin-solid": "^2.11.14",
-    "vitest": "^5.0.5"
+    "vite-plugin-solid": "^2.11.15",
+    "vitest": "^5.1.0"
   }
 }
