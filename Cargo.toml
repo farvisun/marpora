@@ -5,7 +5,7 @@ members = ["crates/md", "crates/core", "crates/llm", "src-tauri"]
 [workspace.package]
 edition = "2024"
 version = "1.0.3"
-license = "MIT"
+license = "Apache-2.0"
 
 [workspace.dependencies]
 comrak = { version = "0.59", default-features = false }
