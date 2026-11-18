@@ -364,7 +364,11 @@ const TEXT_DIRECTION: &[Item] = &[
     ("dir-ltr", "Left to Right", None),
     ("dir-rtl", "Right to Left", None),
     ("-", "", None),
-    ("dir-toggle", "Toggle Text Direction", Some("CmdOrCtrl+Alt+Shift+D")),
+    (
+        "dir-toggle",
+        "Toggle Text Direction",
+        Some("CmdOrCtrl+Alt+Shift+D"),
+    ),
 ];
 
 const PARAGRAPH_END: &[Item] = &[
