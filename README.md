@@ -101,5 +101,5 @@ release with `latest.json`, the feed the app's updater reads. The landing page i
 
 ## License
 
-[MIT](LICENSE). MathJax, Mermaid, Marp Core, CodeMirror and the other bundled libraries
+[Apache-2.0](LICENSE). Keep the [NOTICE](NOTICE) in any copy or derivative work. MathJax, Mermaid, Marp Core, CodeMirror and the other bundled libraries
 keep their own licences.
