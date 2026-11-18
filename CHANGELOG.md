@@ -4,6 +4,8 @@ All notable changes to Marpora are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-11-18
+
 ### Added
 
 - Right-to-left text: paragraphs, headings, list items, quotes and tables in Persian, Arabic or Hebrew show right to left, decided by their first letter or by most of their letters. Paragraph › Text Direction (⌥⇧⌘D toggles) sets a block by hand; the choice is remembered per file and never written to it.
@@ -41,7 +43,8 @@ All notable changes to Marpora are listed here. The format follows [Keep a Chang
 - AI: ask about the selection, chat about the document or the files in the folder, custom prompts from a prompts folder, and agent edits that ask before they are applied.
 - Updates from GitHub releases, installed from inside the app.
 
-[Unreleased]: https://github.com/farvisun/marpora/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/farvisun/marpora/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/farvisun/marpora/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/farvisun/marpora/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/farvisun/marpora/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/farvisun/marpora/compare/v1.0.0...v1.0.1
