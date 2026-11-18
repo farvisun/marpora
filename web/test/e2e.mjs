@@ -514,10 +514,10 @@ const contextOf = async (locator) => {
   return inline.evaluate(() => JSON.stringify(window.marpora.backend.contextMenu));
 };
 let cx = await contextOf(inline.locator("#write h2"));
-check("context menu on a heading", cx === JSON.stringify({ editor: true, link: false, image: false, table: false, block: null, active: ["heading-2"] }), cx);
+check("context menu on a heading", cx === JSON.stringify({ editor: true, link: false, image: false, table: false, block: null, active: ["heading-2", "dir-auto"] }), cx);
 cx = await contextOf(inline.locator("#write a").first());
 check("context menu on a link", /"link":true/.test(cx) &&
-  JSON.parse(cx).active.sort().join() === "link,paragraph,quote,strong", cx);
+  JSON.parse(cx).active.sort().join() === "dir-auto,link,paragraph,quote,strong", cx);
 cx = await contextOf(inline.locator("#write td").first());
 check("context menu in a table", /"table":true/.test(cx), cx);
 cx = await contextOf(inline.locator("#write pre.md-fences").first());

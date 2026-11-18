@@ -358,6 +358,15 @@ const LIST_INDENTATION: &[Item] = &[
     ("outdent", "Outdent", Some("CmdOrCtrl+[")),
 ];
 
+/// Paragraph › Text Direction: how the blocks show, never written to the file.
+const TEXT_DIRECTION: &[Item] = &[
+    ("dir-auto", "Auto", None),
+    ("dir-ltr", "Left to Right", None),
+    ("dir-rtl", "Right to Left", None),
+    ("-", "", None),
+    ("dir-toggle", "Toggle Text Direction", Some("CmdOrCtrl+Alt+Shift+D")),
+];
+
 const PARAGRAPH_END: &[Item] = &[
     ("-", "", None),
     ("paragraph-before", "Insert Paragraph Before", None),
@@ -816,6 +825,11 @@ pub fn build(app: &AppHandle<Wry>) -> tauri::Result<Menu<Wry>> {
         app,
         "List Indentation",
         items(app, LIST_INDENTATION)?,
+    )?));
+    paragraph.push(Box::new(submenu(
+        app,
+        "Text Direction",
+        items(app, TEXT_DIRECTION)?,
     )?));
     paragraph.extend(items(app, PARAGRAPH_END)?);
 

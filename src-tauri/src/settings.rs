@@ -76,6 +76,10 @@ pub struct Settings {
     pub indent_first_line: bool,
     pub hide_br: bool,
     pub ignore_line_break: bool,
+    /// Preferences › Appearance › Right-to-Left Text: the installed font Persian (and
+    /// other right-to-left) letters show in, and its size in percent. View only.
+    pub persian_font: String,
+    pub persian_font_scale: u32,
 }
 
 impl Default for Settings {
@@ -103,6 +107,8 @@ impl Default for Settings {
             indent_first_line: false,
             hide_br: false,
             ignore_line_break: false,
+            persian_font: "AzarMehr".to_owned(),
+            persian_font_scale: 100,
             export_theme: String::new(),
             export_page_break: false,
             export_append_head: String::new(),

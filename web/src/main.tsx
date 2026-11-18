@@ -8,6 +8,7 @@ import { basename, dirname } from "./chrome/library";
 import { countDoc, librarySortOf, outlineOf, setUi, ui } from "./chrome/store";
 import { dropFiles, imageExtension, insertImages } from "./editor/clipboard";
 import { insertTable } from "./editor/commands";
+import { directionStore, loadDirections, storeDirections, storedDirections } from "./editor/direction";
 import { createEditor, redraw, runCommand } from "./editor/editor";
 import { setWhitespace } from "./editor/whitespace";
 import { trackContextMenu } from "./editor/contextmenu";
@@ -26,6 +27,7 @@ import { blockOfLine, SourceMode } from "./chrome/source";
 import { fileSearchOptionsOf, onFileSearchHidden, restoreFileSearch, toggleFileSearch } from "./chrome/librarySearch";
 import { buildPattern } from "./chrome/search";
 import { setSearch } from "./editor/search";
+import { mirrorTheme, preferRtlFont, setRtlFont } from "./chrome/rtlstyle";
 import { applyTheme, themeCss } from "./chrome/theme";
 import { exportHtml, relative } from "./export";
 import { refreshDiagrams } from "./editor/diagramview";
@@ -42,8 +44,13 @@ async function main() {
   let settings = initialSettings;
   setFlavor(settings.flavor);
   setMathOptions({ autoNumber: settings.autoNumberMath });
+  /** The editor's element, once it is mounted (right-to-left styles are measured in it). */
+  let write: HTMLElement | null = null;
+  setRtlFont(settings.persianFont, settings.persianFontScale);
   const showTheme = async (id: string) => {
     setUi("theme", await applyTheme(backend, id));
+    preferRtlFont();
+    if (write) mirrorTheme(write);
     refreshDiagrams();
   };
   await showTheme(settings.theme);
@@ -60,13 +67,19 @@ async function main() {
     if (s.showHiddenFiles !== settings.showHiddenFiles) setUi("libraryVersion", (v) => v + 1);
     setUi("librarySort", librarySortOf(s));
     setUi("fileSearch", "options", fileSearchOptionsOf(s));
+    if (s.persianFont !== settings.persianFont || s.persianFontScale !== settings.persianFontScale)
+      setRtlFont(s.persianFont, s.persianFontScale);
     settings = s;
     if (view) showWhitespace(s);
     if (s.theme !== ui.theme) void showTheme(s.theme);
   });
   const { doc } = parseMarkdown(opened.text);
   setUi("path", opened.path);
-  backend.onPathChanged((path) => setUi("path", path));
+  backend.onPathChanged((path) => {
+    setUi("path", path);
+    // Directions set by hand go with the file to its new name.
+    if (view) storeDirections(path, view.state);
+  });
 
   const sync = new DocSync(backend, opened.id, doc, opened.version);
   let view!: EditorView;
@@ -125,7 +138,7 @@ async function main() {
   const mountEditor = (el: HTMLElement) => {
     view = createEditor(el, {
       doc,
-      plugins: [sync.plugin(), remoteHighlight(), aiTarget()],
+      plugins: [sync.plugin(), remoteHighlight(), aiTarget(), directionStore(() => ui.path)],
       assetUrl: (src) => backend.assetUrl(ui.path, rootedSrc(src, imageRoot)),
       openLink: (href) => backend.openLink(href),
       saveImage: async (image) =>
@@ -147,6 +160,9 @@ async function main() {
       },
     });
     showWhitespace(settings);
+    write = view.dom;
+    mirrorTheme(write);
+    loadDirections(view, storedDirections(ui.path));
   };
 
   /** Edit › Line Endings: convert the document's line endings. */

@@ -2042,3 +2042,17 @@ body.typora-export { padding-left: 30px; padding-right: 30px; }
 .presenter-next { aspect-ratio: 16 / 9; opacity: 0.85; }
 .presenter-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.55; }
 .presenter-notes { flex: 1; overflow-y: auto; white-space: pre-wrap; font-size: 16px; line-height: 1.5; padding: 10px 12px; background: #2c2c2e; border-radius: 6px; }
+
+/* Right-to-left blocks: editor/direction.ts sets `dir`, chrome/rtlstyle.ts swaps the
+   theme's list, quote and checkbox sides. */
+#write .md-task-list-item[dir="rtl"] > input { left: auto; right: 0; }
+/* Left-to-right snippets keep their order inside right-to-left text. */
+#write [dir="rtl"] :not(pre) > code { unicode-bidi: plaintext; }
+#write [dir="rtl"] .md-inline-math,
+#write [dir="rtl"] .md-image { unicode-bidi: isolate; }
+/* Code, math and raw source stay left to right inside right-to-left lists and quotes. */
+#write .md-fences,
+#write .md-math-block,
+#write .md-rawblock-input,
+#write pre.md-raw,
+#write pre.md-meta-block { direction: ltr; }

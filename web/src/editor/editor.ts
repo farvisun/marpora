@@ -7,6 +7,7 @@ import type { Node as PMNode } from "prosemirror-model";
 import { EditorState, type Plugin } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { commands } from "./commands";
+import { directionPlugin } from "./direction";
 import { focusPlugin } from "./focus";
 import { alertPlugin } from "./alert";
 import { type ClipboardOptions, clipboardPlugin } from "./clipboard";
@@ -52,6 +53,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
       tablePlugin,
       alertPlugin,
       whitespacePlugin,
+      directionPlugin,
       clipboardPlugin(opts),
       linksPlugin(opts),
       ...(opts.plugins ?? []),

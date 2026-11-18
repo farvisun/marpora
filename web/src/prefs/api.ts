@@ -75,6 +75,8 @@ export class MemoryPrefs implements PrefsApi {
     indentFirstLine: false,
     hideBr: false,
     ignoreLineBreak: false,
+    persianFont: "AzarMehr",
+    persianFontScale: 100,
     exportTheme: "",
     exportPageBreak: false,
     exportAppendHead: "",

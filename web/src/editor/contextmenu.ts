@@ -5,6 +5,7 @@
 import type { ResolvedPos } from "prosemirror-model";
 import { NodeSelection, type EditorState } from "prosemirror-state";
 import type { EditorView } from "prosemirror-view";
+import { directionAt } from "./direction";
 import { imageNode } from "./imagetools";
 import { linkAt } from "./links";
 import { schema } from "./schema";
@@ -77,7 +78,9 @@ export function menuContext(view: EditorView, target: EventTarget | null, x: num
   else if (element?.closest(".md-htmlblock")) block = "html";
   const link = !!element?.closest("a[href], .md-link") || !!linkAt(state, pos)?.attrs.href;
   const image = imagePos(view, element) !== null;
-  return { editor: true, link, image, table, block, active: activeStyles(state, $pos) };
+  const dir = directionAt(state, pos);
+  const active = [...activeStyles(state, $pos), dir.manual ? `dir-${dir.dir}` : "dir-auto"];
+  return { editor: true, link, image, table, block, active };
 }
 
 /** Tell `send` the context of each right click in `view`: on the mouse down, so it is

@@ -15,6 +15,7 @@ import type { MarkType, Node as PMNode, NodeType } from "prosemirror-model";
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from "prosemirror-schema-list";
 import { type Command, type EditorState, NodeSelection, TextSelection } from "prosemirror-state";
 import { ALERTS, setAlert } from "./alert";
+import { setDirection, toggleDirection } from "./direction";
 import { editingCommands, writeClipboard } from "./editing";
 import { tagPairs } from "./html";
 import { linkAt } from "./links";
@@ -387,6 +388,10 @@ export const commands: Record<string, Command> = {
   footnote,
   "front-matter": frontMatter,
   "copy-code": copyCode,
+  "dir-auto": setDirection(null),
+  "dir-ltr": setDirection("ltr"),
+  "dir-rtl": setDirection("rtl"),
+  "dir-toggle": toggleDirection,
   ...editingCommands,
   ...Object.fromEntries(ALERTS.map((type) => [`alert-${type}`, setAlert(type)])),
 };

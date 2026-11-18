@@ -91,6 +91,14 @@ const PARAGRAPH: &[Entry] = &[
     Item("task-list", "Task List", "Paragraph"),
 ];
 
+const TEXT_DIRECTION: &[Entry] = &[
+    Item("dir-auto", "Auto", "Paragraph"),
+    Item("dir-ltr", "Left to Right", "Paragraph"),
+    Item("dir-rtl", "Right to Left", "Paragraph"),
+    Separator,
+    Item("dir-toggle", "Toggle Text Direction", "Paragraph"),
+];
+
 const INSERT: &[Entry] = &[
     Item("insert-image", "Image", "Format"),
     Separator,
@@ -165,6 +173,7 @@ fn entries(cx: &Context) -> (Vec<Entry>, Vec<Entry>) {
         Separator,
         Sub("Format", FORMAT),
         Sub("Paragraph", PARAGRAPH),
+        Sub("Text Direction", TEXT_DIRECTION),
         Sub("Insert", INSERT),
     ];
     if cx.table {

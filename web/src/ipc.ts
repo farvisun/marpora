@@ -79,6 +79,9 @@ export interface Settings {
   hideBr: boolean;
   /** "Preserve single line break": soft breaks show as spaces. */
   ignoreLineBreak: boolean;
+  /** The installed font right-to-left letters show in, and its size in percent (chrome/rtlstyle.ts). */
+  persianFont: string;
+  persianFontScale: number;
   /** Preferences › Export: the theme exports use ("" for the window's). */
   exportTheme: string;
   /** PDF and print: each top level heading starts a page. */
@@ -368,6 +371,8 @@ export class MemoryBackend implements Backend {
     indentFirstLine: false,
     hideBr: false,
     ignoreLineBreak: false,
+    persianFont: "AzarMehr",
+    persianFontScale: 100,
     exportTheme: "",
     exportPageBreak: false,
     exportAppendHead: "",

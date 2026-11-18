@@ -91,7 +91,7 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
     checked: (s) => s[key] as boolean,
     change: (on) => update({ [key]: on }),
   });
-  const text = (key: "exportAppendHead" | "exportAppendBody" | "aiModel" | "aiBaseUrl") => ({
+  const text = (key: "exportAppendHead" | "exportAppendBody" | "aiModel" | "aiBaseUrl" | "persianFont") => ({
     value: (s: Settings) => s[key],
     change: (v: string) => update({ [key]: v }),
   });
@@ -208,6 +208,22 @@ export function Preferences(props: { api: PrefsApi; settings: Settings; themes: 
               // Typora sets this gap below the theme menu.
               spaced: true,
               buttons: [{ label: "Open Theme Folder", run: () => void props.api.openThemeFolder() }],
+            },
+          ],
+        },
+        {
+          title: "Right-to-Left Text",
+          hint: "Blocks in Persian, Arabic or Hebrew show right to left; Paragraph › Text Direction sets one by hand. Only the view changes, never the file.",
+          items: [
+            { kind: "text", label: "Persian font", placeholder: "AzarMehr", ...text("persianFont") },
+            {
+              kind: "number",
+              label: "Persian font size",
+              unit: "%",
+              min: 50,
+              max: 200,
+              value: (s) => s.persianFontScale,
+              change: (n) => update({ persianFontScale: n }),
             },
           ],
         },
