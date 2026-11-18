@@ -4,6 +4,11 @@ All notable changes to Marpora are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Right-to-left text: paragraphs, headings, list items, quotes and tables in Persian, Arabic or Hebrew show right to left, decided by their first letter or by most of their letters. Paragraph › Text Direction (⌥⇧⌘D toggles) sets a block by hand; the choice is remembered per file and never written to it.
+- Preferences › Appearance › Right-to-Left Text: the installed font Persian letters show in (AzarMehr by default) and its size. Latin text keeps the theme's font.
+
 ## [1.0.3] - 2026-11-03
 
 ### Fixed
