@@ -4,6 +4,18 @@ All notable changes to Marpora are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- Quick Open shows recent files at once and keeps the folder's files between openings while it looks again. Large folders list faster, and a symlink to a folder above no longer makes it walk in circles.
+- In Readonly Mode a plain click opens a link, as in Typora.
+
+### Fixed
+
+- Readonly Mode now holds everywhere: a formula's TeX, a code block's language, task checkboxes, table tools, menu commands and source mode's Edit actions no longer change the document. Changes made on disk still show.
+- Clicking a link inside a formula, inline HTML or a slide no longer takes the window away from the document; links open through Marpora, which only opens web, mail and file addresses.
+- `\href` in formulas keeps only web, mail and file addresses, in the editor, the slide preview, presentations and exports.
+- Inline math ends at the first `$` outside braces, as in Typora: `$\text{if $x>0$}$` is one formula instead of breaking apart when the file is opened again.
+
 ## [1.0.4] - 2026-11-18
 
 ### Added
