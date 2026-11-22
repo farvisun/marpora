@@ -4,7 +4,7 @@
 //!
 //! Like Typora, hidden entries (`.name`) and `node_modules` are skipped.
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -90,6 +90,10 @@ fn shown(dir: &Path, hidden: bool) -> impl Iterator<Item = (PathBuf, String, Met
                 return None;
             }
             let path = e.path();
+            // Other files are skipped without a stat: in a large folder, most are.
+            if e.file_type().is_ok_and(|t| t.is_file()) && !is_markdown(&path) {
+                return None;
+            }
             // Follows symlinks, so a linked folder lists like a folder.
             let meta = std::fs::metadata(&path).ok()?;
             (meta.is_dir() || (meta.is_file() && is_markdown(&path))).then_some((path, name, meta))
@@ -115,12 +119,20 @@ pub fn list_dir(dir: &Path, hidden: bool) -> Vec<Entry> {
 pub fn walk(root: &Path, limit: usize, summaries: bool, hidden: bool) -> Docs {
     let mut files = Vec::new();
     let mut queue = VecDeque::from([root.to_path_buf()]);
+    // Folders already queued: a symlink to one (or to a folder above) is walked once.
+    let mut seen: HashSet<DirKey> = std::fs::metadata(root)
+        .ok()
+        .and_then(|m| dir_key(root, &m))
+        .into_iter()
+        .collect();
     while let Some(dir) = queue.pop_front() {
         let mut entries: Vec<_> = shown(&dir, hidden).collect();
         entries.sort_by(|a, b| a.1.cmp(&b.1));
         for (path, name, meta) in entries {
             if meta.is_dir() {
-                queue.push_back(path);
+                if dir_key(&path, &meta).is_none_or(|key| seen.insert(key)) {
+                    queue.push_back(path);
+                }
                 continue;
             }
             if files.len() == limit {
@@ -147,6 +159,23 @@ pub fn walk(root: &Path, limit: usize, summaries: bool, hidden: bool) -> Docs {
         files,
         oversize: false,
     }
+}
+
+#[cfg(unix)]
+type DirKey = (u64, u64);
+#[cfg(not(unix))]
+type DirKey = PathBuf;
+
+/// What identifies a folder however it is reached: its device and inode.
+#[cfg(unix)]
+fn dir_key(_path: &Path, meta: &Metadata) -> Option<DirKey> {
+    use std::os::unix::fs::MetadataExt;
+    Some((meta.dev(), meta.ino()))
+}
+
+#[cfg(not(unix))]
+fn dir_key(path: &Path, _meta: &Metadata) -> Option<DirKey> {
+    std::fs::canonicalize(path).ok()
 }
 
 /// The first `SUMMARY_BYTES` of a file, cut back to whole characters.
@@ -511,6 +540,23 @@ mod tests {
         assert_eq!(docs.files.len(), 2);
         assert!(docs.oversize);
         assert_eq!(docs.files[0].summary, "");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn walks_each_folder_once_through_symlinks() {
+        let dir = temp_dir("loop");
+        touch(&dir.join("a.md"), "a");
+        touch(&dir.join("sub/b.md"), "b");
+        touch(&dir.join("sub/image.png"), "");
+        // A link back up would otherwise be walked until the limit.
+        std::os::unix::fs::symlink(&dir, dir.join("sub/up")).unwrap();
+        std::os::unix::fs::symlink(dir.join("sub"), dir.join("again")).unwrap();
+        let docs = walk(&dir, 100, false, false);
+        let mut names: Vec<_> = docs.files.iter().map(|d| d.name.as_str()).collect();
+        names.sort();
+        assert_eq!(names, ["a.md", "b.md"]);
+        assert!(!docs.oversize);
     }
 
     #[test]

@@ -1,8 +1,8 @@
 // Quick Open (⇧⌘O) with Typora's markup: recent files and the files in the document's
 // folder, filtered by name as you type. Ranking is in library.ts.
 
-import { createEffect, createSignal, For, on, Show } from "solid-js";
-import type { Backend, LibraryInfo } from "../ipc";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { type Backend, type LibraryInfo, report } from "../ipc";
 import { basename, highlight, type QuickItem, quickPath, rankQuick } from "./library";
 import { setUi, ui } from "./store";
 
@@ -16,10 +16,12 @@ export function QuickOpen(props: { backend: Backend; onOpenFile(path: string): v
   let listEl!: HTMLDivElement;
   const [query, setQuery] = createSignal("");
   const [recent, setRecent] = createSignal<QuickItem[]>([]);
-  const [files, setFiles] = createSignal<QuickItem[]>([]);
+  // The files of a folder, kept between openings: walking a large folder takes a while.
+  const [files, setFiles] = createSignal<{ folder: string | null; items: QuickItem[] }>({ folder: null, items: [] });
   const [searching, setSearching] = createSignal(false);
   const [info, setInfo] = createSignal<LibraryInfo>({ folder: null, openedFolder: false, home: null });
   const [active, setActive] = createSignal(0);
+  let walks = 0;
 
   createEffect(
     on(
@@ -29,21 +31,30 @@ export function QuickOpen(props: { backend: Backend; onOpenFile(path: string): v
         input.select();
         input.focus();
         setActive(0);
+        // Recent files show at once; the folder's files when its walk is done, until
+        // then those found last time.
+        const library = props.backend.libraryInfo();
+        library.then(setInfo, report);
+        props.backend
+          .recentFiles()
+          // Recent files keep their order when nothing is typed.
+          .then((recent) => setRecent(recent.map((path, i) => ({ name: basename(path), path, modified: -i }))), report);
+        const walk = ++walks;
         setSearching(true);
-        void Promise.all([props.backend.libraryInfo(), props.backend.recentFiles(), props.backend.listDocuments(false)])
-          .then(([info, recent, docs]) => {
-            setInfo(info);
-            // Recent files keep their order when nothing is typed.
-            setRecent(recent.map((path, i) => ({ name: basename(path), path, modified: -i })));
-            setFiles(docs.files.map((f) => ({ name: f.name, path: f.path, modified: f.modified })));
+        void Promise.all([library, props.backend.listDocuments(false)])
+          .then(([{ folder }, docs]) => {
+            if (walk !== walks) return;
+            setFiles({ folder, items: docs.files.map((f) => ({ name: f.name, path: f.path, modified: f.modified })) });
           })
-          .finally(() => setSearching(false));
+          .catch(report)
+          .finally(() => walk === walks && setSearching(false));
       },
     ),
   );
 
-  // The open document is never offered, and a file is listed once.
-  const sections = () => {
+  // The open document is never offered, and a file is listed once. Ranked once per
+  // change, not for each use in the list.
+  const sections = createMemo(() => {
     const { folder, home } = info();
     const seen = new Set(ui.path ? [ui.path] : []);
     const pick = (items: QuickItem[], max: number) => {
@@ -57,8 +68,9 @@ export function QuickOpen(props: { backend: Backend; onOpenFile(path: string): v
       return out;
     };
     const recentItems = pick(recent(), query().trim() ? MAX_RESULTS : RECENT_SHOWN);
-    return { recent: recentItems, files: pick(files(), MAX_RESULTS) };
-  };
+    const listed = files();
+    return { recent: recentItems, files: listed.folder === folder ? pick(listed.items, MAX_RESULTS) : [] };
+  });
   const all = () => [...sections().recent, ...sections().files];
   createEffect(on(query, () => setActive(0)));
 
