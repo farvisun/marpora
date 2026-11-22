@@ -4,6 +4,8 @@ All notable changes to Marpora are listed here. The format follows [Keep a Chang
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-22
+
 ### Changed
 
 - Quick Open shows recent files at once and keeps the folder's files between openings while it looks again. Large folders list faster, and a symlink to a folder above no longer makes it walk in circles.
@@ -55,7 +57,8 @@ All notable changes to Marpora are listed here. The format follows [Keep a Chang
 - AI: ask about the selection, chat about the document or the files in the folder, custom prompts from a prompts folder, and agent edits that ask before they are applied.
 - Updates from GitHub releases, installed from inside the app.
 
-[Unreleased]: https://github.com/farvisun/marpora/compare/v1.0.4...HEAD
+[Unreleased]: https://github.com/farvisun/marpora/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/farvisun/marpora/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/farvisun/marpora/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/farvisun/marpora/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/farvisun/marpora/compare/v1.0.1...v1.0.2
