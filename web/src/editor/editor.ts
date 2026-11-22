@@ -19,6 +19,7 @@ import { mathPlugin } from "./mathblock";
 import { hiddenSourceKeys } from "./navigation";
 import { baseKeys, typoraKeymap } from "./keymap";
 import { nodeViews, tocPlugin, type ViewContext } from "./nodeviews";
+import { readonlyPlugin } from "./readonly";
 import { revealPlugin } from "./reveal";
 import { searchPlugin } from "./search";
 import { tablePlugin } from "./table";
@@ -35,6 +36,7 @@ export function createEditor(mount: HTMLElement, opts: EditorOptions): EditorVie
   const state = EditorState.create({
     doc: opts.doc,
     plugins: [
+      readonlyPlugin,
       markdownInputRules(),
       typoraKeymap(),
       hiddenSourceKeys,

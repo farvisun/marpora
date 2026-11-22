@@ -57,17 +57,61 @@ export function openLink(view: EditorView, opts: LinkOptions, href: string) {
 
 const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform);
 
+/** ⌘-click (Ctrl-click elsewhere) opens a link; in Readonly Mode a plain click does, as in Typora. */
+function opens(view: EditorView, event: MouseEvent): boolean {
+  return !view.editable || (mac ? event.metaKey : event.ctrlKey);
+}
+
+/** The address of an `<a>`, HTML or SVG (MathJax's \href). */
+function anchorHref(a: Element): string | null {
+  return a.getAttribute("href") ?? a.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+}
+
 export function linksPlugin(opts: LinkOptions): Plugin {
   return new Plugin({
     key: new PluginKey("marpora-links"),
     props: {
       handleClick(view, pos, event) {
-        if (!(mac ? event.metaKey : event.ctrlKey)) return false;
+        if (!opens(view, event)) return false;
         const link = linkAt(view.state, pos);
         if (!link?.attrs.href) return false;
         openLink(view, opts, link.attrs.href);
         return true;
       },
+      handleDOMEvents: {
+        // The window must never follow a link itself: that would replace the document,
+        // and run a `javascript:` address in the app. Links open through `openLink`
+        // only; link marks in `handleClick`, the others (\href in a formula, an <a>
+        // in inline HTML) here.
+        click(view, event) {
+          const target = event.target as Element | null;
+          const a = target?.closest?.("a");
+          if (!a || !view.dom.contains(a)) return false;
+          event.preventDefault();
+          if (a.hasAttribute("md-inline")) return true;
+          const href = anchorHref(a);
+          if (!href) return true;
+          // \eqref: to the equation, in this document.
+          if (href.startsWith("#")) {
+            const id = safeDecode(href.slice(1));
+            const to = [...view.dom.querySelectorAll("[id]")].find((e) => e.id === id);
+            if (to) {
+              to.scrollIntoView({ block: "center" });
+              return true;
+            }
+          }
+          if (opens(view, event)) openLink(view, opts, href);
+          return true;
+        },
+      },
     },
   });
+}
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 }

@@ -13,6 +13,18 @@ import { parseMarkdown } from "../md";
 
 const utf8 = new TextEncoder();
 
+/** `command` ids that change the text (left out in Readonly Mode). */
+const SOURCE_EDITS = new Set([
+  "undo",
+  "redo",
+  "delete-line",
+  "delete-word",
+  "move-row-up",
+  "move-row-down",
+  "upper-case",
+  "lower-case",
+]);
+
 /** Byte offset of the start of each top-level block. */
 function blockStarts(text: string): number[] {
   return parseMarkdown(text).blocks.map(([start]) => start);
@@ -133,6 +145,8 @@ export class SourceMode {
   command(id: string) {
     const editor = this.editor;
     if (!editor) return;
+    // CodeMirror's readOnly stops typing only, not changes made through its API.
+    if (this.readonly && SOURCE_EDITS.has(id)) return;
     const cursor = editor.getCursor();
     const line = (n: number) => editor.getLine(n);
     const swap = (other: number) => {

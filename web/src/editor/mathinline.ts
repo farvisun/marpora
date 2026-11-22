@@ -78,7 +78,8 @@ export class InlineMathView implements NodeView {
 
   /** A click on the formula selects the node, which opens its TeX. */
   private select(e: MouseEvent) {
-    if (e.button !== 0 || this.source.contains(e.target as Node)) return;
+    // Readonly Mode: a formula is only shown (a link in it opens with a click).
+    if (e.button !== 0 || !this.view.editable || this.source.contains(e.target as Node)) return;
     e.preventDefault();
     const pos = this.getPos();
     if (pos === undefined) return;
@@ -88,7 +89,7 @@ export class InlineMathView implements NodeView {
 
   /** Put the caret at the end of the TeX. */
   private focusSource() {
-    if (document.activeElement === this.source) return;
+    if (document.activeElement === this.source || !this.view.editable) return;
     this.source.focus();
     const range = document.createRange();
     range.selectNodeContents(this.source);

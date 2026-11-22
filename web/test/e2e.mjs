@@ -1434,6 +1434,60 @@ await prefs.click(".clear-btn-icon");
 check("prefs: search cleared", (await prefs.locator(".search-hit, .no-search-hit").count()) === 0 &&
   (await prefs.locator(".no-results.display-none").count()) === 1);
 
+// Links and Readonly Mode. The window never follows a link itself; a formula's \href
+// keeps only safe addresses; in Readonly Mode a plain click opens a link and nothing
+// the user does edits the document, while changes from outside still show.
+const ro = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+ro.on("pageerror", (e) => errors.push(e.message));
+await ro.addInitScript(() => localStorage.setItem("marpora.settings", JSON.stringify({ flavor: { inlineMath: true } })));
+await ro.goto(process.env.URL ?? "http://localhost:1420/");
+await ro.waitForSelector("#write");
+const roUrl = ro.url();
+await ro.evaluate(async () => {
+  await window.marpora.backend.setText(
+    1,
+    'A $\\href{javascript:alert(1)}{a}$ $\\href{java\tscript:alert(2)}{b}$ $\\href{https://x.test/m}{m}$ $\\text{if $x$}$ [l](https://x.test/l) <a href="https://x.test/h">h</a>\n',
+  );
+  await window.marpora.sync.resync();
+});
+const mathLink = ro.locator('#write mjx-container a[href="https://x.test/m"]').first();
+await mathLink.waitFor({ timeout: 10000 });
+const roLinks = () => ro.evaluate(() => window.marpora.backend.links.join());
+check("math: unsafe \\href dropped", await ro.evaluate(() =>
+  [...document.querySelectorAll("#write mjx-container a")].every((a) => !/script/i.test(a.getAttribute("href") ?? ""))));
+check("math: $ inside a TeX group stays in the formula", await ro.evaluate(() =>
+  window.marpora.view.state.doc.firstChild.content.content.some((n) => n.attrs.tex === "\\text{if $x$}")));
+await ro.locator('#write a[href="https://x.test/h"]').click();
+check("links: plain click on HTML link opens nothing", (await roLinks()) === "" && ro.url() === roUrl);
+await ro.locator('#write a[href="https://x.test/h"]').click({ modifiers: ["Meta"] });
+check("links: ⌘-click on HTML link opens it", (await roLinks()) === "https://x.test/h");
+await ro.evaluate(() => {
+  const { view } = window.marpora;
+  view.dispatch(view.state.tr.setMeta(view.state.plugins.find((p) => p.key.startsWith("marpora-readonly")), true));
+});
+const roDoc = () => ro.evaluate(() => JSON.stringify(window.marpora.view.state.doc.toJSON()));
+const roBefore = await roDoc();
+await ro.locator('#write a[href="https://x.test/l"]').click();
+await mathLink.click();
+check("readonly: click opens links", (await roLinks()) === "https://x.test/h,https://x.test/l,https://x.test/m" && ro.url() === roUrl, await roLinks());
+await ro.locator(".md-inline-math-container > mjx-container").last().click();
+check("readonly: formula TeX does not open", await ro.evaluate(() => document.activeElement?.tagName !== "SCRIPT"));
+await ro.evaluate(() => document.querySelector(".md-inline-math script").focus());
+await ro.keyboard.type("QQ");
+await ro.evaluate(() => {
+  const { view, handleMenu } = window.marpora;
+  view.dispatch(view.state.tr.insertText("ZZ", 1));
+  handleMenu("select-all");
+  handleMenu("delete-block");
+});
+check("readonly: nothing edits", (await roDoc()) === roBefore && !(await ro.locator("#write").textContent()).includes("QQ"));
+await ro.evaluate(async () => {
+  await window.marpora.backend.setText(1, "Changed on disk\n");
+  await window.marpora.sync.resync();
+});
+check("readonly: outside changes show", (await ro.locator("#write").textContent()) === "Changed on disk");
+await ro.close();
+
 check("no page errors", errors.length === 0, errors.join("\n"));
 await browser.close();
 process.exit(failures ? 1 : 0);

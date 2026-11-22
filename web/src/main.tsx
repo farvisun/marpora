@@ -16,6 +16,7 @@ import { setClipboardWriter } from "./editor/editing";
 import { linkAt, openLink } from "./editor/links";
 import { imageAt, imageNode, removeImage, setImageSrc, setImageZoom, switchImageSyntax, withSrc } from "./editor/imagetools";
 import { frontMatterValue, rootedSrc, setFrontMatterValue } from "./editor/frontmatter";
+import { setReadonly } from "./editor/readonly";
 import { DocSync } from "./editor/sync";
 import { remoteHighlight } from "./editor/remotehighlight";
 import { aiTarget, PRESETS } from "./editor/ai";
@@ -322,6 +323,8 @@ async function main() {
   const imageFile = async (id: string) => {
     const at = imageAt(view.state);
     if (!at) return;
+    // Readonly Mode: nothing that would change the document (or its image files).
+    if (!view.editable && id !== "image-reveal" && id !== "image-copy") return;
     const file = rootedSrc(at.src, imageRoot);
     if (id === "image-copy-to" || id === "image-move-to") {
       const src = await backend.relocateImage(file, id === "image-copy-to");
@@ -630,7 +633,7 @@ async function main() {
     await win.listen<string>("menu", (e) => handleMenu(e.payload));
     // View › Readonly Mode: nothing edits the document, in either mode.
     await win.listen<boolean>("readonly", (e) => {
-      view.setProps({ editable: () => !e.payload });
+      setReadonly(view, e.payload);
       source.setReadonly(e.payload);
       document.body.classList.toggle("ty-readonly", e.payload);
     });
