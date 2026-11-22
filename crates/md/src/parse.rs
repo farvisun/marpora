@@ -275,10 +275,165 @@ impl<'s> Cx<'s> {
     fn inline_children<'a>(&self, node: &'a AstNode<'a>) -> Vec<Node> {
         let mut out = Vec::new();
         let mut marks = Vec::new();
-        for child in node.children() {
-            self.inline(child, &mut marks, &mut out);
-        }
+        self.inline_seq(node, &mut marks, &mut out);
         out
+    }
+
+    /// The inline children of `parent`. comrak ends `$…$` math at the first `$` it can,
+    /// so a `$` inside a TeX group (`$\text{if $x$}$`) splits the formula; Typora ends
+    /// it at the first `$` outside braces, and so does this.
+    fn inline_seq<'a>(&self, parent: &'a AstNode<'a>, marks: &mut Vec<Mark>, out: &mut Vec<Node>) {
+        let kids: Vec<_> = parent.children().collect();
+        let mut i = 0;
+        // The rest of `kids[i]`, a text a formula ended in: its source offset and text.
+        let mut rest: Option<(usize, String)> = None;
+        while i < kids.len() {
+            if self.flavor.inline_math
+                && let Some(group) = self.math_group(&kids[i..], rest.as_ref())
+            {
+                push_text(out, &group.before, marks);
+                out.push(with_marks(
+                    Node::new("math_inline")
+                        .attr("tex", group.tex)
+                        .attr("display", false),
+                    marks,
+                ));
+                i += group.last;
+                rest = group.after;
+                if rest.is_none() {
+                    i += 1;
+                }
+                continue;
+            }
+            match rest.take() {
+                Some((_, text)) => push_text(out, &text, marks),
+                None => self.inline(kids[i], marks, out),
+            }
+            i += 1;
+        }
+    }
+
+    /// Text or math on one line, with its source.
+    fn flat<'a>(&self, node: &'a AstNode<'a>) -> Option<Flat> {
+        let data = node.data();
+        let sp = data.sourcepos;
+        if sp.start.line == 0 || sp.start.line != sp.end.line {
+            return None;
+        }
+        let start = self.lines.offset(sp.start.line, sp.start.column);
+        let end = (self.lines.offset(sp.end.line, sp.end.column) + 1).min(self.src.len());
+        match &data.value {
+            NodeValue::Text(t) => Some(Flat::Text(start..end, t.to_string())),
+            NodeValue::Math(m) => Some(Flat::Math(start..end, m.display_math)),
+            _ => None,
+        }
+    }
+
+    /// A formula starting in `kids[0]` (in `rest` of it, when given) that comrak split
+    /// at a `$` inside braces. Only text and math between, all on one line; text on
+    /// either side must map to its source, else comrak's reading stands.
+    fn math_group<'a>(
+        &self,
+        kids: &[&'a AstNode<'a>],
+        rest: Option<&(usize, String)>,
+    ) -> Option<Group> {
+        let candidate = match &kids[0].data().value {
+            NodeValue::Text(t) => rest.map_or_else(|| t.contains('$'), |(_, r)| r.contains('$')),
+            NodeValue::Math(m) => rest.is_none() && !m.display_math && m.literal.contains('{'),
+            _ => false,
+        };
+        if !candidate {
+            return None;
+        }
+        let first = self.flat(kids[0])?;
+        let (from, text) = match (&first, rest) {
+            (Flat::Text(_, _), Some((at, text))) => (*at, text.clone()),
+            (Flat::Text(r, t), None) => (r.start, t.clone()),
+            (Flat::Math(r, _), _) => (r.start, String::new()),
+        };
+        let mut run = vec![first];
+        for kid in &kids[1..] {
+            match self.flat(kid) {
+                Some(f) if f.range().start == run[run.len() - 1].range().end => run.push(f),
+                _ => break,
+            }
+        }
+        let end = run[run.len() - 1].range().end;
+        let openers: Vec<usize> = match &run[0] {
+            Flat::Text(r, _) => (from..r.end)
+                .filter(|&p| self.src.as_bytes()[p] == b'$')
+                .collect(),
+            Flat::Math(r, _) => vec![r.start],
+        };
+        openers
+            .into_iter()
+            .find_map(|p| self.try_group(&run, p, end, (from, &text)))
+    }
+
+    fn try_group(
+        &self,
+        run: &[Flat],
+        p: usize,
+        end: usize,
+        (from, text): (usize, &str),
+    ) -> Option<Group> {
+        let src = self.src.as_bytes();
+        // Opening `$`: not escaped, not `$$`, before a non-space (comrak's rule).
+        let backslashes = src[..p].iter().rev().take_while(|&&b| b == b'\\').count();
+        let next = *src.get(p + 1)?;
+        if backslashes % 2 == 1
+            || next == b'$'
+            || next.is_ascii_whitespace()
+            || (p > 0 && src[p - 1] == b'$')
+        {
+            return None;
+        }
+        let (mut depth, mut nested, mut q) = (0usize, false, p + 1);
+        while q < end {
+            match src[q] {
+                b'\\' => q += 1,
+                b'{' => depth += 1,
+                b'}' => depth = depth.saturating_sub(1),
+                b'$' if depth > 0 => nested = true,
+                b'$' => break,
+                _ => {}
+            }
+            q += 1;
+        }
+        // Closing `$`: after a non-space, not before a digit (comrak's rules).
+        if q >= end
+            || !nested
+            || src[q - 1].is_ascii_whitespace()
+            || src.get(q + 1).is_some_and(u8::is_ascii_digit)
+        {
+            return None;
+        }
+        let before = unescape(&self.src[from..p]);
+        if !text.starts_with(&before) {
+            return None;
+        }
+        let (last, piece) = run
+            .iter()
+            .enumerate()
+            .find(|(_, f)| f.range().contains(&q))?;
+        let after = match piece {
+            Flat::Math(r, false) if q + 1 == r.end => None,
+            Flat::Math(..) => return None,
+            Flat::Text(r, literal) => {
+                let literal = if last == 0 { text } else { literal.as_str() };
+                let after = unescape(&self.src[q + 1..r.end]);
+                if !literal.ends_with(&after) {
+                    return None;
+                }
+                (!after.is_empty()).then_some((q + 1, after))
+            }
+        };
+        Some(Group {
+            before,
+            tex: self.src[p + 1..q].to_owned(),
+            last,
+            after,
+        })
     }
 
     fn inline<'a>(&self, node: &'a AstNode<'a>, marks: &mut Vec<Mark>, out: &mut Vec<Node>) {
@@ -401,13 +556,55 @@ impl<'s> Cx<'s> {
         if let Some(mark) = &mark {
             marks.push(mark.clone());
         }
-        for child in node.children() {
-            self.inline(child, marks, out);
-        }
+        self.inline_seq(node, marks, out);
         if mark.is_some() {
             marks.pop();
         }
     }
+}
+
+/// Text or math on one line: its source range, and its text or whether it is `$$`.
+enum Flat {
+    Text(Range<usize>, String),
+    Math(Range<usize>, bool),
+}
+
+impl Flat {
+    fn range(&self) -> &Range<usize> {
+        match self {
+            Flat::Text(r, _) | Flat::Math(r, _) => r,
+        }
+    }
+}
+
+/// Text source with its backslash escapes resolved, as comrak reads it (entities are
+/// left alone: text with one does not match, and the formula is left split).
+fn unescape(source: &str) -> String {
+    let mut out = String::with_capacity(source.len());
+    let mut chars = source.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\'
+            && let Some(&next) = chars.peek()
+            && next.is_ascii_punctuation()
+        {
+            out.push(next);
+            chars.next();
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// A formula comrak split at a `$` inside braces, joined again.
+struct Group {
+    /// Text before the opening `$`.
+    before: String,
+    tex: String,
+    /// Index (from the first child looked at) of the child with the closing `$`.
+    last: usize,
+    /// When that child is text going on after the `$`: where the rest starts, and it.
+    after: Option<(usize, String)>,
 }
 
 fn trim_cr(src: &str, end: usize) -> usize {

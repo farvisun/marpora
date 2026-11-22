@@ -253,6 +253,77 @@ fn math_blocks_parse_in_every_flavor() {
     }
 }
 
+/// The inline nodes of a one-paragraph document, as `(kind, text or tex)`.
+fn inline_parts(src: &str) -> Vec<(String, String)> {
+    let doc = parse(src).doc;
+    doc.content[0]
+        .content
+        .iter()
+        .map(|n| {
+            let body = n
+                .text
+                .clone()
+                .or_else(|| n.attr_str("tex").map(str::to_owned))
+                .unwrap_or_default();
+            (n.kind.clone(), body)
+        })
+        .collect()
+}
+
+#[test]
+fn inline_math_ends_outside_tex_groups() {
+    let parts = |list: &[(&str, &str)]| -> Vec<(String, String)> {
+        list.iter()
+            .map(|(k, t)| (k.to_string(), t.to_string()))
+            .collect()
+    };
+    let cases: &[(&str, &[(&str, &str)])] = &[
+        (
+            "$\\text{if $x>0$}$ end",
+            &[("math_inline", "\\text{if $x>0$}"), ("text", " end")],
+        ),
+        ("$a{b$c}d$", &[("math_inline", "a{b$c}d")]),
+        ("$\\text{a$b$c}$", &[("math_inline", "\\text{a$b$c}")]),
+        (
+            "p $\\text{a $b$}\\,c$ q \\$r",
+            &[
+                ("text", "p "),
+                ("math_inline", "\\text{a $b$}\\,c"),
+                ("text", " q $r"),
+            ],
+        ),
+        (
+            "x $\\text{a $b$}$ and $\\text{c $d$}$",
+            &[
+                ("text", "x "),
+                ("math_inline", "\\text{a $b$}"),
+                ("text", " and "),
+                ("math_inline", "\\text{c $d$}"),
+            ],
+        ),
+        // Without a `$` inside braces, comrak's reading stands.
+        ("cost $5 and $6", &[("text", "cost $5 and $6")]),
+        (
+            "$a}$ and $b$",
+            &[
+                ("math_inline", "a}"),
+                ("text", " and "),
+                ("math_inline", "b"),
+            ],
+        ),
+        ("Price $5 {a $b} $", &[("text", "Price $5 {a $b} $")]),
+    ];
+    for (src, want) in cases {
+        assert_eq!(inline_parts(src), parts(want), "{src}");
+        assert_round_trip(src);
+    }
+    // An escaped `$` opens nothing.
+    assert_eq!(inline_parts("\\$\\text{a $b$}$")[0].0, "text");
+    // Off with inline math.
+    let doc = marpora_md::parse("$a{b$c}d$", &Flavor::default()).doc;
+    assert_eq!(doc.content[0].content[0].text.as_deref(), Some("$a{b$c}d$"));
+}
+
 #[test]
 fn flavor_json_defaults_missing_fields() {
     let f: Flavor = serde_json::from_str(r#"{"inlineMath":true}"#).unwrap();
