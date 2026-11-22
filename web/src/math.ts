@@ -95,7 +95,11 @@ function load(): Promise<MathJaxObject> {
     window.MathJax = {
       loader: {
         paths: { mathjax: `${base}/mathjax`, fonts: `${base}/@mathjax` },
-        load: ["[tex]/textmacros"],
+        // `ui/safe` drops unsafe \href URLs, ids, classes and styles from formulas.
+        load: ["[tex]/textmacros", "ui/safe"],
+      },
+      safe: {
+        safeProtocols: { http: true, https: true, mailto: true, file: true, javascript: false, data: false },
       },
       // Typora's accessibility settings: hidden MathML, and nothing that needs the
       // speech worker (not shipped). The menu applies its settings over the options.
@@ -161,6 +165,7 @@ function prepare(mj: MathJaxObject): MathJaxObject {
   doc.addRenderAction("afterRender", 1001, () => {}, (math) => {
     const svg = math.typesetRoot.querySelector("svg");
     if (!svg) return;
+    dropUnsafeLinks(svg);
     for (const e of svg.querySelectorAll("[id]")) if (!/^mjx-/i.test(e.id)) e.id = `mjx-${e.id}`;
     for (const e of svg.querySelectorAll("[class]")) {
       const keep = (e.getAttribute("class") ?? "").split(/\s+/).filter((c) => /^mjx-/i.test(c));
@@ -170,6 +175,34 @@ function prepare(mj: MathJaxObject): MathJaxObject {
     if (svg.parentElement === math.typesetRoot && label) svg.setAttribute("alt", label);
   });
   return mj;
+}
+
+const XLINK = "http://www.w3.org/1999/xlink";
+const SAFE_SCHEMES = new Set(["http", "https", "mailto", "file"]);
+
+/** The scheme of `url` as a browser reads it (tabs and newlines removed), if any. */
+export function urlScheme(url: string): string | null {
+  const clean = url.replace(/[\t\n\r]/g, "").replace(/^[\u0000- ]+/, "");
+  return /^([a-z][a-z0-9+.-]*):/i.exec(clean)?.[1].toLowerCase() ?? null;
+}
+
+/** Whether a link may go to `url`: a web, mail or file address, or one without a scheme. */
+export function safeUrl(url: string): boolean {
+  const scheme = urlScheme(url);
+  return scheme === null || SAFE_SCHEMES.has(scheme);
+}
+
+/**
+ * Remove \href links to anything but web, mail and file addresses. `ui/safe` does this
+ * too, but reads `java\tscript:` as having no scheme, where a browser runs it.
+ */
+export function dropUnsafeLinks(root: ParentNode) {
+  for (const a of root.querySelectorAll("a")) {
+    for (const [ns, name] of [[null, "href"], [XLINK, "href"]] as const) {
+      const url = a.getAttributeNS(ns, name);
+      if (url !== null && !safeUrl(url)) a.removeAttributeNS(ns, name);
+    }
+  }
 }
 
 /**

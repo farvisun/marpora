@@ -5,7 +5,7 @@
 // shadow root, apart from the editor's theme.
 
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
-import { localCss, marpBrowser, renderDeck } from "../marp/marp";
+import { keepLinksInPlace, localCss, marpBrowser, renderDeck } from "../marp/marp";
 import { report } from "../ipc";
 import { setUi, ui } from "./store";
 
@@ -56,7 +56,10 @@ export function SlidePreview(props: SlidePreviewProps) {
     const seq = ++rendering;
     const deck = await renderDeck(await props.markdown());
     if (seq !== rendering || !host) return;
-    root ??= host.attachShadow({ mode: "open" });
+    if (!root) {
+      root = host.attachShadow({ mode: "open" });
+      keepLinksInPlace(root);
+    }
     root.innerHTML = `<style>${localCss(deck.css)}\n${PREVIEW_CSS}</style>${deck.html}`;
     resolveImages(root, props.assetUrl);
     cleanup?.();

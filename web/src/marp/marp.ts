@@ -5,7 +5,7 @@
 import type { Node as PMNode } from "prosemirror-model";
 import { frontMatterValue } from "../editor/frontmatter";
 import { schema } from "../editor/schema";
-import { mathJaxSettled } from "../math";
+import { mathJaxSettled, safeUrl } from "../math";
 
 export function isDeck(doc: PMNode): boolean {
   return frontMatterValue(doc, "marp") === "true";
@@ -85,11 +85,35 @@ export async function renderDeck(markdown: string, { script = false, plain = fal
       // Not a theme: Marp wants a `/* @theme name */` comment.
     }
   }
-  const { html, css, comments } = marp.render(markdown);
-  const slides = marp.render(markdown, { htmlAsArray: true }).html;
+  const rendered = marp.render(markdown);
+  const { css, comments } = rendered;
+  const html = dropUnsafeHrefs(rendered.html);
+  const slides = marp.render(markdown, { htmlAsArray: true }).html.map(dropUnsafeHrefs);
   const themes = [...marp.themeSet.themes()].map((t) => t.name);
   const theme = /\bdata-theme="([^"]+)"/.exec(html)?.[1] ?? "default";
   return { html, css, slides, notes: comments.map((c) => c.join("\n\n")), themes, theme };
+}
+
+/**
+ * Marp Core's MathJax 3 has no `safe` filter, so `\href{javascript:…}` in a formula
+ * would make a live link: links keep only web, mail and file addresses. (Markdown
+ * links and HTML are already filtered by Marp.)
+ */
+export function dropUnsafeHrefs(html: string): string {
+  const decode = document.createElement("textarea");
+  return html.replace(/<a\b[^>]*>/gi, (tag) =>
+    tag.replace(/\s(?:xlink:)?href\s*=\s*(?:"([^"]*)"|'([^']*)')/gi, (attr, dq?: string, sq?: string) => {
+      decode.innerHTML = dq ?? sq ?? "";
+      return safeUrl(decode.value) ? attr : "";
+    }),
+  );
+}
+
+/** Slides shown in the app: a click on a link must not take the window away. */
+export function keepLinksInPlace(root: ShadowRoot) {
+  root.addEventListener("click", (e) => {
+    if ((e.target as Element | null)?.closest?.("a")) e.preventDefault();
+  });
 }
 
 /** A deck's CSS for showing in the app: without `@charset` and the web font imports
